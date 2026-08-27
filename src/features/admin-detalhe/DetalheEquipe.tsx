@@ -14,6 +14,7 @@ import { EmptyState } from '@/design-system/components/EmptyState';
 import { AvancarEtapa } from '@/features/admin-detalhe/AvancarEtapa';
 import { HistoricoEtapas } from '@/features/admin-detalhe/HistoricoEtapas';
 import { TarefaList } from '@/features/admin-tarefas/TarefaList';
+import { AnotacoesInternas } from '@/features/admin-detalhe/AnotacoesInternas';
 
 export function DetalheEquipe({ slug }: { slug: string }) {
   const { state } = useStore();
@@ -93,6 +94,11 @@ export function DetalheEquipe({ slug }: { slug: string }) {
             id: 'tarefas',
             label: 'Tarefas',
             content: <TarefaList equipe={equipe} />,
+          },
+          {
+            id: 'anotacoes',
+            label: 'Anotações',
+            content: <AnotacoesInternas equipe={equipe} />,
           },
           {
             id: 'historico',

@@ -11,6 +11,7 @@ import type {
   Entrega,
   AvaliacaoEntrega,
   ResultadoAvaliacao,
+  AnotacaoInterna,
 } from '@/domain/types';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -513,4 +514,36 @@ export function calcularIndicadores(s: AppState): Indicadores {
 /** Data de hoje em ISO (YYYY-MM-DD), para o cálculo de atraso. */
 export function hojeISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// ── Anotações internas e visibilidade ────────────────────────────────────────
+
+/** Adiciona uma anotação interna (não visível ao aluno) à equipe. Imutável. */
+export function adicionarAnotacao(
+  s: AppState,
+  dados: { equipeId: string; etapaId?: number; autorId: string; conteudo: string },
+): AppState {
+  const anotacao: AnotacaoInterna = {
+    id: `an-${s.anotacoes.length + 1}`,
+    equipeId: dados.equipeId,
+    etapaId: dados.etapaId,
+    autorId: dados.autorId,
+    conteudo: dados.conteudo,
+    criadoEm: agora(),
+  };
+  return { ...s, anotacoes: [...s.anotacoes, anotacao] };
+}
+
+/**
+ * Equipes visíveis para o usuário (RNF-03): admin vê todas; mentor vê só as que
+ * mentora; aluno vê só a própria equipe.
+ */
+export function equipesVisiveis(s: AppState, usuario: Usuario): Equipe[] {
+  if (usuario.tipo === 'admin') return s.equipes;
+  if (usuario.tipo === 'mentor') {
+    return s.equipes.filter((e) => e.mentorId === usuario.id);
+  }
+  return s.equipes.filter((e) =>
+    e.membros.some((m) => m.usuarioId === usuario.id),
+  );
 }

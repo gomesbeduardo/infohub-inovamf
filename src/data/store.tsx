@@ -19,6 +19,7 @@ import {
   enviarEntrega,
   avaliarEntrega,
   calcularStatusAtraso,
+  adicionarAnotacao,
   hojeISO,
   type DadosCadastro,
   type FiltrosFunil,
@@ -114,5 +115,9 @@ export function useActions() {
         avaliadorId: string;
       },
     ) => set(avaliarEntrega(state, entregaId, dados)),
+    anotar: (
+      equipeId: string,
+      dados: { conteudo: string; autorId: string; etapaId?: number },
+    ) => set(adicionarAnotacao(state, { equipeId, ...dados })),
   };
 }

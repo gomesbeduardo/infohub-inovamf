@@ -1,8 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '@/data/store';
-import { filtrarEquipes, type FiltrosFunil } from '@/data/repository';
+import {
+  filtrarEquipes,
+  equipesVisiveis,
+  type FiltrosFunil,
+} from '@/data/repository';
+import { getUsuarioAtual } from '@/data/session';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { EquipeCard } from '@/features/admin-funil/EquipeCard';
 import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
@@ -10,8 +15,18 @@ import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 export function Funil() {
   const { state } = useStore();
   const [filtros, setFiltros] = useState<FiltrosFunil>({});
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
 
-  const filtradas = filtrarEquipes(state, filtros);
+  // escopo por perfil (RNF-03): mentor vê só as suas equipes; admin vê todas
+  const usuario = montado ? getUsuarioAtual(state) : null;
+  const visiveisIds = usuario
+    ? new Set(equipesVisiveis(state, usuario).map((e) => e.id))
+    : null;
+
+  const filtradas = filtrarEquipes(state, filtros).filter(
+    (e) => !visiveisIds || visiveisIds.has(e.id),
+  );
   const ehPronta = (status: string) =>
     status === 'pronta_inovamf' || status === 'encaminhada_inovamf';
 

@@ -13,6 +13,8 @@ import {
   enviarEntrega,
   avaliarEntrega,
   calcularIndicadores,
+  adicionarAnotacao,
+  equipesVisiveis,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -294,5 +296,40 @@ describe('calcularIndicadores', () => {
     expect(ind.porEtapa).toHaveLength(6);
     // no seed cada etapa 1..6 tem exatamente uma equipe ativa
     expect(ind.porEtapa.every((p) => p.total === 1)).toBe(true);
+  });
+});
+
+describe('adicionarAnotacao', () => {
+  it('adiciona uma anotação interna à equipe', () => {
+    const s = seed();
+    const r = adicionarAnotacao(s, {
+      equipeId: 'eq-3',
+      autorId: 'u-mentor-2',
+      conteudo: 'Reunião produtiva.',
+    });
+    expect(r.anotacoes.length).toBe(s.anotacoes.length + 1);
+    expect(r.anotacoes[r.anotacoes.length - 1].conteudo).toBe('Reunião produtiva.');
+  });
+});
+
+describe('equipesVisiveis', () => {
+  it('admin vê todas as equipes', () => {
+    const s = seed();
+    const admin = s.usuarios.find((u) => u.tipo === 'admin')!;
+    expect(equipesVisiveis(s, admin)).toHaveLength(s.equipes.length);
+  });
+
+  it('mentor vê apenas as equipes que mentora', () => {
+    const s = seed();
+    const mentor = s.usuarios.find((u) => u.id === 'u-mentor-2')!;
+    const ids = equipesVisiveis(s, mentor).map((e) => e.id).sort();
+    expect(ids).toEqual(['eq-3', 'eq-4', 'eq-6']);
+  });
+
+  it('aluno vê apenas a própria equipe', () => {
+    const s = seed();
+    const aluno = s.usuarios.find((u) => u.id === 'u-aluno-3')!;
+    const ids = equipesVisiveis(s, aluno).map((e) => e.id);
+    expect(ids).toEqual(['eq-3']);
   });
 });
