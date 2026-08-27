@@ -81,6 +81,8 @@ Frontend mockado funcionando. Requisitos levantados, schema do banco escrito e o
 4. **Detalhe da equipe** — avançar/retroceder etapa (RN-01 + forçar), criar tarefas e avaliar entregas (aprovar/ajustar).
 5. **Área do aluno** — tarefas da equipe e envio de entregas (arquivo mock ou link), refletindo no painel do admin.
 
-Fora do escopo desta fase (declarado no `plan.md`): backend/persistência real, e-mails e lembretes (RF-17–21), relatórios e exportação (RF-22–24), upload físico de arquivo, LGPD e auditoria.
+Também cobertos, além dos 5 fluxos, após revisão dos requisitos: painel consolidado com indicadores (RF-22), atraso automático de tarefas (RN-04), anotações internas do mentor (RF-10), escopo de visão do mentor (RNF-03), exportação CSV (RF-23), filtro por ciclo (RF-24), gestão de contas admin/mentor (RF-03) e recuperação de senha simulada (RF-01).
+
+Fora do escopo desta fase (dependem de backend/infra): e-mails e lembretes (RF-17–21), LGPD (RNF-02), auditoria completa (RNF-05), armazenamento seguro de arquivos e backup (RNF-04/07), upload físico de arquivo.
 
 Sete pontos ainda dependem de decisão da coordenação (Q1 a Q7 no documento de requisitos) — entre eles se cada integrante da equipe terá login próprio, se o mentor terá perfil separado do administrador e se o Pitch Vídeo será enviado como upload ou como link.
