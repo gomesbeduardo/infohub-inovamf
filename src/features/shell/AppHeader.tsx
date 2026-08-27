@@ -22,19 +22,22 @@ export function AppHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
-      <Logo />
-      <div className="flex items-center gap-3">
-        {usuario && (
-          <span className="hidden text-sm text-text-muted sm:inline">
-            {usuario.nome}
-          </span>
-        )}
-        <ThemeToggle />
-        <Button variant="ghost" size="sm" onClick={sair}>
-          Sair
-        </Button>
-      </div>
-    </header>
+    <div className="sticky top-0 z-30">
+      <div className="ignition-rail" />
+      <header className="flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
+        <Logo />
+        <div className="flex items-center gap-3">
+          {usuario && (
+            <span className="hidden text-sm text-text-muted sm:inline">
+              {usuario.nome}
+            </span>
+          )}
+          <ThemeToggle />
+          <Button variant="ghost" size="sm" onClick={sair}>
+            Sair
+          </Button>
+        </div>
+      </header>
+    </div>
   );
 }

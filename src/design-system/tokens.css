@@ -71,7 +71,7 @@
 /* ── 3.2 Semânticas — LIGHT (default) ────────────────────────────────────── */
 :root,
 [data-theme='light'] {
-  --bg: var(--hub-50); /* fundo da página */
+  --bg: #faf7f4; /* fundo da página — papel morno (calor da ignição) */
   --surface: #ffffff; /* cards, painéis */
   --surface-raised: #ffffff; /* + sombra */
   --surface-sunken: var(--hub-100); /* inputs, colunas do funil */
@@ -110,7 +110,7 @@
 
 /* ── 3.2 Semânticas — DARK ───────────────────────────────────────────────── */
 [data-theme='dark'] {
-  --bg: var(--hub-950); /* combina com o logo em fundo preto */
+  --bg: #141110; /* quase-preto morno (ember-black) */
   --surface: var(--hub-900);
   --surface-raised: #262626;
   --surface-sunken: #171717;
@@ -145,4 +145,54 @@
   --st-aprovada-bg: color-mix(in srgb, var(--green-600) 24%, var(--hub-900));
   --st-ajustar-fg: var(--ember-400);
   --st-ajustar-bg: color-mix(in srgb, var(--ember-500) 22%, var(--hub-900));
+}
+
+/* ── Identidade visual: tipografia, elevação, "ignition rail" ─────────────── */
+:root {
+  /* raios */
+  --radius-sm: 0.5rem;
+  --radius: 0.875rem;
+  --radius-lg: 1.25rem;
+
+  /* faixa/brilho da ignição (gradiente da marca na horizontal) */
+  --rail: linear-gradient(
+    90deg,
+    var(--grad-orange) 0%,
+    var(--grad-flame) 38%,
+    var(--grad-ember) 60%,
+    var(--grad-crimson) 80%,
+    var(--grad-maroon) 100%
+  );
+}
+
+:root,
+[data-theme='light'] {
+  --shadow-sm: 0 1px 2px rgba(31, 17, 8, 0.06), 0 1px 3px rgba(31, 17, 8, 0.04);
+  --shadow-md: 0 10px 30px -12px rgba(31, 17, 8, 0.18);
+  /* brilho ambiente das telas de auth (a "faísca" da ideia) */
+  --hero-glow: radial-gradient(
+      60% 55% at 15% 20%,
+      color-mix(in srgb, var(--grad-orange) 26%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      55% 60% at 95% 100%,
+      color-mix(in srgb, var(--grad-maroon) 22%, transparent) 0%,
+      transparent 70%
+    );
+}
+
+[data-theme='dark'] {
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 14px 40px -14px rgba(0, 0, 0, 0.6);
+  --hero-glow: radial-gradient(
+      62% 55% at 10% 14%,
+      color-mix(in srgb, var(--grad-flame) 42%, transparent) 0%,
+      transparent 66%
+    ),
+    radial-gradient(
+      55% 60% at 98% 102%,
+      color-mix(in srgb, var(--grad-maroon) 44%, transparent) 0%,
+      transparent 70%
+    );
 }

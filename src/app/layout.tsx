@@ -1,13 +1,20 @@
 import type { Metadata } from 'next';
-import { Poppins } from 'next/font/google';
+import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/design-system/theme';
 import { StoreProvider } from '@/data/store';
 
-const poppins = Poppins({
+const display = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
+  weight: ['500', '700'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+const body = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-body',
   display: 'swap',
 });
 
@@ -21,7 +28,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={poppins.variable} suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      className={`${display.variable} ${body.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         <ThemeProvider>
           <StoreProvider>{children}</StoreProvider>

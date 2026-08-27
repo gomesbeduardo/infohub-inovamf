@@ -36,6 +36,7 @@ export function Funil() {
     ...etapas.map((et) => ({
       key: `etapa-${et.id}`,
       titulo: `${et.numero}. ${et.nome}`,
+      cor: `var(--stage-${et.id})`,
       equipes: filtradas.filter(
         (e) => !ehPronta(e.status) && e.etapaAtualId === et.id,
       ),
@@ -43,6 +44,7 @@ export function Funil() {
     {
       key: 'pronta',
       titulo: 'Pronta p/ InovAMF',
+      cor: 'var(--stage-pronta)',
       equipes: filtradas.filter((e) => ehPronta(e.status)),
     },
   ];
@@ -60,15 +62,22 @@ export function Funil() {
           <section
             key={col.key}
             data-testid="coluna-funil"
-            className="flex w-72 shrink-0 flex-col gap-3 rounded-xl bg-surface-sunken p-3"
+            className="flex w-72 shrink-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-surface-sunken"
           >
-            <header className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-text">{col.titulo}</h2>
-              <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-text-muted">
+            <header className="flex items-center justify-between gap-2 border-b border-border px-3 pb-2.5 pt-3">
+              <span className="flex items-center gap-2">
+                <span
+                  className="h-4 w-1 rounded-full"
+                  style={{ background: col.cor }}
+                  aria-hidden
+                />
+                <h2 className="text-sm font-semibold text-text">{col.titulo}</h2>
+              </span>
+              <span className="rounded-full bg-surface px-2 py-0.5 font-display text-xs text-text-muted">
                 {col.equipes.length}
               </span>
             </header>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 px-3 pb-3">
               {col.equipes.length === 0 ? (
                 <EmptyState title="Nenhuma equipe" />
               ) : (

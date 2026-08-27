@@ -63,9 +63,21 @@ const config: Config = {
       },
       backgroundImage: {
         'brand-gradient': 'var(--brand-gradient)',
+        rail: 'var(--rail)',
+        'hero-glow': 'var(--hero-glow)',
       },
       fontFamily: {
-        sans: ['var(--font-poppins)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-body)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+      },
+      borderRadius: {
+        DEFAULT: 'var(--radius)',
+        lg: 'var(--radius-lg)',
+        sm: 'var(--radius-sm)',
       },
     },
   },

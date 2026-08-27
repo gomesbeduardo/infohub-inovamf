@@ -17,7 +17,7 @@ export function StageTag({ etapaId, children, className }: StageTagProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold text-[color:var(--primary-fg)]',
+        'inline-flex items-center rounded-md px-2 py-0.5 font-display text-xs font-semibold tracking-tight text-[color:var(--primary-fg)] shadow-sm',
         className,
       )}
       style={{ background: bg }}

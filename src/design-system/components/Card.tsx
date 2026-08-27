@@ -5,7 +5,7 @@ function CardRoot({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-surface shadow-sm',
+        'rounded-[1.25rem] border border-border bg-surface shadow-sm',
         className,
       )}
       {...props}

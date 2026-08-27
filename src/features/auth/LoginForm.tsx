@@ -29,11 +29,14 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <Card.Body className="flex flex-col gap-5">
-        <div className="flex flex-col items-center gap-1">
+    <Card className="w-full max-w-sm overflow-hidden">
+      <div className="ignition-rail" />
+      <Card.Body className="flex flex-col gap-6 p-7">
+        <div className="flex flex-col items-center gap-3 text-center">
           <Logo withTagline />
-          <p className="text-sm text-text-muted">Acesse sua conta</p>
+          <p className="text-sm text-text-muted">
+            Acesse o painel do InfoHub → InovAMF.
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -60,12 +63,12 @@ export function LoginForm() {
           </FormField>
 
           {erro && (
-            <p role="alert" className="text-sm text-primary-text">
+            <p role="alert" className="text-sm font-medium text-primary-text">
               {erro}
             </p>
           )}
 
-          <Button type="submit" size="lg" className="w-full">
+          <Button type="submit" size="lg" className="mt-1 w-full">
             Entrar
           </Button>
         </form>
@@ -74,7 +77,10 @@ export function LoginForm() {
           <a href="/recuperar-senha" className="text-text-muted hover:text-text">
             Esqueci a senha
           </a>
-          <a href="/cadastro" className="font-medium text-primary-text hover:underline">
+          <a
+            href="/cadastro"
+            className="font-medium text-primary-text hover:underline"
+          >
             Criar conta
           </a>
         </div>

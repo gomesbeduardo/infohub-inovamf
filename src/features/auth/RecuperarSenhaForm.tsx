@@ -29,7 +29,8 @@ export function RecuperarSenhaForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm overflow-hidden">
+      <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-5">
         <div className="flex flex-col items-center gap-1">
           <Logo withTagline />

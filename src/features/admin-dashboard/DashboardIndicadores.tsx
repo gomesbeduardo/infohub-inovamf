@@ -9,7 +9,9 @@ function Indicador({ label, valor }: { label: string; valor: number }) {
   return (
     <Card>
       <Card.Body className="flex flex-col gap-1">
-        <span className="text-3xl font-semibold text-text">{valor}</span>
+        <span className="font-display text-4xl font-bold tracking-tight text-text">
+          {valor}
+        </span>
         <span className="text-sm text-text-muted">{label}</span>
       </Card.Body>
     </Card>
@@ -44,8 +46,11 @@ export function DashboardIndicadores() {
                 </span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-sunken">
                   <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${(p.total / maxEtapa) * 100}%` }}
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${(p.total / maxEtapa) * 100}%`,
+                      background: `var(--stage-${p.etapaId})`,
+                    }}
                   />
                 </div>
                 <span className="w-6 text-right text-sm font-medium text-text">
