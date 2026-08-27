@@ -15,6 +15,7 @@ import {
   calcularIndicadores,
   adicionarAnotacao,
   equipesVisiveis,
+  equipesParaCSV,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -331,5 +332,25 @@ describe('equipesVisiveis', () => {
     const aluno = s.usuarios.find((u) => u.id === 'u-aluno-3')!;
     const ids = equipesVisiveis(s, aluno).map((e) => e.id);
     expect(ids).toEqual(['eq-3']);
+  });
+});
+
+describe('filtrarEquipes por ciclo', () => {
+  it('filtra pelo ciclo e retorna vazio para ciclo inexistente', () => {
+    const s = seed();
+    expect(filtrarEquipes(s, { cicloId: 1 })).toHaveLength(s.equipes.length);
+    expect(filtrarEquipes(s, { cicloId: 999 })).toHaveLength(0);
+  });
+});
+
+describe('equipesParaCSV', () => {
+  it('gera CSV com cabeçalho e uma linha por equipe', () => {
+    const s = seed();
+    const csv = equipesParaCSV(s, s.equipes);
+    const linhas = csv.split('\n');
+    expect(linhas[0]).toContain('Ideia');
+    expect(linhas).toHaveLength(s.equipes.length + 1);
+    expect(csv).toContain('AgroSmart');
+    expect(csv).toContain('Tecnologia');
   });
 });

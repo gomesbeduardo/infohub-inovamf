@@ -31,9 +31,10 @@ export function FiltrosBar({
     new Set(state.equipes.flatMap((e) => e.membros.map((m) => m.curso))),
   ).map((c) => ({ value: c, label: c }));
   const status = STATUS.map((s) => ({ value: s, label: STATUS_TAREFA_LABEL[s] }));
+  const ciclos = state.ciclos.map((c) => ({ value: String(c.id), label: c.nome }));
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
       <Input
         aria-label="Buscar equipes"
         placeholder="Buscar por nome da ideia…"
@@ -81,6 +82,18 @@ export function FiltrosBar({
             statusTarefa: (e.target.value || undefined) as
               | StatusTarefa
               | undefined,
+          })
+        }
+      />
+      <Select
+        aria-label="Filtrar por ciclo"
+        placeholder="Todos os ciclos"
+        options={ciclos}
+        value={filtros.cicloId !== undefined ? String(filtros.cicloId) : ''}
+        onChange={(e) =>
+          onChange({
+            ...filtros,
+            cicloId: e.target.value ? Number(e.target.value) : undefined,
           })
         }
       />

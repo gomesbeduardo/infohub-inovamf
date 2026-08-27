@@ -13,6 +13,7 @@ import type {
   ResultadoAvaliacao,
   AnotacaoInterna,
 } from '@/domain/types';
+import { STATUS_EQUIPE_LABEL } from '@/domain/labels';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,7 @@ export interface FiltrosFunil {
   areaId?: number;
   mentorId?: string;
   statusTarefa?: StatusTarefa;
+  cicloId?: number;
 }
 
 /** Filtra equipes por busca (nome da ideia), curso, área, mentor e status de tarefa. */
@@ -202,6 +204,7 @@ export function filtrarEquipes(s: AppState, f: FiltrosFunil): Equipe[] {
     if (curso && !eq.membros.some((m) => normalizar(m.curso) === curso)) return false;
     if (f.areaId !== undefined && eq.areaId !== f.areaId) return false;
     if (f.mentorId && eq.mentorId !== f.mentorId) return false;
+    if (f.cicloId !== undefined && eq.cicloId !== f.cicloId) return false;
     if (
       f.statusTarefa &&
       !s.tarefas.some((t) => t.equipeId === eq.id && t.status === f.statusTarefa)
@@ -546,4 +549,44 @@ export function equipesVisiveis(s: AppState, usuario: Usuario): Equipe[] {
   return s.equipes.filter((e) =>
     e.membros.some((m) => m.usuarioId === usuario.id),
   );
+}
+
+// ── Exportação CSV (RF-23) ───────────────────────────────────────────────────
+
+function csvCell(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+/** Gera um CSV (string) da lista de equipes com seus status, para exportação. */
+export function equipesParaCSV(s: AppState, equipes: Equipe[]): string {
+  const header = [
+    'Ideia',
+    'Área',
+    'Etapa',
+    'Status',
+    'Mentor',
+    'Curso do líder',
+    'Tarefas atrasadas',
+  ];
+  const linhas = equipes.map((e) => {
+    const area = s.areas.find((a) => a.id === e.areaId)?.nome ?? '';
+    const etapa = s.etapas.find((et) => et.id === e.etapaAtualId);
+    const mentor = s.usuarios.find((u) => u.id === e.mentorId)?.nome ?? '';
+    const lider = e.membros.find((m) => m.papel === 'lider')?.curso ?? '';
+    const atrasadas = s.tarefas.filter(
+      (t) => t.equipeId === e.id && t.status === 'atrasada',
+    ).length;
+    return [
+      e.nomeIdeia,
+      area,
+      etapa ? `${etapa.numero}. ${etapa.nome}` : '',
+      STATUS_EQUIPE_LABEL[e.status],
+      mentor,
+      lider,
+      String(atrasadas),
+    ];
+  });
+  return [header, ...linhas]
+    .map((row) => row.map(csvCell).join(','))
+    .join('\n');
 }

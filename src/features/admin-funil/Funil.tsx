@@ -11,6 +11,7 @@ import { getUsuarioAtual } from '@/data/session';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { EquipeCard } from '@/features/admin-funil/EquipeCard';
 import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
+import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
 
 export function Funil() {
   const { state } = useStore();
@@ -48,6 +49,10 @@ export function Funil() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-text">Funil de equipes</h2>
+        <ExportarCSV equipes={filtradas} />
+      </div>
       <FiltrosBar filtros={filtros} onChange={setFiltros} />
 
       <div className="flex gap-4 overflow-x-auto pb-4">
