@@ -4,6 +4,11 @@ import {
   autenticar,
   validarCadastro,
   criarEquipeDoFormulario,
+  filtrarEquipes,
+  tarefasObrigatoriasPendentes,
+  avancarEtapa,
+  retrocederEtapa,
+  calcularStatusAtraso,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -95,5 +100,100 @@ describe('criarEquipeDoFormulario', () => {
     criarEquipeDoFormulario(s, dadosValidos);
     expect(s.usuarios.length).toBe(nUsuarios);
     expect(s.equipes.length).toBe(nEquipes);
+  });
+});
+
+describe('filtrarEquipes', () => {
+  it('filtra por busca (case-insensitive e sem acento)', () => {
+    const s = seed();
+    expect(filtrarEquipes(s, { busca: 'AGRO' }).map((e) => e.id)).toEqual(['eq-3']);
+    // 'saude' (sem acento) casa 'SaúdeJá'
+    expect(filtrarEquipes(s, { busca: 'saude' }).map((e) => e.id)).toEqual(['eq-2']);
+  });
+
+  it('filtra por área', () => {
+    const ids = filtrarEquipes(seed(), { areaId: 2 }).map((e) => e.id).sort();
+    expect(ids).toEqual(['eq-2', 'eq-6']);
+  });
+
+  it('filtra por mentor', () => {
+    const ids = filtrarEquipes(seed(), { mentorId: 'u-mentor-2' }).map((e) => e.id).sort();
+    expect(ids).toEqual(['eq-3', 'eq-4', 'eq-6']);
+  });
+
+  it('filtra por status de tarefa (atrasada)', () => {
+    const ids = filtrarEquipes(seed(), { statusTarefa: 'atrasada' }).map((e) => e.id);
+    expect(ids).toEqual(['eq-3']);
+  });
+});
+
+describe('tarefasObrigatoriasPendentes', () => {
+  it('lista só as obrigatórias não aprovadas da etapa', () => {
+    const pend = tarefasObrigatoriasPendentes(seed(), 'eq-3', 3);
+    expect(pend.map((t) => t.id)).toEqual(['t-1']);
+  });
+});
+
+describe('avancarEtapa', () => {
+  it('não avança com obrigatória pendente e sem forçar (RN-01)', () => {
+    const s = seed();
+    const r = avancarEtapa(s, 'eq-3', { forcar: false, autorId: 'u-mentor-2' });
+    expect(r.equipes.find((e) => e.id === 'eq-3')!.etapaAtualId).toBe(3);
+    expect(r.historico.length).toBe(s.historico.length);
+  });
+
+  it('avança forçado, grava histórico forcado', () => {
+    const s = seed();
+    const r = avancarEtapa(s, 'eq-3', { forcar: true, autorId: 'u-mentor-2', observacao: 'ok' });
+    expect(r.equipes.find((e) => e.id === 'eq-3')!.etapaAtualId).toBe(4);
+    const h = r.historico[r.historico.length - 1];
+    expect(h.equipeId).toBe('eq-3');
+    expect(h.forcado).toBe(true);
+    expect(h.observacao).toBe('ok');
+  });
+
+  it('avança normalmente quando não há obrigatória pendente', () => {
+    const r = avancarEtapa(seed(), 'eq-1', { forcar: false, autorId: 'u-mentor-1' });
+    expect(r.equipes.find((e) => e.id === 'eq-1')!.etapaAtualId).toBe(2);
+  });
+
+  it('ao concluir a etapa 6 marca pronta_inovamf', () => {
+    const r = avancarEtapa(seed(), 'eq-6', { forcar: true, autorId: 'u-mentor-2' });
+    const eq = r.equipes.find((e) => e.id === 'eq-6')!;
+    expect(eq.status).toBe('pronta_inovamf');
+    expect(eq.prontaInovamfEm).toBeTruthy();
+  });
+
+  it('não muta o estado original', () => {
+    const s = seed();
+    const etapaAntes = s.equipes.find((e) => e.id === 'eq-1')!.etapaAtualId;
+    avancarEtapa(s, 'eq-1', { forcar: false, autorId: 'u-mentor-1' });
+    expect(s.equipes.find((e) => e.id === 'eq-1')!.etapaAtualId).toBe(etapaAntes);
+  });
+});
+
+describe('retrocederEtapa', () => {
+  it('retrocede uma etapa e grava histórico', () => {
+    const r = retrocederEtapa(seed(), 'eq-3', { autorId: 'u-mentor-2' });
+    expect(r.equipes.find((e) => e.id === 'eq-3')!.etapaAtualId).toBe(2);
+    expect(r.historico[r.historico.length - 1].etapaDestinoId).toBe(2);
+  });
+
+  it('não retrocede abaixo da etapa 1', () => {
+    const s = seed();
+    const r = retrocederEtapa(s, 'eq-1', { autorId: 'u-mentor-1' });
+    expect(r.equipes.find((e) => e.id === 'eq-1')!.etapaAtualId).toBe(1);
+    expect(r.historico.length).toBe(s.historico.length);
+  });
+});
+
+describe('calcularStatusAtraso', () => {
+  it('marca pendente/em_andamento vencidas como atrasada, sem tocar aprovada/entregue', () => {
+    const r = calcularStatusAtraso(seed(), '2026-09-30');
+    const byId = (id: string) => r.tarefas.find((t) => t.id === id)!;
+    expect(byId('t-2').status).toBe('atrasada'); // era pendente, venceu
+    expect(byId('t-4').status).toBe('atrasada'); // era em_andamento, venceu
+    expect(byId('t-3').status).toBe('aprovada'); // não muda
+    expect(byId('t-5').status).toBe('entregue'); // não muda
   });
 });
