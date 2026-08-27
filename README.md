@@ -31,7 +31,22 @@ Concluída a etapa 6 com os entregáveis aprovados, a equipe é marcada como **P
 
 ## Stack
 
-A definir na próxima fase da disciplina, junto com a decisão de arquitetura.
+Frontend web com **dados mockados em memória** (sem backend/persistência nesta fase), guiado por um Design System próprio da marca *infohub*:
+
+- **Next.js 14** (App Router) + **React 18** + **TypeScript** (strict)
+- **Tailwind CSS v3** com cores 100% tokenizadas (CSS variables, light/dark)
+- **Vitest + React Testing Library + jsdom** (TDD na camada de domínio/repositório)
+
+O scaffold é gerado pelo init oficial do framework (`create-next-app@14`); nenhum arquivo de configuração é escrito à mão.
+
+### Segurança / dependências
+
+`npm audit` acusa vulnerabilidades cujo fix automático (`npm audit fix --force`) exigiria pular para Next 16 + React 19 + eslint 9 (cascata de majors que foge do plano). A decisão foi **manter o Next 14** por ser um projeto acadêmico que roda **localmente**, porque os avisos não são exploráveis neste contexto:
+
+- **esbuild / vite / vitest / postcss / glob** — tooling de **dev/build**; não vai para o artefato final e não recebe input não-confiável.
+- **Next.js** (DoS no Image Optimizer, cache poisoning em RSC, SSRF em rewrites) — só afetam apps **self-hosted em produção** usando esses recursos, que este mock não usa.
+
+Ao evoluir para um deploy real, revisar e atualizar as dependências (incluindo o salto de major do Next) faz parte do hardening.
 
 ## Estrutura do repositório
 
@@ -46,7 +61,14 @@ docs/                          # documentação do projeto
 
 ## Como rodar
 
-Ainda não se aplica — o repositório contém somente documentação e modelagem. Esta seção será preenchida quando a aplicação for criada.
+```bash
+npm install      # instala as dependências
+npm run dev      # sobe o app em http://localhost:3000 (redireciona para /login)
+npm test         # roda a suíte Vitest (TDD)
+npm run build    # build de produção
+```
+
+Login mockado do seed: administrador `admin@infohub.dev` / `123456`; aluno `aluno@infohub.dev` / `123456`.
 
 ## Status
 
