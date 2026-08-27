@@ -13,6 +13,7 @@ import { Tabs } from '@/design-system/components/Tabs';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { AvancarEtapa } from '@/features/admin-detalhe/AvancarEtapa';
 import { HistoricoEtapas } from '@/features/admin-detalhe/HistoricoEtapas';
+import { TarefaList } from '@/features/admin-tarefas/TarefaList';
 
 export function DetalheEquipe({ slug }: { slug: string }) {
   const { state } = useStore();
@@ -91,11 +92,7 @@ export function DetalheEquipe({ slug }: { slug: string }) {
           {
             id: 'tarefas',
             label: 'Tarefas',
-            content: (
-              <p className="text-sm text-text-muted">
-                A gestão de tarefas e avaliações chega na próxima etapa.
-              </p>
-            ),
+            content: <TarefaList equipe={equipe} />,
           },
           {
             id: 'historico',
