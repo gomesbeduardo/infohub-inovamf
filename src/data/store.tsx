@@ -20,6 +20,10 @@ import {
   avaliarEntrega,
   calcularStatusAtraso,
   adicionarAnotacao,
+  criarUsuario,
+  editarUsuario,
+  definirAtivoUsuario,
+  redefinirSenha,
   hojeISO,
   type DadosCadastro,
   type FiltrosFunil,
@@ -119,5 +123,23 @@ export function useActions() {
       equipeId: string,
       dados: { conteudo: string; autorId: string; etapaId?: number },
     ) => set(adicionarAnotacao(state, { equipeId, ...dados })),
+    criarConta: (dados: {
+      nome: string;
+      email: string;
+      senha: string;
+      telefone: string;
+      tipo: 'admin' | 'mentor';
+    }) => set(criarUsuario(state, dados)),
+    editarConta: (
+      id: string,
+      dados: Partial<{ nome: string; email: string; telefone: string; tipo: 'admin' | 'mentor'; senha: string }>,
+    ) => set(editarUsuario(state, id, dados)),
+    definirAtivo: (id: string, ativo: boolean) =>
+      set(definirAtivoUsuario(state, id, ativo)),
+    redefinir: (email: string, novaSenha: string) => {
+      const { estado, ok } = redefinirSenha(state, email, novaSenha);
+      if (ok) set(estado);
+      return ok;
+    },
   };
 }

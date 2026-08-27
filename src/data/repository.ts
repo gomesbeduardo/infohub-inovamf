@@ -590,3 +590,69 @@ export function equipesParaCSV(s: AppState, equipes: Equipe[]): string {
     .map((row) => row.map(csvCell).join(','))
     .join('\n');
 }
+
+// ── Gestão de contas (RF-03) e recuperação de senha (RF-01) ──────────────────
+
+export function criarUsuario(
+  s: AppState,
+  dados: {
+    nome: string;
+    email: string;
+    senha: string;
+    telefone: string;
+    tipo: 'admin' | 'mentor';
+  },
+): AppState {
+  const usuario: Usuario = {
+    id: `u-${slugify(dados.email.split('@')[0])}`,
+    nome: dados.nome,
+    email: dados.email,
+    senha: dados.senha,
+    telefone: dados.telefone,
+    tipo: dados.tipo,
+    ativo: true,
+  };
+  return { ...s, usuarios: [...s.usuarios, usuario] };
+}
+
+export function editarUsuario(
+  s: AppState,
+  id: string,
+  dados: Partial<Pick<Usuario, 'nome' | 'email' | 'telefone' | 'tipo' | 'senha'>>,
+): AppState {
+  return {
+    ...s,
+    usuarios: s.usuarios.map((u) => (u.id === id ? { ...u, ...dados } : u)),
+  };
+}
+
+export function definirAtivoUsuario(
+  s: AppState,
+  id: string,
+  ativo: boolean,
+): AppState {
+  return {
+    ...s,
+    usuarios: s.usuarios.map((u) => (u.id === id ? { ...u, ativo } : u)),
+  };
+}
+
+/** Recuperação de senha mockada: redefine a senha se o e-mail existir. */
+export function redefinirSenha(
+  s: AppState,
+  email: string,
+  novaSenha: string,
+): { estado: AppState; ok: boolean } {
+  const alvo = normalizar(email);
+  const existe = s.usuarios.some((u) => normalizar(u.email) === alvo);
+  if (!existe) return { estado: s, ok: false };
+  return {
+    estado: {
+      ...s,
+      usuarios: s.usuarios.map((u) =>
+        normalizar(u.email) === alvo ? { ...u, senha: novaSenha } : u,
+      ),
+    },
+    ok: true,
+  };
+}

@@ -71,13 +71,9 @@ export function LoginForm() {
         </form>
 
         <div className="flex items-center justify-between text-sm">
-          <button
-            type="button"
-            className="text-text-muted hover:text-text"
-            onClick={() => setErro('Recuperação de senha ainda não disponível.')}
-          >
+          <a href="/recuperar-senha" className="text-text-muted hover:text-text">
             Esqueci a senha
-          </button>
+          </a>
           <a href="/cadastro" className="font-medium text-primary-text hover:underline">
             Criar conta
           </a>

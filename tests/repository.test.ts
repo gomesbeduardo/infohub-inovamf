@@ -16,6 +16,10 @@ import {
   adicionarAnotacao,
   equipesVisiveis,
   equipesParaCSV,
+  criarUsuario,
+  editarUsuario,
+  definirAtivoUsuario,
+  redefinirSenha,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -352,5 +356,46 @@ describe('equipesParaCSV', () => {
     expect(linhas).toHaveLength(s.equipes.length + 1);
     expect(csv).toContain('AgroSmart');
     expect(csv).toContain('Tecnologia');
+  });
+});
+
+describe('gestão de contas (RF-03)', () => {
+  it('criarUsuario adiciona um mentor ativo', () => {
+    const s = seed();
+    const r = criarUsuario(s, {
+      nome: 'Nova Mentora',
+      email: 'nova.mentora@infohub.dev',
+      senha: '123456',
+      telefone: '(55) 90000-2222',
+      tipo: 'mentor',
+    });
+    expect(r.usuarios.length).toBe(s.usuarios.length + 1);
+    const u = r.usuarios[r.usuarios.length - 1];
+    expect(u.tipo).toBe('mentor');
+    expect(u.ativo).toBe(true);
+  });
+
+  it('editarUsuario altera o nome', () => {
+    const r = editarUsuario(seed(), 'u-mentor-1', { nome: 'Marina Alterada' });
+    expect(r.usuarios.find((u) => u.id === 'u-mentor-1')!.nome).toBe('Marina Alterada');
+  });
+
+  it('desativar um usuário impede o login', () => {
+    const r = definirAtivoUsuario(seed(), 'u-mentor-1', false);
+    expect(r.usuarios.find((u) => u.id === 'u-mentor-1')!.ativo).toBe(false);
+    expect(autenticar(r, 'mentor@infohub.dev', '123456')).toBeNull();
+  });
+});
+
+describe('recuperação de senha (RF-01)', () => {
+  it('redefine a senha de um e-mail existente', () => {
+    const { estado, ok } = redefinirSenha(seed(), 'admin@infohub.dev', 'nova-senha');
+    expect(ok).toBe(true);
+    expect(autenticar(estado, 'admin@infohub.dev', 'nova-senha')?.tipo).toBe('admin');
+  });
+
+  it('falha para e-mail inexistente', () => {
+    const { ok } = redefinirSenha(seed(), 'ninguem@infohub.dev', 'x123456');
+    expect(ok).toBe(false);
   });
 });

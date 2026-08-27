@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { AppHeader } from '@/features/shell/AppHeader';
 import { PageHeader } from '@/design-system/components/PageHeader';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
@@ -11,6 +12,14 @@ export default function AdminPage() {
         <PageHeader
           title="Painel InfoHub → InovAMF"
           subtitle="Visão consolidada e funil das equipes."
+          actions={
+            <Link
+              href="/admin/contas"
+              className="text-sm font-medium text-primary-text hover:underline"
+            >
+              Contas
+            </Link>
+          }
         />
         <DashboardIndicadores />
         <Funil />
