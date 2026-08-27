@@ -18,6 +18,8 @@ import {
   criarTarefa,
   enviarEntrega,
   avaliarEntrega,
+  calcularStatusAtraso,
+  hojeISO,
   type DadosCadastro,
   type FiltrosFunil,
   type NovaTarefaManual,
@@ -49,7 +51,10 @@ export function StoreProvider({
   children: ReactNode;
   initial?: AppState;
 }) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => initial ?? seed());
+  // aplica o atraso automático (RN-04) sobre o seed, contra a data de hoje
+  const [state, dispatch] = useReducer(reducer, undefined, () =>
+    initial ?? calcularStatusAtraso(seed(), hojeISO()),
+  );
   return (
     <StoreContext.Provider value={{ state, dispatch }}>
       {children}

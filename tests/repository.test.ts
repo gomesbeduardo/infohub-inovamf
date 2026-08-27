@@ -12,6 +12,7 @@ import {
   criarTarefa,
   enviarEntrega,
   avaliarEntrega,
+  calcularIndicadores,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -281,5 +282,17 @@ describe('avaliarEntrega', () => {
       avaliadorId: 'u-mentor-2',
     });
     expect(r.tarefas.find((t) => t.id === 't-5')!.status).toBe('ajustar');
+  });
+});
+
+describe('calcularIndicadores', () => {
+  it('conta equipes ativas, prontas, atrasadas e distribuição por etapa', () => {
+    const ind = calcularIndicadores(seed());
+    expect(ind.equipesAtivas).toBe(6);
+    expect(ind.prontasInovamf).toBe(1);
+    expect(ind.tarefasAtrasadas).toBeGreaterThanOrEqual(1);
+    expect(ind.porEtapa).toHaveLength(6);
+    // no seed cada etapa 1..6 tem exatamente uma equipe ativa
+    expect(ind.porEtapa.every((p) => p.total === 1)).toBe(true);
   });
 });

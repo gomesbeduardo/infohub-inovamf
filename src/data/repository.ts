@@ -474,3 +474,43 @@ export function avaliarEntrega(
     ),
   };
 }
+
+// ── Indicadores (dashboard) ──────────────────────────────────────────────────
+
+export interface Indicadores {
+  equipesAtivas: number;
+  prontasInovamf: number;
+  tarefasAtrasadas: number;
+  totalEquipes: number;
+  porEtapa: { etapaId: number; numero: number; nome: string; total: number }[];
+}
+
+/** Indicadores consolidados do funil para o painel de coordenação (RF-22). */
+export function calcularIndicadores(s: AppState): Indicadores {
+  const ehPronta = (st: string) =>
+    st === 'pronta_inovamf' || st === 'encaminhada_inovamf';
+
+  const porEtapa = [...s.etapas]
+    .sort((a, b) => a.numero - b.numero)
+    .map((et) => ({
+      etapaId: et.id,
+      numero: et.numero,
+      nome: et.nome,
+      total: s.equipes.filter(
+        (e) => e.status === 'ativa' && e.etapaAtualId === et.id,
+      ).length,
+    }));
+
+  return {
+    equipesAtivas: s.equipes.filter((e) => e.status === 'ativa').length,
+    prontasInovamf: s.equipes.filter((e) => ehPronta(e.status)).length,
+    tarefasAtrasadas: s.tarefas.filter((t) => t.status === 'atrasada').length,
+    totalEquipes: s.equipes.length,
+    porEtapa,
+  };
+}
+
+/** Data de hoje em ISO (YYYY-MM-DD), para o cálculo de atraso. */
+export function hojeISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
