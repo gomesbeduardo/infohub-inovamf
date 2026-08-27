@@ -6,8 +6,9 @@ Hoje esse acompanhamento é manual — a jornada é guiada por uma cartilha impr
 
 Este repositório é o projeto prático da disciplina de **Arquitetura de Sistemas**, do curso de graduação em Sistemas de Informação. O sistema é construído de forma incremental ao longo da cadeira:
 
-- **Fase 1 (atual)** — levantamento de requisitos e modelagem do banco de dados.
-- **Fases futuras** — definição da arquitetura, implementação e evolução do desenho conforme o conteúdo da disciplina avançar.
+- **Fase 1** — levantamento de requisitos e modelagem do banco de dados.
+- **Fase 2 (atual)** — frontend web com dados mockados: Design System próprio, os 5 fluxos centrais funcionando de ponta a ponta e cobertura de testes (TDD).
+- **Fases futuras** — backend/persistência real, e-mails/lembretes e relatórios, conforme a disciplina avançar.
 
 ## Documentação
 
@@ -72,6 +73,14 @@ Login mockado do seed: administrador `admin@infohub.dev` / `123456`; aluno `alun
 
 ## Status
 
-Em modelagem. Requisitos levantados e schema do banco escrito; o schema está em revisão e os ajustes serão feitos na próxima aula.
+Frontend mockado funcionando. Requisitos levantados, schema do banco escrito e os **5 fluxos centrais** implementados de ponta a ponta com estado compartilhado em memória:
+
+1. **Login** mockado com guarda de rota por perfil.
+2. **Cadastro da ideia** — cria a conta do aluno e a equipe na Etapa 1.
+3. **Funil** (kanban de 6 etapas + "Pronta p/ InovAMF") com busca e filtros.
+4. **Detalhe da equipe** — avançar/retroceder etapa (RN-01 + forçar), criar tarefas e avaliar entregas (aprovar/ajustar).
+5. **Área do aluno** — tarefas da equipe e envio de entregas (arquivo mock ou link), refletindo no painel do admin.
+
+Fora do escopo desta fase (declarado no `plan.md`): backend/persistência real, e-mails e lembretes (RF-17–21), relatórios e exportação (RF-22–24), upload físico de arquivo, LGPD e auditoria.
 
 Sete pontos ainda dependem de decisão da coordenação (Q1 a Q7 no documento de requisitos) — entre eles se cada integrante da equipe terá login próprio, se o mentor terá perfil separado do administrador e se o Pitch Vídeo será enviado como upload ou como link.
