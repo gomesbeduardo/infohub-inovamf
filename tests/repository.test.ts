@@ -9,6 +9,9 @@ import {
   avancarEtapa,
   retrocederEtapa,
   calcularStatusAtraso,
+  criarTarefa,
+  enviarEntrega,
+  avaliarEntrega,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -195,5 +198,88 @@ describe('calcularStatusAtraso', () => {
     expect(byId('t-4').status).toBe('atrasada'); // era em_andamento, venceu
     expect(byId('t-3').status).toBe('aprovada'); // não muda
     expect(byId('t-5').status).toBe('entregue'); // não muda
+  });
+});
+
+describe('criarTarefa', () => {
+  it('cria tarefa manual com status pendente', () => {
+    const s = seed();
+    const r = criarTarefa(s, 'eq-1', {
+      titulo: 'Enviar logo',
+      etapaId: 1,
+      dataEntrega: '2026-09-20',
+      obrigatoria: true,
+      criadoPor: 'u-mentor-1',
+    });
+    expect(r.tarefas.length).toBe(s.tarefas.length + 1);
+    const nova = r.tarefas[r.tarefas.length - 1];
+    expect(nova.status).toBe('pendente');
+    expect(nova.equipeId).toBe('eq-1');
+    expect(nova.titulo).toBe('Enviar logo');
+  });
+
+  it('cria tarefa a partir de um modelo, copiando título/etapa/obrigatória', () => {
+    const r = criarTarefa(seed(), 'eq-1', {
+      modeloId: 5,
+      dataEntrega: '2026-09-20',
+      criadoPor: 'u-mentor-1',
+    });
+    const nova = r.tarefas[r.tarefas.length - 1];
+    expect(nova.titulo).toBe('Enviar o Business Model Canvas');
+    expect(nova.etapaId).toBe(5);
+    expect(nova.obrigatoria).toBe(true);
+    expect(nova.status).toBe('pendente');
+  });
+});
+
+describe('enviarEntrega', () => {
+  it('cria entrega versão 1 e passa a tarefa para entregue', () => {
+    const s = seed();
+    const r = enviarEntrega(s, 't-2', {
+      enviadoPor: 'u-aluno-3',
+      arquivos: [{ id: 'a1', tipo: 'link', urlExterna: 'https://ex.com/doc' }],
+    });
+    const entrega = r.entregas.find((e) => e.tarefaId === 't-2');
+    expect(entrega?.versao).toBe(1);
+    expect(r.tarefas.find((t) => t.id === 't-2')!.status).toBe('entregue');
+  });
+
+  it('reenvio incrementa a versão', () => {
+    let r = enviarEntrega(seed(), 't-2', {
+      enviadoPor: 'u-aluno-3',
+      arquivos: [{ id: 'a1', tipo: 'link', urlExterna: 'https://ex.com/v1' }],
+    });
+    r = enviarEntrega(r, 't-2', {
+      enviadoPor: 'u-aluno-3',
+      arquivos: [{ id: 'a2', tipo: 'link', urlExterna: 'https://ex.com/v2' }],
+    });
+    const versoes = r.entregas
+      .filter((e) => e.tarefaId === 't-2')
+      .map((e) => e.versao)
+      .sort();
+    expect(versoes).toEqual([1, 2]);
+  });
+});
+
+describe('avaliarEntrega', () => {
+  it('aprovar deixa a tarefa aprovada com concluidaEm e registra avaliação', () => {
+    const s = seed();
+    const r = avaliarEntrega(s, 'en-2', {
+      resultado: 'aprovada',
+      avaliadorId: 'u-mentor-2',
+    });
+    const tarefa = r.tarefas.find((t) => t.id === 't-5')!;
+    expect(tarefa.status).toBe('aprovada');
+    expect(tarefa.concluidaEm).toBeTruthy();
+    expect(r.avaliacoes.length).toBe(s.avaliacoes.length + 1);
+  });
+
+  it('solicitar ajustes deixa a tarefa como ajustar', () => {
+    const r = avaliarEntrega(seed(), 'en-2', {
+      resultado: 'ajustar',
+      comentario: 'Refazer o slide 3',
+      avaliadorId: 'u-mentor-2',
+    });
+    expect(r.tarefas.find((t) => t.id === 't-5')!.status).toBe('ajustar');
   });
 });

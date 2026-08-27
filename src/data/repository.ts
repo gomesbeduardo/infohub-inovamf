@@ -7,6 +7,10 @@ import type {
   Tarefa,
   HistoricoEtapa,
   StatusTarefa,
+  ArquivoEntrega,
+  Entrega,
+  AvaliacaoEntrega,
+  ResultadoAvaliacao,
 } from '@/domain/types';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -324,4 +328,149 @@ export function calcularStatusAtraso(s: AppState, hoje: string): AppState {
       : t,
   );
   return { ...s, tarefas };
+}
+
+// ── Tarefas, entregas e avaliação ────────────────────────────────────────────
+
+export type NovaTarefaManual = {
+  titulo: string;
+  descricao?: string;
+  etapaId: number;
+  dataEntrega: string;
+  obrigatoria: boolean;
+  criadoPor: string;
+};
+
+export type NovaTarefaModelo = {
+  modeloId: number;
+  dataEntrega: string;
+  criadoPor: string;
+};
+
+/**
+ * Cria uma tarefa (status `pendente`) para a equipe, seja com dados manuais ou
+ * copiando de um modelo de tarefa da etapa. Imutável.
+ */
+export function criarTarefa(
+  s: AppState,
+  equipeId: string,
+  dados: NovaTarefaManual | NovaTarefaModelo,
+): AppState {
+  let campos: {
+    titulo: string;
+    descricao?: string;
+    etapaId: number;
+    obrigatoria: boolean;
+  };
+
+  if ('modeloId' in dados) {
+    const modelo = s.modelosTarefa.find((m) => m.id === dados.modeloId);
+    if (!modelo) return s;
+    campos = {
+      titulo: modelo.titulo,
+      descricao: modelo.descricao,
+      etapaId: modelo.etapaId,
+      obrigatoria: modelo.obrigatoria,
+    };
+  } else {
+    campos = {
+      titulo: dados.titulo,
+      descricao: dados.descricao,
+      etapaId: dados.etapaId,
+      obrigatoria: dados.obrigatoria,
+    };
+  }
+
+  const tarefa: Tarefa = {
+    id: `t-${s.tarefas.length + 1}`,
+    equipeId,
+    etapaId: campos.etapaId,
+    titulo: campos.titulo,
+    descricao: campos.descricao,
+    obrigatoria: campos.obrigatoria,
+    dataEntrega: dados.dataEntrega,
+    status: 'pendente',
+    criadoPor: dados.criadoPor,
+  };
+
+  return { ...s, tarefas: [...s.tarefas, tarefa] };
+}
+
+/**
+ * Registra uma entrega para a tarefa (versão = maior versão atual + 1) e move a
+ * tarefa para `entregue`. Imutável.
+ */
+export function enviarEntrega(
+  s: AppState,
+  tarefaId: string,
+  dados: { enviadoPor: string; arquivos: ArquivoEntrega[]; comentario?: string },
+): AppState {
+  const tarefa = s.tarefas.find((t) => t.id === tarefaId);
+  if (!tarefa) return s;
+
+  const versaoAtual = s.entregas
+    .filter((e) => e.tarefaId === tarefaId)
+    .reduce((max, e) => Math.max(max, e.versao), 0);
+
+  const entrega: Entrega = {
+    id: `en-${s.entregas.length + 1}`,
+    tarefaId,
+    versao: versaoAtual + 1,
+    enviadoPor: dados.enviadoPor,
+    comentario: dados.comentario,
+    arquivos: dados.arquivos,
+    criadoEm: agora(),
+  };
+
+  return {
+    ...s,
+    entregas: [...s.entregas, entrega],
+    tarefas: s.tarefas.map((t) =>
+      t.id === tarefaId ? { ...t, status: 'entregue' as StatusTarefa } : t,
+    ),
+  };
+}
+
+/**
+ * Avalia uma entrega: `aprovada` deixa a tarefa `aprovada` com `concluidaEm`;
+ * `ajustar` deixa a tarefa `ajustar`. Registra a `AvaliacaoEntrega`. Imutável.
+ */
+export function avaliarEntrega(
+  s: AppState,
+  entregaId: string,
+  dados: {
+    resultado: ResultadoAvaliacao;
+    comentario?: string;
+    avaliadorId: string;
+  },
+): AppState {
+  const entrega = s.entregas.find((e) => e.id === entregaId);
+  if (!entrega) return s;
+
+  const avaliacao: AvaliacaoEntrega = {
+    id: `av-${s.avaliacoes.length + 1}`,
+    entregaId,
+    avaliadorId: dados.avaliadorId,
+    resultado: dados.resultado,
+    comentario: dados.comentario,
+    criadoEm: agora(),
+  };
+
+  const novoStatus: StatusTarefa =
+    dados.resultado === 'aprovada' ? 'aprovada' : 'ajustar';
+
+  return {
+    ...s,
+    avaliacoes: [...s.avaliacoes, avaliacao],
+    tarefas: s.tarefas.map((t) =>
+      t.id === entrega.tarefaId
+        ? {
+            ...t,
+            status: novoStatus,
+            concluidaEm:
+              dados.resultado === 'aprovada' ? agora() : t.concluidaEm,
+          }
+        : t,
+    ),
+  };
 }
