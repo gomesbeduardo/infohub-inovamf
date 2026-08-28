@@ -99,13 +99,13 @@ export function CadastroForm() {
                 <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} />
               </FormField>
               <FormField label="E-mail" htmlFor="email" error={erros.email}>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input id="email" type="email" autoComplete="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} />
               </FormField>
               <FormField label="Senha" htmlFor="senha" error={erros.senha}>
                 <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
               </FormField>
               <FormField label="Telefone" htmlFor="telefone" error={erros.telefone}>
-                <Input id="telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+                <Input id="telefone" type="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
               </FormField>
               <FormField label="Curso" htmlFor="curso" error={erros.curso}>
                 <Input id="curso" value={curso} onChange={(e) => setCurso(e.target.value)} />

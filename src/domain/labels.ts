@@ -31,6 +31,20 @@ export const STATUS_EQUIPE_LABEL: Record<StatusEquipe, string> = {
   desistente: 'Desistente',
 };
 
+const FMT_DATA = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+/** Formata uma data ISO `YYYY-MM-DD` como `dd/mm/aaaa` (Intl, estável no SSR). */
+export function formatarData(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return FMT_DATA.format(new Date(Date.UTC(y, m - 1, d)));
+}
+
 /**
  * Nomes curtos das 6 etapas do funil, indexados pelo número da etapa (1..6).
  * A posição 0 fica vazia para o índice bater com `numero`.

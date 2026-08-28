@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { StatusTarefa } from '@/domain/types';
 import { useStore } from '@/data/store';
+import { formatarData } from '@/domain/labels';
 import { getUsuarioAtual } from '@/data/session';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
@@ -59,7 +60,7 @@ export function MinhasTarefas() {
                 <span className="ml-2 text-xs text-primary-text">obrigatória</span>
               )}
             </span>
-            <span className="text-xs text-text-muted">Entrega até {t.dataEntrega}</span>
+            <span className="text-xs text-text-muted">Entrega até {formatarData(t.dataEntrega)}</span>
           </div>
           <StatusBadge status={t.status} />
         </div>

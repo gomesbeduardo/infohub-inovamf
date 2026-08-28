@@ -9,7 +9,7 @@ function Indicador({ label, valor }: { label: string; valor: number }) {
   return (
     <Card>
       <Card.Body className="flex flex-col gap-1">
-        <span className="font-display text-4xl font-bold tracking-tight text-text">
+        <span className="font-display text-4xl font-bold tabular-nums tracking-tight text-text">
           {valor}
         </span>
         <span className="text-sm text-text-muted">{label}</span>
@@ -53,7 +53,7 @@ export function DashboardIndicadores() {
                     }}
                   />
                 </div>
-                <span className="w-6 text-right text-sm font-medium text-text">
+                <span className="w-6 text-right text-sm font-medium tabular-nums text-text">
                   {p.total}
                 </span>
               </li>
