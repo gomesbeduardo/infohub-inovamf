@@ -1,3 +1,5 @@
+import Image from 'next/image';
+import mark from './brand/mark.svg';
 import { cn } from '@/design-system/cn';
 
 export interface LogoProps {
@@ -7,8 +9,8 @@ export interface LogoProps {
 }
 
 /**
- * Marca InfoHub: a "faísca" da ideia (quadrado com o gradiente da marca) + o
- * wordmark "info·hub" na fonte display.
+ * Marca InfoHub: a lâmpada-rede (ícone da marca, no gradiente original) + o
+ * wordmark "info·hub" na fonte display (cores da marca, theme-aware).
  */
 export function Logo({
   variant = 'color',
@@ -17,15 +19,15 @@ export function Logo({
 }: LogoProps) {
   return (
     <span className={cn('inline-flex items-center gap-2.5', className)}>
-      <span
+      <Image
+        src={mark}
+        alt=""
         aria-hidden
-        className={cn(
-          'relative inline-flex h-7 w-7 items-center justify-center rounded-[0.55rem] shadow-sm',
-          variant === 'color' ? 'bg-brand-gradient' : 'bg-text',
-        )}
-      >
-        <span className="h-2.5 w-2.5 rounded-full bg-white/90" />
-      </span>
+        width={32}
+        height={32}
+        priority
+        className="h-8 w-8 object-contain"
+      />
       <span className="inline-flex flex-col leading-none">
         <span className="font-display text-lg font-bold tracking-[-0.02em]">
           <span className="text-text">info</span>

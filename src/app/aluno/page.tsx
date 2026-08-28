@@ -6,7 +6,7 @@ export default function AlunoPage() {
   return (
     <div className="min-h-screen bg-bg">
       <AppHeader />
-      <main className="mx-auto flex max-w-2xl flex-col gap-5 p-4 sm:p-6">
+      <main className="motion-fade mx-auto flex max-w-2xl flex-col gap-5 p-4 sm:p-6">
         <PageHeader
           title="Minhas tarefas"
           subtitle="Acompanhe e envie suas entregas."

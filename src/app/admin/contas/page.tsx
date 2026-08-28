@@ -7,7 +7,7 @@ export default function ContasPage() {
   return (
     <div className="min-h-screen bg-bg">
       <AppHeader />
-      <main className="mx-auto flex max-w-3xl flex-col gap-5 p-4 sm:p-6">
+      <main className="motion-fade mx-auto flex max-w-3xl flex-col gap-5 p-4 sm:p-6">
         <Link href="/admin" className="text-sm text-text-muted hover:text-text">
           ← Voltar ao painel
         </Link>

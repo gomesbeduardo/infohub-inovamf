@@ -71,6 +71,7 @@
 /* ── 3.2 Semânticas — LIGHT (default) ────────────────────────────────────── */
 :root,
 [data-theme='light'] {
+  color-scheme: light;
   --bg: #faf7f4; /* fundo da página — papel morno (calor da ignição) */
   --surface: #ffffff; /* cards, painéis */
   --surface-raised: #ffffff; /* + sombra */
@@ -110,6 +111,7 @@
 
 /* ── 3.2 Semânticas — DARK ───────────────────────────────────────────────── */
 [data-theme='dark'] {
+  color-scheme: dark;
   --bg: #141110; /* quase-preto morno (ember-black) */
   --surface: var(--hub-900);
   --surface-raised: #262626;
@@ -195,4 +197,11 @@
       color-mix(in srgb, var(--grad-maroon) 44%, transparent) 0%,
       transparent 70%
     );
+}
+
+/* ── Movimento (adaptado do vocabulário do LMS: fade puro, contido) ────────── */
+:root {
+  --duration-fast: 125ms;
+  --duration-medium: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }

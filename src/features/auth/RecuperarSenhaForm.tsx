@@ -34,7 +34,7 @@ export function RecuperarSenhaForm() {
       <Card.Body className="flex flex-col gap-5">
         <div className="flex flex-col items-center gap-1">
           <Logo withTagline />
-          <p className="text-sm text-text-muted">Recuperar senha</p>
+          <h1 className="text-sm font-medium text-text-muted">Recuperar senha</h1>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -45,6 +45,8 @@ export function RecuperarSenhaForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="voce@infohub.dev"
+              autoComplete="email"
+              spellCheck={false}
             />
           </FormField>
           <FormField label="Nova senha" htmlFor="rec-senha">

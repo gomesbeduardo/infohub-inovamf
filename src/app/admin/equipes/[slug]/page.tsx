@@ -10,7 +10,7 @@ export default function EquipeDetalhePage({
   return (
     <div className="min-h-screen bg-bg">
       <AppHeader />
-      <main className="flex flex-col gap-5 p-4 sm:p-6">
+      <main className="motion-fade flex flex-col gap-5 p-4 sm:p-6">
         <Link
           href="/admin"
           className="text-sm text-text-muted hover:text-text"

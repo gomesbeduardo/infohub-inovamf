@@ -57,7 +57,7 @@ export function Funil() {
       </div>
       <FiltrosBar filtros={filtros} onChange={setFiltros} />
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
         {colunas.map((col) => (
           <section
             key={col.key}

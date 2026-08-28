@@ -28,6 +28,22 @@ describe('ContasAdmin', () => {
     expect(screen.getByText('paulo@infohub.dev')).toBeInTheDocument();
   });
 
+  it('edita uma conta existente', async () => {
+    const user = userEvent.setup();
+    render(
+      <StoreProvider>
+        <ContasAdmin />
+      </StoreProvider>,
+    );
+    const linha = screen.getByText('mentor@infohub.dev').closest('li')!;
+    await user.click(within(linha).getByRole('button', { name: /editar/i }));
+    const nome = screen.getByLabelText('Nome');
+    await user.clear(nome);
+    await user.type(nome, 'Marina Editada');
+    await user.click(screen.getByRole('button', { name: /salvar/i }));
+    expect(screen.getByText('Marina Editada')).toBeInTheDocument();
+  });
+
   it('desativa uma conta existente', async () => {
     const user = userEvent.setup();
     render(
