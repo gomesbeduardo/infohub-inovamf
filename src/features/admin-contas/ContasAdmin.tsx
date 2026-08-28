@@ -17,8 +17,9 @@ const TIPO_LABEL: Record<Extract<TipoUsuario, 'admin' | 'mentor'>, string> = {
 
 export function ContasAdmin() {
   const { state } = useStore();
-  const { criarConta, definirAtivo } = useActions();
+  const { criarConta, editarConta, definirAtivo } = useActions();
   const [aberto, setAberto] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -32,6 +33,7 @@ export function ContasAdmin() {
 
   function fechar() {
     setAberto(false);
+    setEditandoId(null);
     setNome('');
     setEmail('');
     setSenha('');
@@ -39,23 +41,53 @@ export function ContasAdmin() {
     setTipo('mentor');
   }
 
+  function abrirNova() {
+    fechar();
+    setAberto(true);
+  }
+
+  function abrirEdicao(id: string) {
+    const u = state.usuarios.find((x) => x.id === id);
+    if (!u) return;
+    setEditandoId(id);
+    setNome(u.nome);
+    setEmail(u.email);
+    setSenha('');
+    setTelefone(u.telefone);
+    setTipo(u.tipo as 'admin' | 'mentor');
+    setAberto(true);
+  }
+
   function pode() {
-    return (
-      nome.trim() && email.trim() && senha.length >= 6 && telefone.trim()
-    );
+    const base = nome.trim() && email.trim() && telefone.trim();
+    // na edição, a senha é opcional (em branco mantém a atual)
+    const senhaOk = editandoId ? senha === '' || senha.length >= 6 : senha.length >= 6;
+    return Boolean(base) && senhaOk;
   }
 
   function salvar() {
     if (!pode()) return;
-    criarConta({ nome, email, senha, telefone, tipo });
+    if (editandoId) {
+      editarConta(editandoId, {
+        nome,
+        email,
+        telefone,
+        tipo,
+        ...(senha ? { senha } : {}),
+      });
+    } else {
+      criarConta({ nome, email, senha, telefone, tipo });
+    }
     fechar();
   }
+
+  const editando = editandoId !== null;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text">Contas de acesso</h2>
-        <Button size="sm" onClick={() => setAberto(true)}>
+        <Button size="sm" onClick={abrirNova}>
           Nova conta
         </Button>
       </div>
@@ -70,7 +102,7 @@ export function ContasAdmin() {
               <span className="font-medium text-text">{u.nome}</span>
               <span className="text-xs text-text-muted">{u.email}</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Badge>{TIPO_LABEL[u.tipo as 'admin' | 'mentor']}</Badge>
               <span
                 className={
@@ -79,6 +111,9 @@ export function ContasAdmin() {
               >
                 {u.ativo ? 'Ativa' : 'Inativa'}
               </span>
+              <Button size="sm" variant="ghost" onClick={() => abrirEdicao(u.id)}>
+                Editar
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -94,7 +129,7 @@ export function ContasAdmin() {
       <Dialog
         open={aberto}
         onOpenChange={(o) => (o ? setAberto(true) : fechar())}
-        title="Nova conta"
+        title={editando ? 'Editar conta' : 'Nova conta'}
       >
         <div className="flex flex-col gap-4">
           <FormField label="Nome" htmlFor="c-nome">
@@ -103,7 +138,11 @@ export function ContasAdmin() {
           <FormField label="E-mail" htmlFor="c-email">
             <Input id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </FormField>
-          <FormField label="Senha" htmlFor="c-senha" hint="Mínimo 6 caracteres">
+          <FormField
+            label="Senha"
+            htmlFor="c-senha"
+            hint={editando ? 'Deixe em branco para manter a atual' : 'Mínimo 6 caracteres'}
+          >
             <Input id="c-senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
           </FormField>
           <FormField label="Telefone" htmlFor="c-tel">
@@ -125,7 +164,7 @@ export function ContasAdmin() {
               Cancelar
             </Button>
             <Button onClick={salvar} disabled={!pode()}>
-              Criar conta
+              {editando ? 'Salvar' : 'Criar conta'}
             </Button>
           </div>
         </div>
