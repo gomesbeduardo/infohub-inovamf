@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/design-system/theme';
+import { ThemeProvider, type Theme } from '@/design-system/theme';
 import { StoreProvider } from '@/data/store';
 
 const display = Space_Grotesk({
@@ -27,14 +28,19 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // tema vindo do cookie, aplicado no SSR — sem flash entre sessões
+  const theme: Theme =
+    cookies().get('infohub-theme')?.value === 'dark' ? 'dark' : 'light';
+
   return (
     <html
       lang="pt-BR"
+      data-theme={theme}
       className={`${display.variable} ${body.variable}`}
       suppressHydrationWarning
     >
       <body>
-        <ThemeProvider>
+        <ThemeProvider initialTheme={theme}>
           <StoreProvider>{children}</StoreProvider>
         </ThemeProvider>
       </body>

@@ -196,3 +196,10 @@
       transparent 70%
     );
 }
+
+/* ── Movimento (adaptado do vocabulário do LMS: fade puro, contido) ────────── */
+:root {
+  --duration-fast: 125ms;
+  --duration-medium: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}

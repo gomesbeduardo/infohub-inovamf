@@ -8,7 +8,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-bg">
       <AppHeader />
-      <main className="flex flex-col gap-5 p-4 sm:p-6">
+      <main className="motion-fade flex flex-col gap-5 p-4 sm:p-6">
         <PageHeader
           title="Painel InfoHub → InovAMF"
           subtitle="Visão consolidada e funil das equipes."

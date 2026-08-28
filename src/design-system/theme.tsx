@@ -12,6 +12,39 @@ export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'infohub-theme';
 
+function salvarTema(theme: Theme) {
+  try {
+    localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    /* ignora */
+  }
+  try {
+    // cookie para o servidor aplicar o tema no SSR (sem flash entre sessões)
+    document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
+  } catch {
+    /* ignora */
+  }
+}
+
+function lerTemaCliente(): Theme | null {
+  try {
+    const ls = localStorage.getItem(STORAGE_KEY);
+    if (ls === 'light' || ls === 'dark') return ls;
+  } catch {
+    /* ignora */
+  }
+  return null;
+}
+
+/** Arma o cross-fade de tema por ~320ms em volta da troca (ver globals.css). */
+function armarTransicao() {
+  if (typeof document === 'undefined') return;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+  const html = document.documentElement;
+  html.classList.add('theme-trocando');
+  window.setTimeout(() => html.classList.remove('theme-trocando'), 320);
+}
+
 interface ThemeContextValue {
   theme: Theme;
   toggle: () => void;
@@ -21,37 +54,38 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Provider de tema. Aplica `data-theme` no <html> e persiste em localStorage.
- * Hydration-safe: renderiza sempre com o default 'light' no servidor; a
- * preferência salva é lida só no cliente, após montar.
+ * Provider de tema. O tema inicial vem do servidor (cookie), aplicado como
+ * `data-theme` no <html> já no SSR — sem flash. Persiste em cookie + localStorage.
  */
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
+export function ThemeProvider({
+  children,
+  initialTheme,
+}: {
+  children: ReactNode;
+  initialTheme?: Theme;
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme ?? 'light');
 
-  // lê a preferência persistida só no cliente (evita mismatch de hydration)
+  // fallback (ex.: testes, ou ausência de cookie): lê a preferência no cliente
   useEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      stored = null;
-    }
-    if (stored === 'light' || stored === 'dark') {
-      setTheme(stored);
-    }
-  }, []);
+    if (initialTheme) return;
+    const stored = lerTemaCliente();
+    if (stored) setThemeState(stored);
+  }, [initialTheme]);
 
-  // aplica o tema no <html> e persiste
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      /* ambiente sem localStorage: ignora persistência */
-    }
+    salvarTema(theme);
   }, [theme]);
 
-  const toggle = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
+  const setTheme = (t: Theme) => {
+    armarTransicao();
+    setThemeState(t);
+  };
+  const toggle = () => {
+    armarTransicao();
+    setThemeState((t) => (t === 'light' ? 'dark' : 'light'));
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggle, setTheme }}>
