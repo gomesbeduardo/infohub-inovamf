@@ -32,6 +32,7 @@ export function LoginForm() {
     <Card className="w-full max-w-sm overflow-hidden">
       <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-6 p-7">
+        <h1 className="sr-only">Entrar no InfoHub</h1>
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo withTagline />
           <p className="text-sm text-text-muted">
@@ -48,6 +49,7 @@ export function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="voce@infohub.dev"
               autoComplete="email"
+              spellCheck={false}
             />
           </FormField>
 

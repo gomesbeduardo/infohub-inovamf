@@ -136,7 +136,7 @@ export function ContasAdmin() {
             <Input id="c-nome" value={nome} onChange={(e) => setNome(e.target.value)} />
           </FormField>
           <FormField label="E-mail" htmlFor="c-email">
-            <Input id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="c-email" type="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} />
           </FormField>
           <FormField
             label="Senha"
@@ -146,7 +146,7 @@ export function ContasAdmin() {
             <Input id="c-senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
           </FormField>
           <FormField label="Telefone" htmlFor="c-tel">
-            <Input id="c-tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+            <Input id="c-tel" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
           </FormField>
           <FormField label="Perfil" htmlFor="c-tipo">
             <Select

@@ -2,6 +2,7 @@
 
 import type { Equipe } from '@/domain/types';
 import { useStore } from '@/data/store';
+import { formatarData } from '@/domain/labels';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { AvaliarEntrega } from '@/features/admin-tarefas/AvaliarEntrega';
@@ -48,7 +49,7 @@ export function TarefaList({ equipe }: { equipe: Equipe }) {
                       )}
                     </span>
                     <span className="text-xs text-text-muted">
-                      Entrega até {t.dataEntrega}
+                      Entrega até {formatarData(t.dataEntrega)}
                     </span>
                   </div>
                   <StatusBadge status={t.status} />

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
@@ -23,6 +23,13 @@ export const metadata: Metadata = {
   title: 'InfoHub → InovAMF',
   description:
     'Acompanhamento do funil de ideias empreendedoras InfoHub → InovAMF',
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#faf7f4' },
+    { media: '(prefers-color-scheme: dark)', color: '#141110' },
+  ],
 };
 
 export default function RootLayout({
