@@ -39,7 +39,7 @@ describe('CadastroForm', () => {
     await user.type(screen.getByLabelText('E-mail'), 'novo@teste.dev');
     await user.type(screen.getByLabelText('Senha'), '123456');
     await user.type(screen.getByLabelText('Telefone'), '(55) 90000-1111');
-    await user.type(screen.getByLabelText('Curso'), 'ADS');
+    await user.selectOptions(screen.getByLabelText('Curso'), 'Sistemas de Informação');
     await user.type(screen.getByLabelText('Nome da ideia'), 'Ideia Teste');
     await user.type(
       screen.getByLabelText('Descrição da ideia'),

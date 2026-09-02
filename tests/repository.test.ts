@@ -28,9 +28,9 @@ const dadosValidos: DadosCadastro = {
   email: 'joao@teste.dev',
   senha: '123456',
   telefone: '(55) 90000-0000',
-  curso: 'Análise e Desenvolvimento de Sistemas',
+  curso: 'Sistemas de Informação',
   semestre: '2',
-  integrantes: [{ nome: 'Maria Colega', curso: 'ADS' }],
+  integrantes: [{ nome: 'Maria Colega', curso: 'Direito' }],
   nomeIdeia: 'Minha Ideia',
   descricaoIdeia: 'Uma ideia bem legal para testar.',
   areaId: 1,
@@ -124,17 +124,23 @@ describe('filtrarEquipes', () => {
 
   it('filtra por área', () => {
     const ids = filtrarEquipes(seed(), { areaId: 2 }).map((e) => e.id).sort();
-    expect(ids).toEqual(['eq-2', 'eq-6']);
+    expect(ids).toEqual(['eq-16', 'eq-2', 'eq-6']);
   });
 
   it('filtra por mentor', () => {
     const ids = filtrarEquipes(seed(), { mentorId: 'u-mentor-2' }).map((e) => e.id).sort();
-    expect(ids).toEqual(['eq-3', 'eq-4', 'eq-6']);
+    expect(ids).toEqual(['eq-10', 'eq-15', 'eq-19', 'eq-3', 'eq-4', 'eq-6']);
+  });
+
+  it('filtra por curso', () => {
+    const ids = filtrarEquipes(seed(), { curso: 'Direito' }).map((e) => e.id).sort();
+    expect(ids).toEqual(['eq-17', 'eq-8']);
   });
 
   it('filtra por status de tarefa (atrasada)', () => {
-    const ids = filtrarEquipes(seed(), { statusTarefa: 'atrasada' }).map((e) => e.id);
-    expect(ids).toEqual(['eq-3']);
+    // ordenado para não depender da ordem do array de equipes no seed
+    const ids = filtrarEquipes(seed(), { statusTarefa: 'atrasada' }).map((e) => e.id).sort();
+    expect(ids).toEqual(['eq-10', 'eq-3', 'eq-8']);
   });
 });
 
@@ -295,12 +301,12 @@ describe('avaliarEntrega', () => {
 describe('calcularIndicadores', () => {
   it('conta equipes ativas, prontas, atrasadas e distribuição por etapa', () => {
     const ind = calcularIndicadores(seed());
-    expect(ind.equipesAtivas).toBe(6);
-    expect(ind.prontasInovamf).toBe(1);
+    expect(ind.equipesAtivas).toBe(15);
+    expect(ind.prontasInovamf).toBe(3); // pronta_inovamf (2) + encaminhada_inovamf (1)
     expect(ind.tarefasAtrasadas).toBeGreaterThanOrEqual(1);
     expect(ind.porEtapa).toHaveLength(6);
-    // no seed cada etapa 1..6 tem exatamente uma equipe ativa
-    expect(ind.porEtapa.every((p) => p.total === 1)).toBe(true);
+    // distribuição desigual (funil que afunila): etapas 1..6
+    expect(ind.porEtapa.map((p) => p.total)).toEqual([5, 3, 3, 1, 2, 1]);
   });
 });
 
@@ -328,7 +334,7 @@ describe('equipesVisiveis', () => {
     const s = seed();
     const mentor = s.usuarios.find((u) => u.id === 'u-mentor-2')!;
     const ids = equipesVisiveis(s, mentor).map((e) => e.id).sort();
-    expect(ids).toEqual(['eq-3', 'eq-4', 'eq-6']);
+    expect(ids).toEqual(['eq-10', 'eq-15', 'eq-19', 'eq-3', 'eq-4', 'eq-6']);
   });
 
   it('aluno vê apenas a própria equipe', () => {
@@ -342,7 +348,11 @@ describe('equipesVisiveis', () => {
 describe('filtrarEquipes por ciclo', () => {
   it('filtra pelo ciclo e retorna vazio para ciclo inexistente', () => {
     const s = seed();
-    expect(filtrarEquipes(s, { cicloId: 1 })).toHaveLength(s.equipes.length);
+    const noCiclo = (id: number) =>
+      s.equipes.filter((e) => e.cicloId === id).length;
+    expect(filtrarEquipes(s, { cicloId: 1 })).toHaveLength(noCiclo(1));
+    expect(filtrarEquipes(s, { cicloId: 2 })).toHaveLength(noCiclo(2));
+    expect(noCiclo(2)).toBeGreaterThan(0); // há equipes na turma anterior
     expect(filtrarEquipes(s, { cicloId: 999 })).toHaveLength(0);
   });
 });

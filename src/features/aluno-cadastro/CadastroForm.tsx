@@ -6,6 +6,7 @@ import { useStore, useActions } from '@/data/store';
 import { setUsuarioAtual } from '@/data/session';
 import { validarCadastro, type DadosCadastro } from '@/data/repository';
 import { ESTAGIO_LABEL } from '@/domain/labels';
+import { CURSO_OPTIONS } from '@/domain/cursos';
 import type { EstagioIdeia } from '@/domain/types';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
@@ -108,7 +109,13 @@ export function CadastroForm() {
                 <Input id="telefone" type="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
               </FormField>
               <FormField label="Curso" htmlFor="curso" error={erros.curso}>
-                <Input id="curso" value={curso} onChange={(e) => setCurso(e.target.value)} />
+                <Select
+                  id="curso"
+                  options={CURSO_OPTIONS}
+                  placeholder="Selecione…"
+                  value={curso}
+                  onChange={(e) => setCurso(e.target.value)}
+                />
               </FormField>
               <FormField label="Semestre" htmlFor="semestre" hint="Opcional">
                 <Input id="semestre" value={semestre} onChange={(e) => setSemestre(e.target.value)} />
@@ -149,8 +156,9 @@ export function CadastroForm() {
                     )
                   }
                 />
-                <Input
+                <Select
                   aria-label={`Curso do integrante ${i + 1}`}
+                  options={CURSO_OPTIONS}
                   placeholder="Curso"
                   value={it.curso}
                   onChange={(e) =>
