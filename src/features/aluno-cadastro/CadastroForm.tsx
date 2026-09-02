@@ -14,7 +14,6 @@ import { Input } from '@/design-system/components/Input';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
-import { Logo } from '@/design-system/Logo';
 
 type Integrante = { nome: string; curso: string };
 
@@ -79,11 +78,10 @@ export function CadastroForm() {
   }));
 
   return (
-    <Card className="w-full max-w-2xl overflow-hidden">
+    <Card className="w-full overflow-hidden">
       <div className="ignition-rail" />
       <Card.Header className="flex flex-col gap-1">
-        <Logo withTagline />
-        <h1 className="text-lg font-semibold text-text">Cadastre sua ideia</h1>
+        <h1 className="text-xl font-semibold text-text">Cadastre sua ideia</h1>
         <p className="text-sm text-text-muted">
           Preencha os dados abaixo para criar sua conta e registrar a equipe.
         </p>

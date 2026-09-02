@@ -102,6 +102,12 @@
   --danger-text: var(--ember-700); /* AA sobre fundo claro */
   --danger-soft: var(--ember-50);
 
+  /* Sucesso/confirmação (verde funcional) */
+  --success: var(--green-600);
+  --success-fg: #ffffff;
+  --success-text: #15803d; /* AA sobre fundo claro */
+  --success-soft: #e6f5ec;
+
   /* 3.3 Status de tarefa (par bg-soft + fg) */
   --st-pendente-fg: var(--hub-600);
   --st-pendente-bg: var(--hub-100);
@@ -148,6 +154,12 @@
   --danger-text: var(--ember-300); /* mais claro p/ contraste no escuro */
   --danger-soft: color-mix(in srgb, var(--ember-500) 20%, var(--hub-900));
 
+  /* Sucesso — dark */
+  --success: var(--green-600);
+  --success-fg: #ffffff;
+  --success-text: var(--green-400);
+  --success-soft: color-mix(in srgb, var(--green-600) 24%, var(--hub-900));
+
   /* 3.3 Status de tarefa — dark */
   --st-pendente-fg: var(--hub-300);
   --st-pendente-bg: var(--hub-800);
@@ -169,6 +181,20 @@
   --radius-sm: 0.5rem;
   --radius: 0.875rem;
   --radius-lg: 1.25rem;
+
+  /* Painel-hero das telas de acesso: base escura e morna + brilhos de ignição.
+     Independe do tema (é sempre escuro, como uma capa) — texto branco por cima. */
+  --auth-hero: radial-gradient(
+      56% 52% at 14% 14%,
+      color-mix(in srgb, var(--grad-orange) 45%, transparent) 0%,
+      transparent 64%
+    ),
+    radial-gradient(
+      52% 58% at 96% 100%,
+      color-mix(in srgb, var(--grad-maroon) 52%, transparent) 0%,
+      transparent 70%
+    ),
+    linear-gradient(155deg, #241a15 0%, #160f0c 100%);
 
   /* faixa/brilho da ignição (gradiente da marca na horizontal) */
   --rail: linear-gradient(

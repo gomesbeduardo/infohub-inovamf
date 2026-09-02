@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useActions } from '@/data/store';
 import { setUsuarioAtual } from '@/data/session';
-import { Logo } from '@/design-system/Logo';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
@@ -30,14 +29,13 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm overflow-hidden">
+    <Card className="w-full overflow-hidden">
       <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-6 p-7">
-        <h1 className="sr-only">Entrar no InfoHub</h1>
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Logo withTagline />
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold text-text">Acesse sua conta</h1>
           <p className="text-sm text-text-muted">
-            Acesse o painel do InfoHub.
+            Bem-vindo de volta ao InfoHub.
           </p>
         </div>
 
