@@ -5,7 +5,14 @@ import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { Badge } from '@/design-system/components/Badge';
 
-export function EquipeCard({ equipe }: { equipe: Equipe }) {
+export function EquipeCard({
+  equipe,
+  basePath = '/admin/equipes',
+}: {
+  equipe: Equipe;
+  /** Prefixo da rota de detalhe (admin ou orientador). */
+  basePath?: string;
+}) {
   const { state } = useStore();
   const area = state.areas.find((a) => a.id === equipe.areaId);
   const mentor = state.usuarios.find((u) => u.id === equipe.mentorId);
@@ -15,7 +22,7 @@ export function EquipeCard({ equipe }: { equipe: Equipe }) {
 
   return (
     <Link
-      href={`/admin/equipes/${equipe.slug}`}
+      href={`${basePath}/${equipe.slug}`}
       data-testid="equipe-card"
       className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-border-strong"
     >

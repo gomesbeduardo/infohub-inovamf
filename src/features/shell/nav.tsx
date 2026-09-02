@@ -13,6 +13,18 @@ export interface NavItem {
   Icon: (p: IconProps) => JSX.Element;
 }
 
+/** Rota inicial de cada perfil — onde o login/guarda leva o usuário. */
+export function homeFor(tipo: TipoUsuario): string {
+  switch (tipo) {
+    case 'aluno':
+      return '/aluno';
+    case 'mentor':
+      return '/orientador';
+    default:
+      return '/admin';
+  }
+}
+
 /**
  * Navegação por perfil. Cada área do app expõe só os destinos do seu papel —
  * a base para uma navegação consistente conforme novas páginas entram.
@@ -25,7 +37,7 @@ export function navFor(tipo: TipoUsuario): NavItem[] {
         { href: '/aluno/tarefas', label: 'Tarefas', Icon: ListChecksIcon },
       ];
     case 'mentor':
-      return [{ href: '/admin', label: 'Painel', Icon: DashboardIcon }];
+      return [{ href: '/orientador', label: 'Minhas equipes', Icon: UsersIcon }];
     case 'admin':
       return [
         { href: '/admin', label: 'Painel', Icon: DashboardIcon },

@@ -10,7 +10,7 @@ import { Button } from '@/design-system/components/Button';
 import { ThemeToggle } from '@/design-system/components/ThemeToggle';
 import { LogoutIcon, ArrowLeftIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
-import { navFor, type NavItem } from '@/features/shell/nav';
+import { navFor, homeFor, type NavItem } from '@/features/shell/nav';
 
 type Largura = 'estreita' | 'media' | 'ampla';
 
@@ -67,7 +67,13 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
       <div className="sticky top-0 z-30">
         <div className="ignition-rail" />
         <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
-          <Logo />
+          <Link
+            href={usuario ? homeFor(usuario.tipo) : '/login'}
+            aria-label="InfoHub — início"
+            className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]"
+          >
+            <Logo />
+          </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             {usuario && (
               <span className="hidden text-sm text-text-muted sm:inline">

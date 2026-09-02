@@ -9,6 +9,7 @@ import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
 import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
+import { homeFor } from '@/features/shell/nav';
 
 export function LoginForm() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function LoginForm() {
       return;
     }
     setUsuarioAtual(usuario);
-    router.push(usuario.tipo === 'aluno' ? '/aluno' : '/admin');
+    router.push(homeFor(usuario.tipo));
   }
 
   return (
