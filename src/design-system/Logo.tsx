@@ -9,8 +9,8 @@ export interface LogoProps {
 }
 
 /**
- * Marca InfoHub: a lâmpada-rede (ícone da marca, no gradiente original) + o
- * wordmark "info·hub" na fonte display (cores da marca, theme-aware).
+ * Marca InfoHub: o mark "ignição" (faísca da ideia, no gradiente da marca) + o
+ * wordmark "InfoHub" na fonte display (duas cores da marca, theme-aware).
  */
 export function Logo({
   variant = 'color',
@@ -30,11 +30,11 @@ export function Logo({
       />
       <span className="inline-flex flex-col leading-none">
         <span className="font-display text-lg font-bold tracking-[-0.02em]">
-          <span className="text-text">info</span>
+          <span className="text-text">Info</span>
           <span
             className={variant === 'color' ? 'text-primary-text' : 'text-text'}
           >
-            hub
+            Hub
           </span>
         </span>
         {withTagline && (

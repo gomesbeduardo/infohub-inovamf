@@ -7,6 +7,7 @@ import { formatarData } from '@/domain/labels';
 import { getUsuarioAtual } from '@/data/session';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
+import { Badge } from '@/design-system/components/Badge';
 import { Card } from '@/design-system/components/Card';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { EnviarEntregaDialog } from '@/features/aluno-tarefas/EnviarEntregaDialog';
@@ -53,12 +54,10 @@ export function MinhasTarefas() {
     return (
       <li className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-col">
-            <span className="font-medium text-text">
+          <div className="flex flex-col gap-1">
+            <span className="flex items-center gap-2 font-medium text-text">
               {t.titulo}
-              {t.obrigatoria && (
-                <span className="ml-2 text-xs text-primary-text">obrigatória</span>
-              )}
+              {t.obrigatoria && <Badge>obrigatória</Badge>}
             </span>
             <span className="text-xs text-text-muted">Entrega até {formatarData(t.dataEntrega)}</span>
           </div>

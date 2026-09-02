@@ -14,7 +14,6 @@ import { Input } from '@/design-system/components/Input';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
-import { Logo } from '@/design-system/Logo';
 
 type Integrante = { nome: string; curso: string };
 
@@ -79,11 +78,10 @@ export function CadastroForm() {
   }));
 
   return (
-    <Card className="w-full max-w-2xl overflow-hidden">
+    <Card className="w-full overflow-hidden">
       <div className="ignition-rail" />
       <Card.Header className="flex flex-col gap-1">
-        <Logo withTagline />
-        <h1 className="text-lg font-semibold text-text">Cadastre sua ideia</h1>
+        <h1 className="text-xl font-semibold text-text">Cadastre sua ideia</h1>
         <p className="text-sm text-text-muted">
           Preencha os dados abaixo para criar sua conta e registrar a equipe.
         </p>
@@ -92,7 +90,7 @@ export function CadastroForm() {
       <Card.Body>
         <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
           <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+            <h2 className="text-base font-semibold text-text">
               Seus dados
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -125,7 +123,7 @@ export function CadastroForm() {
 
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+              <h2 className="text-base font-semibold text-text">
                 Sua equipe
               </h2>
               <Button
@@ -182,7 +180,7 @@ export function CadastroForm() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+            <h2 className="text-base font-semibold text-text">
               Sua ideia
             </h2>
             <FormField label="Nome da ideia" htmlFor="nomeIdeia" error={erros.nomeIdeia}>

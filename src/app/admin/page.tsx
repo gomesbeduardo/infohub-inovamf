@@ -1,29 +1,19 @@
-import Link from 'next/link';
-import { AppHeader } from '@/features/shell/AppHeader';
+import { AppShell } from '@/features/shell/AppShell';
 import { PageHeader } from '@/design-system/components/PageHeader';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
 import { Funil } from '@/features/admin-funil/Funil';
 
 export default function AdminPage() {
   return (
-    <div className="min-h-screen bg-bg">
-      <AppHeader />
-      <main className="motion-fade flex flex-col gap-5 p-4 sm:p-6">
+    <AppShell largura="ampla">
+      <div className="flex flex-col gap-5">
         <PageHeader
-          title="Painel InfoHub → InovAMF"
+          title="Painel"
           subtitle="Visão consolidada e funil das equipes."
-          actions={
-            <Link
-              href="/admin/contas"
-              className="text-sm font-medium text-primary-text hover:underline"
-            >
-              Contas
-            </Link>
-          }
         />
         <DashboardIndicadores />
         <Funil />
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

@@ -20,9 +20,9 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'InfoHub → InovAMF',
+  title: 'InfoHub',
   description:
-    'Acompanhamento do funil de ideias empreendedoras InfoHub → InovAMF',
+    'InfoHub — acompanhamento do funil de ideias empreendedoras da AMF',
 };
 
 export const viewport: Viewport = {

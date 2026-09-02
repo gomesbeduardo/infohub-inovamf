@@ -1,13 +1,10 @@
 import { LoginForm } from '@/features/auth/LoginForm';
-import { ThemeToggle } from '@/design-system/components/ThemeToggle';
+import { AuthLayout } from '@/features/auth/AuthLayout';
 
 export default function LoginPage() {
   return (
-    <main className="motion-fade relative flex min-h-screen items-center justify-center bg-bg p-4">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
+    <AuthLayout>
       <LoginForm />
-    </main>
+    </AuthLayout>
   );
 }
