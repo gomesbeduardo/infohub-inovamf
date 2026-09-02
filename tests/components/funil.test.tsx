@@ -38,4 +38,17 @@ describe('Funil', () => {
     expect(cards).toHaveLength(1);
     expect(cards[0]).toHaveTextContent('AgroSmart');
   });
+
+  it('permite re-selecionar "Todas as áreas" para limpar o filtro', async () => {
+    const user = userEvent.setup();
+    renderFunil();
+    const total = screen.getAllByTestId('equipe-card').length;
+    const areaSelect = screen.getByLabelText('Filtrar por área');
+
+    await user.selectOptions(areaSelect, '2'); // Saúde
+    expect(screen.getAllByTestId('equipe-card').length).toBeLessThan(total);
+
+    await user.selectOptions(areaSelect, ''); // Todas as áreas (selecionável)
+    expect(screen.getAllByTestId('equipe-card').length).toBe(total);
+  });
 });
