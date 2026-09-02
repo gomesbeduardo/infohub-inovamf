@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useActions } from '@/data/store';
-import { Logo } from '@/design-system/Logo';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
 import { FormField } from '@/design-system/components/FormField';
+import { AlertIcon, CheckIcon } from '@/design-system/icons';
+import { cn } from '@/design-system/cn';
 
 export function RecuperarSenhaForm() {
   const { redefinir } = useActions();
@@ -29,12 +30,14 @@ export function RecuperarSenhaForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm overflow-hidden">
+    <Card className="w-full overflow-hidden">
       <div className="ignition-rail" />
-      <Card.Body className="flex flex-col gap-5">
-        <div className="flex flex-col items-center gap-1">
-          <Logo withTagline />
-          <h1 className="text-sm font-medium text-text-muted">Recuperar senha</h1>
+      <Card.Body className="flex flex-col gap-5 p-7">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold text-text">Recuperar senha</h1>
+          <p className="text-sm text-text-muted">
+            Defina uma nova senha para sua conta.
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
@@ -55,14 +58,25 @@ export function RecuperarSenhaForm() {
               type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
+              autoComplete="new-password"
             />
           </FormField>
 
           {msg && (
             <p
               role="alert"
-              className={msg.ok ? 'text-sm text-primary-text' : 'text-sm text-primary-text'}
+              className={cn(
+                'flex items-center gap-2 rounded-[0.625rem] px-3 py-2 text-sm font-medium',
+                msg.ok
+                  ? 'bg-success-soft text-success-text'
+                  : 'bg-danger-soft text-danger-text',
+              )}
             >
+              {msg.ok ? (
+                <CheckIcon size={16} className="shrink-0" />
+              ) : (
+                <AlertIcon size={16} className="shrink-0" />
+              )}
               {msg.texto}
             </p>
           )}
@@ -77,7 +91,10 @@ export function RecuperarSenhaForm() {
           redefinição por e-mail.
         </p>
 
-        <a href="/login" className="text-center text-sm text-primary-text hover:underline">
+        <a
+          href="/login"
+          className="text-center text-sm text-primary-text hover:underline"
+        >
           Voltar ao login
         </a>
       </Card.Body>
