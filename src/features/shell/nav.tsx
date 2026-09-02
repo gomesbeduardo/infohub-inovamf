@@ -3,6 +3,7 @@ import {
   DashboardIcon,
   UsersIcon,
   ListChecksIcon,
+  LightbulbIcon,
   type IconProps,
 } from '@/design-system/icons';
 
@@ -19,7 +20,10 @@ export interface NavItem {
 export function navFor(tipo: TipoUsuario): NavItem[] {
   switch (tipo) {
     case 'aluno':
-      return [{ href: '/aluno', label: 'Minhas tarefas', Icon: ListChecksIcon }];
+      return [
+        { href: '/aluno', label: 'Minha equipe', Icon: LightbulbIcon },
+        { href: '/aluno/tarefas', label: 'Tarefas', Icon: ListChecksIcon },
+      ];
     case 'mentor':
       return [{ href: '/admin', label: 'Painel', Icon: DashboardIcon }];
     case 'admin':

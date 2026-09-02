@@ -8,7 +8,6 @@ import { getUsuarioAtual } from '@/data/session';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { Badge } from '@/design-system/components/Badge';
-import { Card } from '@/design-system/components/Card';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { EnviarEntregaDialog } from '@/features/aluno-tarefas/EnviarEntregaDialog';
 
@@ -71,24 +70,14 @@ export function MinhasTarefas() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Card>
-        <Card.Body className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-col">
-            <span className="text-sm text-text-muted">Sua equipe</span>
-            <span className="text-lg font-semibold text-text">
-              {equipe.nomeIdeia}
-            </span>
-          </div>
-          {etapa && (
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs text-text-muted">Etapa atual</span>
-              <StageTag etapaId={equipe.etapaAtualId}>
-                {etapa.numero}. {etapa.nome}
-              </StageTag>
-            </div>
-          )}
-        </Card.Body>
-      </Card>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-text-muted">{equipe.nomeIdeia}</span>
+        {etapa && (
+          <StageTag etapaId={equipe.etapaAtualId}>
+            {etapa.numero}. {etapa.nome}
+          </StageTag>
+        )}
+      </div>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-text">A fazer</h2>
