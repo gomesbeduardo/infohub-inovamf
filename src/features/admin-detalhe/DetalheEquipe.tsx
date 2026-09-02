@@ -1,10 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useStore } from '@/data/store';
+import { getUsuarioAtual } from '@/data/session';
 import {
   ESTAGIO_LABEL,
   STATUS_EQUIPE_LABEL,
 } from '@/domain/labels';
+import { AdicionarMembroDialog } from '@/features/equipe/AdicionarMembroDialog';
 import { StageTag } from '@/design-system/components/StageTag';
 import { Badge } from '@/design-system/components/Badge';
 import { Avatar } from '@/design-system/components/Avatar';
@@ -18,6 +21,8 @@ import { AnotacoesInternas } from '@/features/admin-detalhe/AnotacoesInternas';
 
 export function DetalheEquipe({ slug }: { slug: string }) {
   const { state } = useStore();
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
   const equipe = state.equipes.find((e) => e.slug === slug);
 
   if (!equipe) {
@@ -33,6 +38,12 @@ export function DetalheEquipe({ slug }: { slug: string }) {
   const mentor = state.usuarios.find((u) => u.id === equipe.mentorId);
   const etapa = state.etapas.find((e) => e.id === equipe.etapaAtualId);
 
+  // Quem gerencia a equipe pode incluir integrantes: o mentor da própria
+  // equipe ou um admin (coordenação). Só após montar (sessão é client-side).
+  const usuario = montado ? getUsuarioAtual(state) : null;
+  const podeGerenciar =
+    !!usuario && (usuario.tipo === 'admin' || equipe.mentorId === usuario.id);
+
   const visaoGeral = (
     <div className="flex flex-col gap-4">
       <Card>
@@ -47,7 +58,10 @@ export function DetalheEquipe({ slug }: { slug: string }) {
       </Card>
       <Card>
         <Card.Body className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-text">Membros</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-text">Membros</h3>
+            {podeGerenciar && <AdicionarMembroDialog equipeId={equipe.id} />}
+          </div>
           <ul className="flex flex-col gap-2">
             {equipe.membros.map((m) => (
               <li key={m.usuarioId} className="flex items-center gap-3">
