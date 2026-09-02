@@ -184,6 +184,42 @@ export function criarEquipeDoFormulario(
   return { estado, equipe, usuario };
 }
 
+/**
+ * Adiciona um integrante à equipe (papel `integrante`). Gera um id único e não
+ * cria conta de acesso — segue o mesmo modelo do cadastro (integrantes são
+ * nome + curso). Imutável; retorna o estado inalterado se a equipe não existir.
+ */
+export function adicionarMembro(
+  s: AppState,
+  equipeId: string,
+  dados: { nome: string; curso: string },
+): AppState {
+  const equipe = s.equipes.find((e) => e.id === equipeId);
+  if (!equipe) return s;
+  if (vazio(dados.nome) || vazio(dados.curso)) return s;
+
+  const existe = (id: string) =>
+    s.usuarios.some((u) => u.id === id) ||
+    equipe.membros.some((m) => m.usuarioId === id);
+  let n = equipe.membros.length + 1;
+  let usuarioId = `${equipeId}-m${n}`;
+  while (existe(usuarioId)) usuarioId = `${equipeId}-m${++n}`;
+
+  const membro: EquipeMembro = {
+    usuarioId,
+    nome: dados.nome.trim(),
+    curso: dados.curso,
+    papel: 'integrante',
+    ativo: true,
+  };
+  return {
+    ...s,
+    equipes: s.equipes.map((e) =>
+      e.id === equipeId ? { ...e, membros: [...e.membros, membro] } : e,
+    ),
+  };
+}
+
 // ── Funil, etapas e atraso ───────────────────────────────────────────────────
 
 export interface FiltrosFunil {

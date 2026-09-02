@@ -18,6 +18,7 @@ import { StageProgress } from '@/design-system/components/StageProgress';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { Button } from '@/design-system/components/Button';
 import { ChevronRightIcon } from '@/design-system/icons';
+import { AdicionarMembroDialog } from '@/features/equipe/AdicionarMembroDialog';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
 
@@ -63,6 +64,9 @@ export function MinhaEquipe() {
     .at(0);
   const pronta =
     equipe.status === 'pronta_inovamf' || equipe.status === 'encaminhada_inovamf';
+  const ehLider = equipe.membros.some(
+    (m) => m.usuarioId === usuario.id && m.papel === 'lider',
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -148,6 +152,11 @@ export function MinhaEquipe() {
                 </li>
               ))}
             </ul>
+            {ehLider && (
+              <div className="mt-3">
+                <AdicionarMembroDialog equipeId={equipe.id} />
+              </div>
+            )}
           </Card.Body>
         </Card>
       </div>

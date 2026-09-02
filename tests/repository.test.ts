@@ -4,6 +4,7 @@ import {
   autenticar,
   validarCadastro,
   criarEquipeDoFormulario,
+  adicionarMembro,
   filtrarEquipes,
   tarefasObrigatoriasPendentes,
   avancarEtapa,
@@ -407,5 +408,27 @@ describe('recuperação de senha (RF-01)', () => {
   it('falha para e-mail inexistente', () => {
     const { ok } = redefinirSenha(seed(), 'ninguem@infohub.dev', 'x123456');
     expect(ok).toBe(false);
+  });
+});
+
+describe('adicionarMembro (líder/mentor incluem integrantes)', () => {
+  it('acrescenta um integrante com papel integrante e id único', () => {
+    const s = seed();
+    const antes = s.equipes.find((e) => e.id === 'eq-1')!.membros.length;
+    const r = adicionarMembro(s, 'eq-1', { nome: 'Novo Aluno', curso: 'Direito' });
+    const eq = r.equipes.find((e) => e.id === 'eq-1')!;
+    expect(eq.membros.length).toBe(antes + 1);
+    const novo = eq.membros.at(-1)!;
+    expect(novo.nome).toBe('Novo Aluno');
+    expect(novo.papel).toBe('integrante');
+    const ids = eq.membros.map((m) => m.usuarioId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('ignora nome/curso vazios e equipe inexistente', () => {
+    const s = seed();
+    expect(adicionarMembro(s, 'eq-1', { nome: '  ', curso: 'Direito' })).toBe(s);
+    expect(adicionarMembro(s, 'eq-1', { nome: 'X', curso: '' })).toBe(s);
+    expect(adicionarMembro(s, 'nao-existe', { nome: 'X', curso: 'Direito' })).toBe(s);
   });
 });
