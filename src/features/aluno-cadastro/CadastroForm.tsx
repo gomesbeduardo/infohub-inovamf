@@ -6,6 +6,7 @@ import { useStore, useActions } from '@/data/store';
 import { setUsuarioAtual } from '@/data/session';
 import { validarCadastro, type DadosCadastro } from '@/data/repository';
 import { ESTAGIO_LABEL } from '@/domain/labels';
+import { CURSO_OPTIONS } from '@/domain/cursos';
 import type { EstagioIdeia } from '@/domain/types';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
@@ -13,7 +14,6 @@ import { Input } from '@/design-system/components/Input';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
-import { Logo } from '@/design-system/Logo';
 
 type Integrante = { nome: string; curso: string };
 
@@ -78,11 +78,10 @@ export function CadastroForm() {
   }));
 
   return (
-    <Card className="w-full max-w-2xl overflow-hidden">
+    <Card className="w-full overflow-hidden">
       <div className="ignition-rail" />
       <Card.Header className="flex flex-col gap-1">
-        <Logo withTagline />
-        <h1 className="text-lg font-semibold text-text">Cadastre sua ideia</h1>
+        <h1 className="text-xl font-semibold text-text">Cadastre sua ideia</h1>
         <p className="text-sm text-text-muted">
           Preencha os dados abaixo para criar sua conta e registrar a equipe.
         </p>
@@ -91,7 +90,7 @@ export function CadastroForm() {
       <Card.Body>
         <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
           <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+            <h2 className="text-base font-semibold text-text">
               Seus dados
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -108,7 +107,13 @@ export function CadastroForm() {
                 <Input id="telefone" type="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
               </FormField>
               <FormField label="Curso" htmlFor="curso" error={erros.curso}>
-                <Input id="curso" value={curso} onChange={(e) => setCurso(e.target.value)} />
+                <Select
+                  id="curso"
+                  options={CURSO_OPTIONS}
+                  placeholder="Selecione…"
+                  value={curso}
+                  onChange={(e) => setCurso(e.target.value)}
+                />
               </FormField>
               <FormField label="Semestre" htmlFor="semestre" hint="Opcional">
                 <Input id="semestre" value={semestre} onChange={(e) => setSemestre(e.target.value)} />
@@ -118,7 +123,7 @@ export function CadastroForm() {
 
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+              <h2 className="text-base font-semibold text-text">
                 Sua equipe
               </h2>
               <Button
@@ -149,8 +154,9 @@ export function CadastroForm() {
                     )
                   }
                 />
-                <Input
+                <Select
                   aria-label={`Curso do integrante ${i + 1}`}
+                  options={CURSO_OPTIONS}
                   placeholder="Curso"
                   value={it.curso}
                   onChange={(e) =>
@@ -174,7 +180,7 @@ export function CadastroForm() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+            <h2 className="text-base font-semibold text-text">
               Sua ideia
             </h2>
             <FormField label="Nome da ideia" htmlFor="nomeIdeia" error={erros.nomeIdeia}>

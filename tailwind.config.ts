@@ -35,6 +35,18 @@ const config: Config = {
           soft: 'var(--primary-soft)',
         },
         accent: 'var(--accent)',
+        danger: {
+          DEFAULT: 'var(--danger)',
+          fg: 'var(--danger-fg)',
+          text: 'var(--danger-text)',
+          soft: 'var(--danger-soft)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          fg: 'var(--success-fg)',
+          text: 'var(--success-text)',
+          soft: 'var(--success-soft)',
+        },
         ember: {
           50: 'var(--ember-50)',
           100: 'var(--ember-100)',
@@ -65,6 +77,7 @@ const config: Config = {
         'brand-gradient': 'var(--brand-gradient)',
         rail: 'var(--rail)',
         'hero-glow': 'var(--hero-glow)',
+        'auth-hero': 'var(--auth-hero)',
       },
       fontFamily: {
         sans: ['var(--font-body)', 'ui-sans-serif', 'system-ui', 'sans-serif'],

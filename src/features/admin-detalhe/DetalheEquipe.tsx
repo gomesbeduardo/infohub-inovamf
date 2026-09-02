@@ -52,12 +52,10 @@ export function DetalheEquipe({ slug }: { slug: string }) {
             {equipe.membros.map((m) => (
               <li key={m.usuarioId} className="flex items-center gap-3">
                 <Avatar nome={m.nome} />
-                <div className="flex flex-col">
-                  <span className="text-sm text-text">
+                <div className="flex flex-col gap-0.5">
+                  <span className="flex items-center gap-2 text-sm text-text">
                     {m.nome}
-                    {m.papel === 'lider' && (
-                      <span className="ml-2 text-xs text-primary-text">líder</span>
-                    )}
+                    {m.papel === 'lider' && <Badge tone="brand">líder</Badge>}
                   </span>
                   <span className="text-xs text-text-muted">{m.curso}</span>
                 </div>

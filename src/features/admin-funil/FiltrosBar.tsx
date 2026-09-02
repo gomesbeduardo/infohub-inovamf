@@ -2,6 +2,7 @@ import { useStore } from '@/data/store';
 import type { FiltrosFunil } from '@/data/repository';
 import type { StatusTarefa } from '@/domain/types';
 import { STATUS_TAREFA_LABEL } from '@/domain/labels';
+import { CURSO_OPTIONS } from '@/domain/cursos';
 import { Input } from '@/design-system/components/Input';
 import { Select } from '@/design-system/components/Select';
 
@@ -34,9 +35,9 @@ export function FiltrosBar({
   const mentores = state.usuarios
     .filter((u) => u.tipo === 'mentor' || u.tipo === 'admin')
     .map((u) => ({ value: u.id, label: u.nome }));
-  const cursos = Array.from(
-    new Set(state.equipes.flatMap((e) => e.membros.map((m) => m.curso))),
-  ).map((c) => ({ value: c, label: c }));
+  // Cursos ofertados pela AMF — lista canônica (não derivada dos dados), para
+  // que o filtro ofereça sempre os mesmos cursos do formulário de cadastro.
+  const cursos = CURSO_OPTIONS;
   const status = STATUS.map((s) => ({ value: s, label: STATUS_TAREFA_LABEL[s] }));
   const ciclos = state.ciclos.map((c) => ({ value: String(c.id), label: c.nome }));
 

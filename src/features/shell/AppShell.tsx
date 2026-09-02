@@ -1,0 +1,127 @@
+'use client';
+
+import { type ReactNode, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useStore } from '@/data/store';
+import { getUsuarioAtual, logout } from '@/data/session';
+import { Logo } from '@/design-system/Logo';
+import { Button } from '@/design-system/components/Button';
+import { ThemeToggle } from '@/design-system/components/ThemeToggle';
+import { LogoutIcon, ArrowLeftIcon } from '@/design-system/icons';
+import { cn } from '@/design-system/cn';
+import { navFor, type NavItem } from '@/features/shell/nav';
+
+type Largura = 'estreita' | 'media' | 'ampla';
+
+const LARGURAS: Record<Largura, string> = {
+  estreita: 'mx-auto w-full max-w-2xl',
+  media: 'mx-auto w-full max-w-4xl',
+  ampla: 'w-full',
+};
+
+/** Marca ativa o item cujo href é o prefixo mais longo da rota atual. */
+function itemAtivo(itens: NavItem[], pathname: string): string | null {
+  let ativo: string | null = null;
+  let maior = -1;
+  for (const it of itens) {
+    const casa = pathname === it.href || pathname.startsWith(it.href + '/');
+    if (casa && it.href.length > maior) {
+      ativo = it.href;
+      maior = it.href.length;
+    }
+  }
+  return ativo;
+}
+
+export interface AppShellProps {
+  children: ReactNode;
+  largura?: Largura;
+  back?: { href: string; label: string };
+}
+
+/**
+ * Casca comum das áreas internas: cabeçalho com a marca + ações e uma barra de
+ * navegação por perfil. Todas as páginas logadas passam por aqui — é o que dá
+ * estrutura e consistência entre as telas.
+ */
+export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { state } = useStore();
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+
+  const usuario = montado ? getUsuarioAtual(state) : null;
+  const itens = usuario ? navFor(usuario.tipo) : [];
+  const ativo = itemAtivo(itens, pathname);
+  const mostrarNav = itens.length >= 2;
+
+  function sair() {
+    logout();
+    router.replace('/login');
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col bg-bg">
+      <div className="sticky top-0 z-30">
+        <div className="ignition-rail" />
+        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
+          <Logo />
+          <div className="flex items-center gap-2 sm:gap-3">
+            {usuario && (
+              <span className="hidden text-sm text-text-muted sm:inline">
+                {usuario.nome}
+              </span>
+            )}
+            <ThemeToggle />
+            <Button variant="ghost" size="sm" onClick={sair} className="gap-1.5">
+              <LogoutIcon size={16} />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
+          </div>
+        </header>
+
+        {mostrarNav && (
+          <nav
+            aria-label="Seções"
+            className="scroll-suave flex gap-1 overflow-x-auto border-b border-border bg-surface/90 px-2 backdrop-blur sm:px-4"
+          >
+            {itens.map(({ href, label, Icon }) => {
+              const on = ativo === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={on ? 'page' : undefined}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
+                    on
+                      ? 'border-primary text-text'
+                      : 'border-transparent text-text-muted hover:text-text',
+                  )}
+                >
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+      </div>
+
+      <main className={cn('motion-fade flex-1 p-4 sm:p-6', LARGURAS[largura])}>
+        {back && (
+          <Link
+            href={back.href}
+            className="mb-4 inline-flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-text"
+          >
+            <ArrowLeftIcon size={16} />
+            {back.label}
+          </Link>
+        )}
+        {children}
+      </main>
+    </div>
+  );
+}

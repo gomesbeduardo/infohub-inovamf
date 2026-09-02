@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useActions } from '@/data/store';
 import { setUsuarioAtual } from '@/data/session';
-import { Logo } from '@/design-system/Logo';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
 import { FormField } from '@/design-system/components/FormField';
+import { AlertIcon } from '@/design-system/icons';
 
 export function LoginForm() {
   const router = useRouter();
@@ -29,14 +29,13 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm overflow-hidden">
+    <Card className="w-full overflow-hidden">
       <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-6 p-7">
-        <h1 className="sr-only">Entrar no InfoHub</h1>
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Logo withTagline />
+        <div className="flex flex-col gap-1">
+          <h1 className="text-xl font-semibold text-text">Acesse sua conta</h1>
           <p className="text-sm text-text-muted">
-            Acesse o painel do InfoHub → InovAMF.
+            Bem-vindo de volta ao InfoHub.
           </p>
         </div>
 
@@ -65,7 +64,11 @@ export function LoginForm() {
           </FormField>
 
           {erro && (
-            <p role="alert" className="text-sm font-medium text-primary-text">
+            <p
+              role="alert"
+              className="flex items-center gap-2 rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+            >
+              <AlertIcon size={16} className="shrink-0" />
               {erro}
             </p>
           )}
