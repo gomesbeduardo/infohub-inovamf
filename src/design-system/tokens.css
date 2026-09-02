@@ -94,6 +94,14 @@
   --focus-ring: color-mix(in srgb, var(--ember-500) 55%, transparent);
   --overlay: rgba(31, 31, 31, 0.5);
 
+  /* Perigo/erro (semântico). Compartilha a família ember da marca, mas é um
+     papel distinto de --primary: nunca decora — sempre acompanha um ícone de
+     alerta e um fundo suave, para não se confundir com um link/ação da marca. */
+  --danger: var(--ember-600);
+  --danger-fg: #ffffff;
+  --danger-text: var(--ember-700); /* AA sobre fundo claro */
+  --danger-soft: var(--ember-50);
+
   /* 3.3 Status de tarefa (par bg-soft + fg) */
   --st-pendente-fg: var(--hub-600);
   --st-pendente-bg: var(--hub-100);
@@ -133,6 +141,12 @@
   --accent: var(--grad-orange);
   --focus-ring: color-mix(in srgb, var(--ember-400) 65%, transparent);
   --overlay: rgba(0, 0, 0, 0.6);
+
+  /* Perigo/erro — dark */
+  --danger: var(--ember-500);
+  --danger-fg: #ffffff;
+  --danger-text: var(--ember-300); /* mais claro p/ contraste no escuro */
+  --danger-soft: color-mix(in srgb, var(--ember-500) 20%, var(--hub-900));
 
   /* 3.3 Status de tarefa — dark */
   --st-pendente-fg: var(--hub-300);

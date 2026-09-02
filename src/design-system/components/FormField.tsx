@@ -5,6 +5,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '@/design-system/cn';
+import { AlertIcon } from '@/design-system/icons';
 
 export interface FormFieldProps {
   label: string;
@@ -54,7 +55,12 @@ export function FormField({
         </p>
       )}
       {error && (
-        <p id={errorId} role="alert" className="text-xs text-primary-text">
+        <p
+          id={errorId}
+          role="alert"
+          className="flex items-center gap-1.5 text-xs font-medium text-danger-text"
+        >
+          <AlertIcon size={14} className="shrink-0" />
           {error}
         </p>
       )}

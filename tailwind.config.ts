@@ -35,6 +35,12 @@ const config: Config = {
           soft: 'var(--primary-soft)',
         },
         accent: 'var(--accent)',
+        danger: {
+          DEFAULT: 'var(--danger)',
+          fg: 'var(--danger-fg)',
+          text: 'var(--danger-text)',
+          soft: 'var(--danger-soft)',
+        },
         ember: {
           50: 'var(--ember-50)',
           100: 'var(--ember-100)',

@@ -2,6 +2,7 @@
 
 import { useTheme } from '@/design-system/theme';
 import { cn } from '@/design-system/cn';
+import { SunIcon, MoonIcon } from '@/design-system/icons';
 
 /** Botão que alterna entre tema claro e escuro. */
 export function ThemeToggle({ className }: { className?: string }) {
@@ -19,7 +20,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className,
       )}
     >
-      <span aria-hidden>{isDark ? '☀️' : '🌙'}</span>
+      {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
     </button>
   );
 }

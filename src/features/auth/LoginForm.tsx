@@ -9,6 +9,7 @@ import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
 import { FormField } from '@/design-system/components/FormField';
+import { AlertIcon } from '@/design-system/icons';
 
 export function LoginForm() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export function LoginForm() {
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo withTagline />
           <p className="text-sm text-text-muted">
-            Acesse o painel do InfoHub → InovAMF.
+            Acesse o painel do InfoHub.
           </p>
         </div>
 
@@ -65,7 +66,11 @@ export function LoginForm() {
           </FormField>
 
           {erro && (
-            <p role="alert" className="text-sm font-medium text-primary-text">
+            <p
+              role="alert"
+              className="flex items-center gap-2 rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+            >
+              <AlertIcon size={16} className="shrink-0" />
               {erro}
             </p>
           )}
