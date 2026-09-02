@@ -35,9 +35,10 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // tema vindo do cookie, aplicado no SSR — sem flash entre sessões
+  // tema vindo do cookie, aplicado no SSR — sem flash entre sessões.
+  // Novos usuários (sem cookie) começam no escuro; quem já escolheu mantém.
   const theme: Theme =
-    cookies().get('infohub-theme')?.value === 'dark' ? 'dark' : 'light';
+    cookies().get('infohub-theme')?.value === 'light' ? 'light' : 'dark';
 
   return (
     <html
