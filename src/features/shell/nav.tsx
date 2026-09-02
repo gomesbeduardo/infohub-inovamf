@@ -41,6 +41,7 @@ export function navFor(tipo: TipoUsuario): NavItem[] {
     case 'admin':
       return [
         { href: '/admin', label: 'Painel', Icon: DashboardIcon },
+        { href: '/admin/equipes', label: 'Equipes', Icon: LightbulbIcon },
         { href: '/admin/contas', label: 'Contas', Icon: UsersIcon },
       ];
     default:
