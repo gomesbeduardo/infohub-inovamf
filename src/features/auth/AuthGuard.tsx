@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/data/store';
 import { getUsuarioAtual } from '@/data/session';
+import { homeFor } from '@/features/shell/nav';
 import type { TipoUsuario } from '@/domain/types';
 
 /**
@@ -32,7 +33,7 @@ export function AuthGuard({
     if (!usuario) {
       router.replace('/login');
     } else if (!permitido.includes(usuario.tipo)) {
-      router.replace(usuario.tipo === 'aluno' ? '/aluno' : '/admin');
+      router.replace(homeFor(usuario.tipo));
     }
   }, [montado, usuario, permitido, router]);
 
