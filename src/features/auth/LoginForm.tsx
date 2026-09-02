@@ -30,7 +30,7 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full overflow-hidden">
+    <Card className="w-full overflow-hidden shadow-md">
       <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-6 p-7">
         <div className="flex flex-col gap-1">

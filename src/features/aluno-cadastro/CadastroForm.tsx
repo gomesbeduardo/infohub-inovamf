@@ -78,7 +78,7 @@ export function CadastroForm() {
   }));
 
   return (
-    <Card className="w-full overflow-hidden">
+    <Card className="w-full overflow-hidden shadow-md">
       <div className="ignition-rail" />
       <Card.Header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold text-text">Cadastre sua ideia</h1>
