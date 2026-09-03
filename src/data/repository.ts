@@ -358,6 +358,172 @@ export function retrocederEtapa(
 }
 
 /**
+ * Move a equipe para uma etapa arbitrária (1..6) ou para `pronta` (pronta para
+ * o InovAMF) — usado pelo arraste do funil do mentor. Imutável.
+ *
+ * - Avançar (destino > atual) com obrigatória pendente na etapa atual exige
+ *   `forcar` (RN-01); sem forçar, retorna o estado inalterado.
+ * - Um salto de mais de uma etapa é sempre gravado como `forcado`.
+ * - Retroceder reativa a equipe (`status: 'ativa'`).
+ * - `destino: 'pronta'` marca `pronta_inovamf`; mover uma equipe pronta de volta
+ *   a uma etapa a reativa.
+ */
+export function moverEquipeParaEtapa(
+  s: AppState,
+  equipeId: string,
+  opts: {
+    destino: number | 'pronta';
+    autorId: string;
+    forcar?: boolean;
+    observacao?: string;
+  },
+): AppState {
+  const equipe = s.equipes.find((e) => e.id === equipeId);
+  if (!equipe) return s;
+
+  const ehProntaAtual =
+    equipe.status === 'pronta_inovamf' || equipe.status === 'encaminhada_inovamf';
+
+  const baseHist = {
+    id: proximoIdHistorico(s),
+    equipeId,
+    movidoPor: opts.autorId,
+    observacao: opts.observacao,
+    criadoEm: agora(),
+  };
+
+  // destino "pronta": conclui o funil (como avançar além da etapa 6)
+  if (opts.destino === 'pronta') {
+    if (ehProntaAtual) return s;
+    const novaEquipe: Equipe = {
+      ...equipe,
+      status: 'pronta_inovamf',
+      prontaInovamfEm: agora(),
+    };
+    const hist: HistoricoEtapa = {
+      ...baseHist,
+      etapaOrigemId: equipe.etapaAtualId,
+      etapaDestinoId: equipe.etapaAtualId,
+      forcado: opts.forcar ?? false,
+    };
+    return {
+      ...s,
+      equipes: s.equipes.map((e) => (e.id === equipeId ? novaEquipe : e)),
+      historico: [...s.historico, hist],
+    };
+  }
+
+  const destino = opts.destino;
+  if (destino < 1 || destino > 6) return s; // fora do funil
+  // mesma etapa e já ativa → nada a fazer
+  if (destino === equipe.etapaAtualId && !ehProntaAtual) return s;
+
+  const avancando = destino > equipe.etapaAtualId;
+  // RN-01: avançar com obrigatória pendente na etapa atual exige forçar
+  if (avancando && !opts.forcar) {
+    const pendentes = tarefasObrigatoriasPendentes(s, equipeId, equipe.etapaAtualId);
+    if (pendentes.length > 0) return s;
+  }
+
+  const salto = Math.abs(destino - equipe.etapaAtualId) > 1;
+  const novaEquipe: Equipe = {
+    ...equipe,
+    etapaAtualId: destino,
+    status: 'ativa',
+    prontaInovamfEm: undefined,
+  };
+  const hist: HistoricoEtapa = {
+    ...baseHist,
+    etapaOrigemId: equipe.etapaAtualId,
+    etapaDestinoId: destino,
+    forcado: (opts.forcar ?? false) || (avancando && salto),
+  };
+  return {
+    ...s,
+    equipes: s.equipes.map((e) => (e.id === equipeId ? novaEquipe : e)),
+    historico: [...s.historico, hist],
+  };
+}
+
+// ── Série temporal do mentor (gráfico de linha) ──────────────────────────────
+
+const MS_DIA = 86_400_000;
+
+/** Parte-data (YYYY-MM-DD) de um ISO com ou sem hora. */
+function diaISO(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/** Soma `n` dias a uma data YYYY-MM-DD (UTC), devolvendo YYYY-MM-DD. */
+function somarDias(dia: string, n: number): string {
+  const t = Date.parse(`${dia}T00:00:00Z`) + n * MS_DIA;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** Dias inteiros entre dois dias YYYY-MM-DD (a - b). */
+function diffDias(a: string, b: string): number {
+  return Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / MS_DIA);
+}
+
+/** Um ponto da série semanal do mentor. */
+export interface PontoSerieSemanal {
+  /** Primeiro dia (YYYY-MM-DD) da janela de 7 dias. */
+  semanaInicio: string;
+  /** Rótulo curto DD/MM do início da semana. */
+  rotulo: string;
+  /** Avanços de etapa das equipes do mentor na semana. */
+  avancos: number;
+  /** Entregas concluídas (tarefas aprovadas) das equipes do mentor na semana. */
+  entregas: number;
+}
+
+/**
+ * Série semanal das equipes visíveis ao `usuario` (mentor): avanços de etapa
+ * (de `historico`) e entregas concluídas (de `tarefa.concluidaEm`), em `semanas`
+ * janelas de 7 dias terminando em `hoje` (YYYY-MM-DD). Função pura.
+ */
+export function serieSemanalMentor(
+  s: AppState,
+  usuario: Usuario,
+  hoje: string,
+  semanas = 8,
+): PontoSerieSemanal[] {
+  const ids = new Set(equipesVisiveis(s, usuario).map((e) => e.id));
+
+  const buckets: PontoSerieSemanal[] = Array.from({ length: semanas }, (_, i) => {
+    // i=0 é a semana mais antiga; i=semanas-1 é a semana corrente
+    const semanasAtras = semanas - 1 - i;
+    const inicio = somarDias(hoje, -(semanasAtras * 7 + 6));
+    const [, mes, dia] = inicio.split('-');
+    return { semanaInicio: inicio, rotulo: `${dia}/${mes}`, avancos: 0, entregas: 0 };
+  });
+
+  /** Índice do bucket para uma data-evento, ou -1 se fora da janela. */
+  const indice = (iso: string): number => {
+    const dd = diffDias(hoje, diaISO(iso)); // dias atrás (>=0 no passado)
+    if (dd < 0) return -1; // futuro
+    const semanasAtras = Math.floor(dd / 7);
+    if (semanasAtras >= semanas) return -1;
+    return semanas - 1 - semanasAtras;
+  };
+
+  for (const h of s.historico) {
+    if (!ids.has(h.equipeId)) continue;
+    if (h.etapaDestinoId <= (h.etapaOrigemId ?? 0)) continue; // só avanços
+    const i = indice(h.criadoEm);
+    if (i >= 0) buckets[i].avancos += 1;
+  }
+
+  for (const t of s.tarefas) {
+    if (!ids.has(t.equipeId) || !t.concluidaEm) continue;
+    const i = indice(t.concluidaEm);
+    if (i >= 0) buckets[i].entregas += 1;
+  }
+
+  return buckets;
+}
+
+/**
  * Marca como `atrasada` toda tarefa `pendente`/`em_andamento` cuja data de
  * entrega já passou em relação a `hoje` (ISO YYYY-MM-DD). Imutável.
  */
