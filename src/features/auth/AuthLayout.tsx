@@ -22,7 +22,7 @@ export function AuthLayout({ children, formWidth = 'sm' }: AuthLayoutProps) {
           formWidth === 'xl' ? 'max-w-2xl' : 'max-w-sm',
         )}
       >
-        <Logo withTagline />
+        <Logo withTagline size="lg" />
         {children}
       </div>
     </div>

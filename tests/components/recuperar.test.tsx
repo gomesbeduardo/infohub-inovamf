@@ -18,21 +18,19 @@ function renderForm() {
 }
 
 describe('RecuperarSenhaForm', () => {
-  it('redefine a senha de um e-mail existente', async () => {
+  it('envia um código para um e-mail existente', async () => {
     const user = userEvent.setup();
     renderForm();
     await user.type(screen.getByLabelText('E-mail'), 'admin@infohub.dev');
-    await user.type(screen.getByLabelText('Nova senha'), 'nova-senha-123');
-    await user.click(screen.getByRole('button', { name: /redefinir/i }));
-    expect(screen.getByText(/redefinida/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /enviar código/i }));
+    expect(screen.getByText(/enviamos um código/i)).toBeInTheDocument();
   });
 
   it('mostra erro para e-mail inexistente', async () => {
     const user = userEvent.setup();
     renderForm();
     await user.type(screen.getByLabelText('E-mail'), 'ninguem@infohub.dev');
-    await user.type(screen.getByLabelText('Nova senha'), 'nova-senha-123');
-    await user.click(screen.getByRole('button', { name: /redefinir/i }));
+    await user.click(screen.getByRole('button', { name: /enviar código/i }));
     expect(screen.getByText(/não encontrado/i)).toBeInTheDocument();
   });
 });
