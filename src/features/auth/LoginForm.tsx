@@ -7,6 +7,7 @@ import { setUsuarioAtual } from '@/data/session';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
 import { homeFor } from '@/features/shell/nav';
@@ -105,25 +106,18 @@ export function LoginForm() {
           </a>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-sunken p-3">
-          <p className="text-xs font-medium text-text-muted">
-            Contas de demonstração{' '}
-            <span className="text-text-subtle">· senha {SENHA_DEMO}</span>
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {DEMOS.map((d) => (
-              <button
-                key={d.email}
-                type="button"
-                onClick={() => preencher(d.email)}
-                className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-left text-sm transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]"
-              >
-                <span className="font-medium text-text">{d.rotulo}</span>
-                <span className="text-xs text-text-muted">{d.email}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <Select
+          aria-label="Preencher com uma conta de demonstração"
+          placeholder={`Conta de demonstração (senha ${SENHA_DEMO})…`}
+          options={DEMOS.map((d) => ({
+            value: d.email,
+            label: `${d.rotulo} · ${d.email}`,
+          }))}
+          value=""
+          onChange={(e) => {
+            if (e.target.value) preencher(e.target.value);
+          }}
+        />
       </Card.Body>
     </Card>
   );
