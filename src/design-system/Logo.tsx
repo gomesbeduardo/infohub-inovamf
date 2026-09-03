@@ -7,6 +7,8 @@ export interface LogoProps {
   withTagline?: boolean;
   /** Tamanho do lockup — 'md' no app, 'lg' nas telas de acesso. */
   size?: 'md' | 'lg';
+  /** Disposição — 'horizontal' (padrão) ou 'stacked' (marca sobre o wordmark). */
+  orientation?: 'horizontal' | 'stacked';
   className?: string;
 }
 
@@ -19,15 +21,19 @@ export function Logo({
   variant = 'color',
   withTagline = false,
   size = 'md',
+  orientation = 'horizontal',
   className,
 }: LogoProps) {
   const grande = size === 'lg';
+  const stacked = orientation === 'stacked';
   const px = grande ? 72 : 32;
   return (
     <span
       className={cn(
-        'inline-flex items-center',
-        grande ? 'gap-3' : 'gap-2.5',
+        'inline-flex',
+        stacked
+          ? 'flex-col items-center gap-3 text-center'
+          : cn('items-center', grande ? 'gap-3' : 'gap-2.5'),
         className,
       )}
     >
@@ -40,7 +46,12 @@ export function Logo({
         priority
         className={cn('object-contain', grande ? 'h-[72px] w-[72px]' : 'h-8 w-8')}
       />
-      <span className="inline-flex flex-col leading-none">
+      <span
+        className={cn(
+          'inline-flex flex-col leading-none',
+          stacked && 'items-center',
+        )}
+      >
         <span
           className={cn(
             'font-display font-bold tracking-[-0.02em]',
