@@ -62,27 +62,43 @@ CREATE TABLE tokens_senha (
 
 CREATE INDEX idx_tokens_senha_usuario ON tokens_senha (usuario_id, expira_em);
 
--- Tokens de acesso: sessões / refresh tokens de login.
--- token_hash guarda apenas o hash (bcrypt) do refresh token entregue ao
--- cliente. Cada linha é uma sessão revogável, com rastreio de dispositivo.
--- NOTA (bcrypt): mesma regra de tokens_senha — o refresh token entregue ao
--- cliente carrega o `id` da sessão; a validação faz SELECT por id e
--- bcrypt.compare(bruto, token_hash), pois o salt aleatório impede lookup por hash.
-CREATE TABLE sessoes (
+-- Tokens de acesso (Bearer): cada linha e uma credencial de login viva.
+-- O cliente envia `Authorization: Bearer <token>` e o backend valida aqui,
+-- o que permite revogar um dispositivo sem derrubar os demais.
+-- Duas naturezas na mesma tabela, distinguidas por `tipo`:
+--   'acesso'  -> curta duracao (~15 min), enviado em toda requisicao;
+--   'refresh' -> longa duracao (dias), so trocado no endpoint de renovacao.
+-- A renovacao insere um novo par apontando `token_pai_id` para o refresh
+-- consumido, formando a cadeia de rotacao auditavel.
+-- NOTA (hash): SHA-256 (deterministico), nao bcrypt, porque a validacao roda
+-- a cada requisicao e precisa de lookup direto pelo indice unico. O token
+-- bruto tem 256 bits de entropia aleatoria, entao nao depende de KDF lenta e
+-- nunca e persistido.
+CREATE TABLE tokens_acesso (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id      UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    token_hash      VARCHAR(255) NOT NULL,
+    tipo            VARCHAR(10) NOT NULL DEFAULT 'acesso'
+                    CHECK (tipo IN ('acesso', 'refresh')),
+    token_pai_id    UUID REFERENCES tokens_acesso(id) ON DELETE SET NULL,
+    token_hash      CHAR(64) NOT NULL,
+    escopos         TEXT[] NOT NULL DEFAULT ARRAY['app'],
     user_agent      TEXT,
     ip_origem       INET,
     expira_em       TIMESTAMPTZ NOT NULL,
     ultimo_uso_em   TIMESTAMPTZ,
     revogado_em     TIMESTAMPTZ,
+    motivo_revogacao VARCHAR(40)
+                    CHECK (motivo_revogacao IN ('logout', 'refresh', 'troca_senha',
+                                                'expirado', 'admin', 'suspeita')),
     criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_sessoes_hash UNIQUE (token_hash)
+    CONSTRAINT uq_tokens_acesso_hash UNIQUE (token_hash),
+    CONSTRAINT ck_tokens_acesso_validade CHECK (expira_em > criado_em)
 );
 
-CREATE INDEX idx_sessoes_usuario ON sessoes (usuario_id) WHERE revogado_em IS NULL;
-CREATE INDEX idx_sessoes_expira  ON sessoes (expira_em)  WHERE revogado_em IS NULL;
+CREATE INDEX idx_tokens_acesso_usuario ON tokens_acesso (usuario_id, tipo)
+    WHERE revogado_em IS NULL;
+CREATE INDEX idx_tokens_acesso_pai    ON tokens_acesso (token_pai_id);
+CREATE INDEX idx_tokens_acesso_expira ON tokens_acesso (expira_em) WHERE revogado_em IS NULL;
 
 CREATE TABLE consentimentos_lgpd (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

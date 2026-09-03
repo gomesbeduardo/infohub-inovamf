@@ -137,3 +137,12 @@ export function UserIcon(p: IconProps) {
     </svg>
   );
 }
+
+export function MonitorIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="2.5" y="4" width="19" height="12.5" rx="2" />
+      <path d="M8.5 20.5h7M12 16.5v4" />
+    </svg>
+  );
+}
