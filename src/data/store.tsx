@@ -12,6 +12,7 @@ import { seed } from '@/data/fixtures';
 import {
   autenticar,
   criarEquipeDoFormulario,
+  adicionarMembro,
   filtrarEquipes,
   avancarEtapa,
   retrocederEtapa,
@@ -91,6 +92,8 @@ export function useActions() {
       return { equipe, usuario };
     },
     filtrar: (f: FiltrosFunil) => filtrarEquipes(state, f),
+    adicionarMembro: (equipeId: string, dados: { nome: string; curso: string }) =>
+      set(adicionarMembro(state, equipeId, dados)),
     avancar: (
       equipeId: string,
       opts: { forcar: boolean; autorId: string; observacao?: string },

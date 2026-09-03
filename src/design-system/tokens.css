@@ -209,17 +209,19 @@
 
 :root,
 [data-theme='light'] {
-  --shadow-sm: 0 1px 2px rgba(31, 17, 8, 0.06), 0 1px 3px rgba(31, 17, 8, 0.04);
-  --shadow-md: 0 10px 30px -12px rgba(31, 17, 8, 0.18);
-  /* brilho ambiente das telas de auth (a "faísca" da ideia) */
+  /* sombras com mais presença no claro — cartões ganham destaque sobre o papel */
+  --shadow-sm: 0 1px 2px rgba(31, 17, 8, 0.08), 0 2px 8px -1px rgba(31, 17, 8, 0.1);
+  --shadow-md: 0 12px 34px -12px rgba(31, 17, 8, 0.24),
+    0 4px 12px -6px rgba(31, 17, 8, 0.12);
+  /* brilho ambiente das telas de auth (a "faísca" da ideia) — mais visível no claro */
   --hero-glow: radial-gradient(
-      60% 55% at 15% 20%,
-      color-mix(in srgb, var(--grad-orange) 26%, transparent) 0%,
-      transparent 70%
+      55% 55% at 12% 15%,
+      color-mix(in srgb, var(--grad-orange) 42%, transparent) 0%,
+      transparent 68%
     ),
     radial-gradient(
-      55% 60% at 95% 100%,
-      color-mix(in srgb, var(--grad-maroon) 22%, transparent) 0%,
+      52% 58% at 92% 100%,
+      color-mix(in srgb, var(--grad-maroon) 34%, transparent) 0%,
       transparent 70%
     );
 }

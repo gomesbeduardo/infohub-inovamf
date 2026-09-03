@@ -41,19 +41,48 @@ CREATE TABLE alunos (
     criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Tokens de recuperação de senha e convite.
+-- token_hash guarda apenas o hash (bcrypt) do token; o valor bruto é
+-- enviado ao usuário por e-mail e nunca persiste em texto claro.
+-- NOTA (bcrypt): o salt é aleatório por hash, então NÃO se busca a linha
+-- pelo token_hash. O token bruto entregue ao cliente deve carregar o `id`
+-- desta linha; a validação faz SELECT por id e bcrypt.compare(bruto, token_hash).
 CREATE TABLE tokens_senha (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id      UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    token           VARCHAR(255) NOT NULL,
+    token_hash      VARCHAR(255) NOT NULL,
     finalidade      VARCHAR(20) NOT NULL DEFAULT 'recuperacao'
                     CHECK (finalidade IN ('recuperacao', 'convite')),
+    ip_origem       INET,
     expira_em       TIMESTAMPTZ NOT NULL,
     usado_em        TIMESTAMPTZ,
     criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_tokens_senha_token UNIQUE (token)
+    CONSTRAINT uq_tokens_senha_hash UNIQUE (token_hash)
 );
 
 CREATE INDEX idx_tokens_senha_usuario ON tokens_senha (usuario_id, expira_em);
+
+-- Tokens de acesso: sessões / refresh tokens de login.
+-- token_hash guarda apenas o hash (bcrypt) do refresh token entregue ao
+-- cliente. Cada linha é uma sessão revogável, com rastreio de dispositivo.
+-- NOTA (bcrypt): mesma regra de tokens_senha — o refresh token entregue ao
+-- cliente carrega o `id` da sessão; a validação faz SELECT por id e
+-- bcrypt.compare(bruto, token_hash), pois o salt aleatório impede lookup por hash.
+CREATE TABLE sessoes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id      UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    token_hash      VARCHAR(255) NOT NULL,
+    user_agent      TEXT,
+    ip_origem       INET,
+    expira_em       TIMESTAMPTZ NOT NULL,
+    ultimo_uso_em   TIMESTAMPTZ,
+    revogado_em     TIMESTAMPTZ,
+    criado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_sessoes_hash UNIQUE (token_hash)
+);
+
+CREATE INDEX idx_sessoes_usuario ON sessoes (usuario_id) WHERE revogado_em IS NULL;
+CREATE INDEX idx_sessoes_expira  ON sessoes (expira_em)  WHERE revogado_em IS NULL;
 
 CREATE TABLE consentimentos_lgpd (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

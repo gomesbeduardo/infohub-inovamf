@@ -3,20 +3,14 @@
 import { useStore } from '@/data/store';
 import { calcularIndicadores } from '@/data/repository';
 import { Card } from '@/design-system/components/Card';
+import { StatCard } from '@/design-system/components/StatCard';
 import { StageTag } from '@/design-system/components/StageTag';
-
-function Indicador({ label, valor }: { label: string; valor: number }) {
-  return (
-    <Card>
-      <Card.Body className="flex flex-col gap-1">
-        <span className="font-display text-4xl font-bold tabular-nums tracking-tight text-text">
-          {valor}
-        </span>
-        <span className="text-sm text-text-muted">{label}</span>
-      </Card.Body>
-    </Card>
-  );
-}
+import {
+  UsersIcon,
+  CheckIcon,
+  AlertIcon,
+  LightbulbIcon,
+} from '@/design-system/icons';
 
 export function DashboardIndicadores() {
   const { state } = useStore();
@@ -26,10 +20,20 @@ export function DashboardIndicadores() {
   return (
     <section className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Indicador label="Equipes ativas" valor={ind.equipesAtivas} />
-        <Indicador label="Prontas p/ InovAMF" valor={ind.prontasInovamf} />
-        <Indicador label="Tarefas atrasadas" valor={ind.tarefasAtrasadas} />
-        <Indicador label="Total de equipes" valor={ind.totalEquipes} />
+        <StatCard label="Equipes ativas" value={ind.equipesAtivas} Icon={UsersIcon} />
+        <StatCard
+          label="Prontas p/ InovAMF"
+          value={ind.prontasInovamf}
+          Icon={CheckIcon}
+          tone="success"
+        />
+        <StatCard
+          label="Tarefas atrasadas"
+          value={ind.tarefasAtrasadas}
+          Icon={AlertIcon}
+          tone={ind.tarefasAtrasadas > 0 ? 'danger' : 'neutral'}
+        />
+        <StatCard label="Total de equipes" value={ind.totalEquipes} Icon={LightbulbIcon} />
       </div>
 
       <Card>

@@ -1,16 +1,16 @@
 import { AppShell } from '@/features/shell/AppShell';
 import { PageHeader } from '@/design-system/components/PageHeader';
-import { MinhasTarefas } from '@/features/aluno-tarefas/MinhasTarefas';
+import { MinhaEquipe } from '@/features/aluno-equipe/MinhaEquipe';
 
 export default function AlunoPage() {
   return (
-    <AppShell largura="estreita">
+    <AppShell largura="media">
       <div className="flex flex-col gap-5">
         <PageHeader
-          title="Minhas tarefas"
-          subtitle="Acompanhe e envie suas entregas."
+          title="Minha equipe"
+          subtitle="Sua ideia e o progresso dela no funil."
         />
-        <MinhasTarefas />
+        <MinhaEquipe />
       </div>
     </AppShell>
   );

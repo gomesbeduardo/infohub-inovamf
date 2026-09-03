@@ -7,8 +7,18 @@ import { setUsuarioAtual } from '@/data/session';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
+import { homeFor } from '@/features/shell/nav';
+
+// Contas de demonstração (mock) — facilitam testar cada perfil.
+const SENHA_DEMO = '123456';
+const DEMOS: { rotulo: string; email: string }[] = [
+  { rotulo: 'Admin', email: 'admin@infohub.dev' },
+  { rotulo: 'Mentor', email: 'mentor@infohub.dev' },
+  { rotulo: 'Aluno', email: 'aluno@infohub.dev' },
+];
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,6 +26,12 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
+
+  function preencher(emailDemo: string) {
+    setEmail(emailDemo);
+    setSenha(SENHA_DEMO);
+    setErro('');
+  }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,11 +41,11 @@ export function LoginForm() {
       return;
     }
     setUsuarioAtual(usuario);
-    router.push(usuario.tipo === 'aluno' ? '/aluno' : '/admin');
+    router.push(homeFor(usuario.tipo));
   }
 
   return (
-    <Card className="w-full overflow-hidden">
+    <Card className="w-full overflow-hidden shadow-md">
       <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-6 p-7">
         <div className="flex flex-col gap-1">
@@ -89,6 +105,19 @@ export function LoginForm() {
             Criar conta
           </a>
         </div>
+
+        <Select
+          aria-label="Preencher com uma conta de demonstração"
+          placeholder={`Conta de demonstração (senha ${SENHA_DEMO})…`}
+          options={DEMOS.map((d) => ({
+            value: d.email,
+            label: `${d.rotulo} · ${d.email}`,
+          }))}
+          value=""
+          onChange={(e) => {
+            if (e.target.value) preencher(e.target.value);
+          }}
+        />
       </Card.Body>
     </Card>
   );
