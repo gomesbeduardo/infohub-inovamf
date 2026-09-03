@@ -5,6 +5,8 @@ import { cn } from '@/design-system/cn';
 export interface LogoProps {
   variant?: 'color' | 'mono';
   withTagline?: boolean;
+  /** Tamanho do lockup — 'md' no app, 'lg' nas telas de acesso. */
+  size?: 'md' | 'lg';
   className?: string;
 }
 
@@ -16,21 +18,35 @@ export interface LogoProps {
 export function Logo({
   variant = 'color',
   withTagline = false,
+  size = 'md',
   className,
 }: LogoProps) {
+  const grande = size === 'lg';
+  const px = grande ? 48 : 32;
   return (
-    <span className={cn('inline-flex items-center gap-2.5', className)}>
+    <span
+      className={cn(
+        'inline-flex items-center',
+        grande ? 'gap-3' : 'gap-2.5',
+        className,
+      )}
+    >
       <Image
         src={mark}
         alt=""
         aria-hidden
-        width={32}
-        height={32}
+        width={px}
+        height={px}
         priority
-        className="h-8 w-8 object-contain"
+        className={cn('object-contain', grande ? 'h-12 w-12' : 'h-8 w-8')}
       />
       <span className="inline-flex flex-col leading-none">
-        <span className="font-display text-lg font-bold tracking-[-0.02em]">
+        <span
+          className={cn(
+            'font-display font-bold tracking-[-0.02em]',
+            grande ? 'text-2xl' : 'text-lg',
+          )}
+        >
           <span className="text-text">info</span>
           <span
             className={variant === 'color' ? 'text-primary-text' : 'text-text'}
@@ -39,7 +55,12 @@ export function Logo({
           </span>
         </span>
         {withTagline && (
-          <span className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-text-muted">
+          <span
+            className={cn(
+              'font-medium uppercase tracking-[0.2em] text-text-muted',
+              grande ? 'mt-1.5 text-[11px]' : 'mt-1 text-[10px]',
+            )}
+          >
             InovAMF
           </span>
         )}
