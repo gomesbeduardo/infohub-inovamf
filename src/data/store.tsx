@@ -16,6 +16,7 @@ import {
   filtrarEquipes,
   avancarEtapa,
   retrocederEtapa,
+  moverEquipeParaEtapa,
   criarTarefa,
   enviarEntrega,
   avaliarEntrega,
@@ -102,6 +103,15 @@ export function useActions() {
       equipeId: string,
       opts: { autorId: string; observacao?: string },
     ) => set(retrocederEtapa(state, equipeId, opts)),
+    mover: (
+      equipeId: string,
+      opts: {
+        destino: number | 'pronta';
+        autorId: string;
+        forcar?: boolean;
+        observacao?: string;
+      },
+    ) => set(moverEquipeParaEtapa(state, equipeId, opts)),
     novaTarefa: (
       equipeId: string,
       dados: NovaTarefaManual | NovaTarefaModelo,

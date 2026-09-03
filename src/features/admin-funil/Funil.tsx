@@ -13,11 +13,28 @@ import { EquipeCard } from '@/features/admin-funil/EquipeCard';
 import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
 
+const STATUS_TAREFA_VALIDOS = [
+  'pendente',
+  'em_andamento',
+  'entregue',
+  'atrasada',
+  'aprovada',
+  'ajustar',
+] as const;
+
 export function Funil() {
   const { state } = useStore();
   const [filtros, setFiltros] = useState<FiltrosFunil>({});
   const [montado, setMontado] = useState(false);
-  useEffect(() => setMontado(true), []);
+  useEffect(() => {
+    setMontado(true);
+    // presets vindos de links do dashboard (ex.: /admin?status=atrasada)
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    if (status && (STATUS_TAREFA_VALIDOS as readonly string[]).includes(status)) {
+      setFiltros((f) => ({ ...f, statusTarefa: status as FiltrosFunil['statusTarefa'] }));
+    }
+  }, []);
 
   // escopo por perfil (RNF-03): mentor vê só as suas equipes; admin vê todas
   const usuario = montado ? getUsuarioAtual(state) : null;
@@ -61,8 +78,9 @@ export function Funil() {
         {colunas.map((col) => (
           <section
             key={col.key}
+            id={`col-${col.key}`}
             data-testid="coluna-funil"
-            className="flex w-72 shrink-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-surface-sunken"
+            className="flex w-72 shrink-0 scroll-mt-24 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-surface-sunken"
           >
             <header className="flex items-center justify-between gap-2 border-b border-border px-3 pb-2.5 pt-3">
               <span className="flex items-center gap-2">
