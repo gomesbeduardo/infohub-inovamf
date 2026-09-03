@@ -146,3 +146,66 @@ export function MonitorIcon(p: IconProps) {
     </svg>
   );
 }
+
+export function TargetIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" />
+    </svg>
+  );
+}
+
+export function CalendarIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </svg>
+  );
+}
+
+export function MailIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+export function UploadIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M12 16V4M8 8l4-4 4 4" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+export function RocketIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M13.5 4.5c3.5-2 6-1.5 6-1.5s.5 2.5-1.5 6c-1.6 2.8-4.2 5-6.4 6.4l-3.5-3.5C9.5 9.7 11.7 7.1 13.5 4.5Z" />
+      <path d="M8.1 11.9 5 12.5l-1.5 3 3 .5.5 3 3-1.5.6-3.1" />
+      <circle cx="15" cy="9" r="1.3" />
+    </svg>
+  );
+}
+
+export function MenuIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+export function CloseIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
