@@ -1,11 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+const nav = vi.hoisted(() => ({ search: '' }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(nav.search),
+}));
 
-import { vi } from 'vitest';
 import { StoreProvider } from '@/data/store';
+import { seed } from '@/data/fixtures';
+import { filtrarEquipes } from '@/data/repository';
 import { Funil } from '@/features/admin-funil/Funil';
 
 function renderFunil() {
@@ -15,6 +20,10 @@ function renderFunil() {
     </StoreProvider>,
   );
 }
+
+beforeEach(() => {
+  nav.search = '';
+});
 
 describe('Funil', () => {
   it('mostra 7 colunas (6 etapas + pronta p/ InovAMF)', () => {
@@ -50,5 +59,14 @@ describe('Funil', () => {
 
     await user.selectOptions(areaSelect, ''); // Todas as áreas (selecionável)
     expect(screen.getAllByTestId('equipe-card').length).toBe(total);
+  });
+
+  it('aplica o filtro vindo da URL (?status=atrasada) — deep-link do dashboard', () => {
+    nav.search = 'status=atrasada';
+    const esperado = filtrarEquipes(seed(), { statusTarefa: 'atrasada' }).length;
+    renderFunil();
+    const cards = screen.getAllByTestId('equipe-card');
+    expect(esperado).toBeGreaterThan(0);
+    expect(cards).toHaveLength(esperado);
   });
 });

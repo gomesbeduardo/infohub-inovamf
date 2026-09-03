@@ -5,11 +5,17 @@ import Link from 'next/link';
 import type { Equipe } from '@/domain/types';
 import { useStore, useActions } from '@/data/store';
 import { getUsuarioAtual } from '@/data/session';
-import { equipesVisiveis, tarefasObrigatoriasPendentes } from '@/data/repository';
+import {
+  equipesVisiveis,
+  filtrarEquipes,
+  tarefasObrigatoriasPendentes,
+  type FiltrosFunil,
+} from '@/data/repository';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { Badge } from '@/design-system/components/Badge';
 import { EmptyState } from '@/design-system/components/EmptyState';
+import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { cn } from '@/design-system/cn';
 
 type Destino = number | 'pronta';
@@ -29,6 +35,7 @@ export function FunilKanban() {
   const [montado, setMontado] = useState(false);
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<string | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosFunil>({});
   useEffect(() => setMontado(true), []);
 
   if (!montado) return null;
@@ -39,7 +46,9 @@ export function FunilKanban() {
   }
   const autorId = usuario.id;
 
-  const equipes = equipesVisiveis(state, usuario);
+  // escopo do mentor ∩ filtros da barra (busca, área, curso, status, ciclo)
+  const visiveis = new Set(equipesVisiveis(state, usuario).map((e) => e.id));
+  const equipes = filtrarEquipes(state, filtros).filter((e) => visiveis.has(e.id));
   const etapas = [...state.etapas].sort((a, b) => a.numero - b.numero);
 
   const colunas: { key: string; titulo: string; cor: string; destino: Destino; equipes: Equipe[] }[] = [
@@ -90,8 +99,11 @@ export function FunilKanban() {
   }
 
   return (
-    <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
-      {colunas.map((col) => (
+    <div className="flex flex-col gap-4">
+      <FiltrosBar filtros={filtros} onChange={setFiltros} ocultarMentor />
+
+      <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
+        {colunas.map((col) => (
         <section
           key={col.key}
           data-testid="coluna-kanban"
@@ -136,7 +148,8 @@ export function FunilKanban() {
             )}
           </div>
         </section>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

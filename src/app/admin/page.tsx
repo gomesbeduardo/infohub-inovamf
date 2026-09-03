@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { AppShell } from '@/features/shell/AppShell';
 import { PageHeader } from '@/design-system/components/PageHeader';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
@@ -12,7 +13,10 @@ export default function AdminPage() {
           subtitle="Visão consolidada e funil das equipes."
         />
         <DashboardIndicadores />
-        <Funil />
+        {/* Funil usa useSearchParams (presets do dashboard) → precisa de Suspense */}
+        <Suspense fallback={null}>
+          <Funil />
+        </Suspense>
       </div>
     </AppShell>
   );
