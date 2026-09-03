@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useActions } from '@/data/store';
+import { useStore } from '@/data/store';
+import { normalizar } from '@/data/repository';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
@@ -10,21 +11,22 @@ import { AlertIcon, CheckIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
 
 export function RecuperarSenhaForm() {
-  const { redefinir } = useActions();
+  const { state } = useStore();
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (senha.length < 6) {
-      setMsg({ ok: false, texto: 'A nova senha deve ter ao menos 6 caracteres.' });
+    if (!email.trim()) {
+      setMsg({ ok: false, texto: 'Informe seu e-mail.' });
       return;
     }
-    const ok = redefinir(email, senha);
+    const existe = state.usuarios.some(
+      (u) => normalizar(u.email) === normalizar(email),
+    );
     setMsg(
-      ok
-        ? { ok: true, texto: 'Senha redefinida! Você já pode entrar com a nova senha.' }
+      existe
+        ? { ok: true, texto: 'Enviamos um código de recuperação para o seu e-mail.' }
         : { ok: false, texto: 'E-mail não encontrado.' },
     );
   }
@@ -36,7 +38,7 @@ export function RecuperarSenhaForm() {
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-text">Recuperar senha</h1>
           <p className="text-sm text-text-muted">
-            Defina uma nova senha para sua conta.
+            Informe seu e-mail e enviaremos um código de recuperação.
           </p>
         </div>
 
@@ -50,15 +52,6 @@ export function RecuperarSenhaForm() {
               placeholder="voce@infohub.dev"
               autoComplete="email"
               spellCheck={false}
-            />
-          </FormField>
-          <FormField label="Nova senha" htmlFor="rec-senha">
-            <Input
-              id="rec-senha"
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              autoComplete="new-password"
             />
           </FormField>
 
@@ -82,13 +75,13 @@ export function RecuperarSenhaForm() {
           )}
 
           <Button type="submit" size="lg" className="w-full">
-            Redefinir senha
+            Enviar código
           </Button>
         </form>
 
         <p className="text-xs text-text-subtle">
-          Fluxo simulado (mock): num sistema real, enviaríamos um link de
-          redefinição por e-mail.
+          Fluxo simulado (mock): num sistema real, enviaríamos o código de
+          recuperação por e-mail.
         </p>
 
         <a
