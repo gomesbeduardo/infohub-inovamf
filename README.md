@@ -65,15 +65,15 @@ Por feature, não por camada técnica — arquivos que mudam juntos ficam juntos
 
 ```
 src/
-  app/            # rotas (App Router): login, cadastro, recuperar-senha,
+  app/            # rotas (App Router): / (landing pública), login, cadastro,
+                  #   recuperar-senha,
                   #   admin (funil+dashboard), admin/equipes/[slug], admin/contas, aluno
   design-system/  # tokens.css, tema, cn, componentes-marca, brand/ (logos SVG)
   domain/         # tipos derivados do schema + labels pt-BR
   data/           # fixtures (seed), repository (funções puras), store, session
-  features/       # telas por feature (auth, aluno-cadastro, admin-funil,
+  features/       # telas por feature (landing, auth, aluno-cadastro, admin-funil,
                   #   admin-detalhe, admin-tarefas, admin-dashboard, admin-contas,
                   #   aluno-tarefas, shell)
-  middleware.ts   # guard de rota (/ → /login)
 tests/            # Vitest: repository/domain (funções puras) + componentes (RTL)
 docs/             # requisitos (RF/RNF/RN) + schema SQL
 plan.md           # plano de implementação (decisões, paleta, tarefas TDD)
@@ -83,7 +83,7 @@ plan.md           # plano de implementação (decisões, paleta, tarefas TDD)
 
 ```bash
 npm install      # instala as dependências
-npm run dev      # sobe o app em http://localhost:3000 (redireciona para /login)
+npm run dev      # sobe o app em http://localhost:3000 (landing pública em /)
 npm test         # roda a suíte Vitest (TDD)
 npm run build    # build de produção
 ```

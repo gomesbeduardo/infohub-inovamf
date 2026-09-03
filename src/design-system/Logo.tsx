@@ -2,6 +2,10 @@ import Image from 'next/image';
 import mark from './brand/mark.svg';
 import { cn } from '@/design-system/cn';
 
+// viewBox do mark.svg
+const MARK_W = 664;
+const MARK_H = 931;
+
 export interface LogoProps {
   variant?: 'color' | 'mono';
   withTagline?: boolean;
@@ -40,8 +44,10 @@ export function Logo({
         src={mark}
         alt=""
         aria-hidden
-        width={mark.width}
-        height={mark.height}
+        // dimensões literais do mark.svg — o import estático só carrega
+        // metadados no bundler do Next (fora dele, `mark` é só o caminho).
+        width={MARK_W}
+        height={MARK_H}
         priority
         className={cn('w-auto object-contain', grande ? 'h-[72px]' : 'h-8')}
       />
