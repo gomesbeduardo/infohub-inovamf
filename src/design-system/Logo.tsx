@@ -26,7 +26,6 @@ export function Logo({
 }: LogoProps) {
   const grande = size === 'lg';
   const stacked = orientation === 'stacked';
-  const px = grande ? 72 : 32;
   return (
     <span
       className={cn(
@@ -41,10 +40,10 @@ export function Logo({
         src={mark}
         alt=""
         aria-hidden
-        width={px}
-        height={px}
+        width={mark.width}
+        height={mark.height}
         priority
-        className={cn('object-contain', grande ? 'h-[72px] w-[72px]' : 'h-8 w-8')}
+        className={cn('w-auto object-contain', grande ? 'h-[72px]' : 'h-8')}
       />
       <span
         className={cn(
