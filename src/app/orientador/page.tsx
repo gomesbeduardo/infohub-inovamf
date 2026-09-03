@@ -1,16 +1,16 @@
 import { AppShell } from '@/features/shell/AppShell';
 import { PageHeader } from '@/design-system/components/PageHeader';
-import { MinhasEquipes } from '@/features/orientador/MinhasEquipes';
+import { PainelOrientador } from '@/features/orientador/PainelOrientador';
 
 export default function OrientadorPage() {
   return (
     <AppShell largura="ampla">
       <div className="flex flex-col gap-5">
         <PageHeader
-          title="Minhas equipes"
-          subtitle="As equipes que você orienta e o que precisa da sua atenção."
+          title="Painel do mentor"
+          subtitle="Indicadores, ritmo das suas equipes e o funil para mover etapas."
         />
-        <MinhasEquipes />
+        <PainelOrientador />
       </div>
     </AppShell>
   );
