@@ -1,5 +1,7 @@
 # AGENTS.md — convenções do projeto InfoHub → InovAMF
 
+- Leia [`plan.md`](plan.md).
+
 Regras para qualquer agente/dev que trabalhe neste repositório. Fonte original:
 seção "Fluxo de desenvolvimento" do [`README.md`](README.md).
 
