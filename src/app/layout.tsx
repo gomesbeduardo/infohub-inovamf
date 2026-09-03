@@ -2,7 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider, type Theme } from '@/design-system/theme';
+import {
+  ThemeProvider,
+  type Theme,
+  type ThemePreference,
+} from '@/design-system/theme';
 import { StoreProvider } from '@/data/store';
 
 const display = Space_Grotesk({
@@ -35,10 +39,21 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // tema vindo do cookie, aplicado no SSR — sem flash entre sessões.
-  // Novos usuários (sem cookie) começam no escuro; quem já escolheu mantém.
+  // preferência vinda do cookie; o padrão (sem cookie) é seguir o sistema.
+  const jar = cookies();
+  const bruta = jar.get('infohub-theme')?.value;
+  const preference: ThemePreference =
+    bruta === 'light' || bruta === 'dark' || bruta === 'system' ? bruta : 'system';
+
+  // tema já resolvido na última visita — evita flash quando a preferência é
+  // `system`; o script inline abaixo corrige antes da pintura se o SO mudou.
+  const resolvido = jar.get('infohub-theme-resolvido')?.value;
   const theme: Theme =
-    cookies().get('infohub-theme')?.value === 'light' ? 'light' : 'dark';
+    preference === 'system'
+      ? resolvido === 'light'
+        ? 'light'
+        : 'dark'
+      : preference;
 
   return (
     <html
@@ -47,8 +62,17 @@ export default function RootLayout({
       className={`${display.variable} ${body.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          // aplica o tema do sistema antes da pintura quando a preferência é
+          // `system` (ou na primeira visita, sem cookie algum).
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var p=localStorage.getItem('infohub-theme')||'system';if(p!=='light'&&p!=='dark')p='system';var t=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.dataset.theme=t;}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>
-        <ThemeProvider initialTheme={theme}>
+        <ThemeProvider initialPreference={preference} initialTheme={theme}>
           <StoreProvider>{children}</StoreProvider>
         </ThemeProvider>
       </body>

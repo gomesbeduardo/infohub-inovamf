@@ -2,38 +2,60 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
   type ReactNode,
 } from 'react';
 
+/** Tema efetivamente aplicado ao documento. */
 export type Theme = 'light' | 'dark';
+/** Preferência do usuário — `system` segue o tema do sistema operacional. */
+export type ThemePreference = Theme | 'system';
 
 const STORAGE_KEY = 'infohub-theme';
+/** Cookie auxiliar: tema já resolvido, para o SSR não piscar quando a preferência é `system`. */
+const RESOLVED_COOKIE = 'infohub-theme-resolvido';
+const MEDIA_DARK = '(prefers-color-scheme: dark)';
 
-function salvarTema(theme: Theme) {
+function escreverCookie(nome: string, valor: string) {
   try {
-    localStorage.setItem(STORAGE_KEY, theme);
-  } catch {
-    /* ignora */
-  }
-  try {
-    // cookie para o servidor aplicar o tema no SSR (sem flash entre sessões)
-    document.cookie = `${STORAGE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
+    document.cookie = `${nome}=${valor}; path=/; max-age=31536000; samesite=lax`;
   } catch {
     /* ignora */
   }
 }
 
-function lerTemaCliente(): Theme | null {
+function salvarPreferencia(pref: ThemePreference, resolvido: Theme) {
+  try {
+    localStorage.setItem(STORAGE_KEY, pref);
+  } catch {
+    /* ignora */
+  }
+  // cookies para o servidor aplicar o tema no SSR (sem flash entre sessões)
+  escreverCookie(STORAGE_KEY, pref);
+  escreverCookie(RESOLVED_COOKIE, resolvido);
+}
+
+function lerPreferenciaCliente(): ThemePreference | null {
   try {
     const ls = localStorage.getItem(STORAGE_KEY);
-    if (ls === 'light' || ls === 'dark') return ls;
+    if (ls === 'light' || ls === 'dark' || ls === 'system') return ls;
   } catch {
     /* ignora */
   }
   return null;
+}
+
+/** Tema do sistema operacional (padrão `light` quando não há suporte a matchMedia). */
+export function temaDoSistema(): Theme {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia?.(MEDIA_DARK)?.matches ? 'dark' : 'light';
+}
+
+function resolver(pref: ThemePreference): Theme {
+  return pref === 'system' ? temaDoSistema() : pref;
 }
 
 /** Arma o cross-fade de tema por ~320ms em volta da troca (ver globals.css). */
@@ -46,49 +68,114 @@ function armarTransicao() {
 }
 
 interface ThemeContextValue {
+  /** Preferência escolhida: `light`, `dark` ou `system`. */
+  preference: ThemePreference;
+  /** Tema aplicado de fato (`system` já resolvido). */
   theme: Theme;
+  /** Alterna entre claro e escuro (fixa a preferência). */
   toggle: () => void;
-  setTheme: (t: Theme) => void;
+  /** Percorre o ciclo claro → escuro → sistema. */
+  cycle: () => void;
+  setPreference: (p: ThemePreference) => void;
+  /** @deprecated use `setPreference`. */
+  setTheme: (t: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Provider de tema. O tema inicial vem do servidor (cookie), aplicado como
- * `data-theme` no <html> já no SSR — sem flash. Persiste em cookie + localStorage.
+ * Próxima preferência do ciclo do botão: partindo de `system`, escolhe primeiro
+ * o tema oposto ao do SO (a troca é visível), depois o outro e volta a `system`.
+ */
+function proximaPreferencia(atual: ThemePreference): ThemePreference {
+  const sistema = temaDoSistema();
+  const oposto: Theme = sistema === 'light' ? 'dark' : 'light';
+  if (atual === 'system') return oposto;
+  if (atual === oposto) return sistema;
+  return 'system';
+}
+
+/**
+ * Provider de tema. A preferência inicial vem do servidor (cookie) e o tema já
+ * resolvido é aplicado como `data-theme` no <html> no SSR — sem flash. Quando a
+ * preferência é `system`, o tema acompanha o SO em tempo real.
  */
 export function ThemeProvider({
   children,
+  initialPreference,
   initialTheme,
 }: {
   children: ReactNode;
+  initialPreference?: ThemePreference;
+  /** Tema resolvido no servidor, usado só como primeiro valor de render. */
   initialTheme?: Theme;
 }) {
-  const [theme, setThemeState] = useState<Theme>(initialTheme ?? 'light');
+  const [preference, setPreferenceState] = useState<ThemePreference>(
+    initialPreference ?? 'system',
+  );
+  const [theme, setThemeState] = useState<Theme>(
+    initialTheme ?? (initialPreference && initialPreference !== 'system'
+      ? initialPreference
+      : 'light'),
+  );
 
   // fallback (ex.: testes, ou ausência de cookie): lê a preferência no cliente
   useEffect(() => {
-    if (initialTheme) return;
-    const stored = lerTemaCliente();
-    if (stored) setThemeState(stored);
-  }, [initialTheme]);
+    if (initialPreference) return;
+    const stored = lerPreferenciaCliente();
+    if (stored) setPreferenceState(stored);
+  }, [initialPreference]);
 
+  // aplica o tema resolvido e persiste a preferência
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    salvarTema(theme);
-  }, [theme]);
+    const resolvido = resolver(preference);
+    setThemeState(resolvido);
+    document.documentElement.dataset.theme = resolvido;
+    salvarPreferencia(preference, resolvido);
+  }, [preference]);
 
-  const setTheme = (t: Theme) => {
+  // acompanha mudanças do SO enquanto a preferência for `system`
+  useEffect(() => {
+    if (preference !== 'system') return;
+    const mq = window.matchMedia?.(MEDIA_DARK);
+    if (!mq) return;
+    const aoMudar = () => {
+      const resolvido = temaDoSistema();
+      armarTransicao();
+      setThemeState(resolvido);
+      document.documentElement.dataset.theme = resolvido;
+      escreverCookie(RESOLVED_COOKIE, resolvido);
+    };
+    mq.addEventListener?.('change', aoMudar);
+    return () => mq.removeEventListener?.('change', aoMudar);
+  }, [preference]);
+
+  const setPreference = useCallback((p: ThemePreference) => {
     armarTransicao();
-    setThemeState(t);
-  };
-  const toggle = () => {
+    setPreferenceState(p);
+  }, []);
+
+  const toggle = useCallback(() => {
     armarTransicao();
-    setThemeState((t) => (t === 'light' ? 'dark' : 'light'));
-  };
+    setPreferenceState((p) => (resolver(p) === 'light' ? 'dark' : 'light'));
+  }, []);
+
+  const cycle = useCallback(() => {
+    armarTransicao();
+    setPreferenceState(proximaPreferencia);
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle, setTheme }}>
+    <ThemeContext.Provider
+      value={{
+        preference,
+        theme,
+        toggle,
+        cycle,
+        setPreference,
+        setTheme: setPreference,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
