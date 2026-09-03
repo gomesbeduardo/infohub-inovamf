@@ -50,6 +50,10 @@ export function Logo({
         className={cn(
           'inline-flex flex-col leading-none',
           stacked && 'items-center',
+          // compensação óptica: no lockup horizontal grande, o wordmark em
+          // caixa baixa assenta baixo e a parte acesa da lâmpada fica alta —
+          // sobe um pouco o texto para centralizar com a marca.
+          !stacked && grande && '-translate-y-[6px]',
         )}
       >
         <span
