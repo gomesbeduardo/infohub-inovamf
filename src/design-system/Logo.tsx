@@ -22,7 +22,7 @@ export function Logo({
   className,
 }: LogoProps) {
   const grande = size === 'lg';
-  const px = grande ? 56 : 32;
+  const px = grande ? 72 : 32;
   return (
     <span
       className={cn(
@@ -38,13 +38,13 @@ export function Logo({
         width={px}
         height={px}
         priority
-        className={cn('object-contain', grande ? 'h-14 w-14' : 'h-8 w-8')}
+        className={cn('object-contain', grande ? 'h-[72px] w-[72px]' : 'h-8 w-8')}
       />
       <span className="inline-flex flex-col leading-none">
         <span
           className={cn(
             'font-display font-bold tracking-[-0.02em]',
-            grande ? 'text-3xl' : 'text-lg',
+            grande ? 'text-4xl' : 'text-lg',
           )}
         >
           <span className="text-text">info</span>
@@ -58,7 +58,7 @@ export function Logo({
           <span
             className={cn(
               'font-medium uppercase tracking-[0.2em] text-text-muted',
-              grande ? 'mt-2 text-xs' : 'mt-1 text-[10px]',
+              grande ? 'mt-2 text-sm' : 'mt-1 text-[10px]',
             )}
           >
             InovAMF
