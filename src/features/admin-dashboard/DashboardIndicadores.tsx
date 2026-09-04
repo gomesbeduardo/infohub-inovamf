@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import { useStore } from '@/data/store';
 import { calcularIndicadores } from '@/data/repository';
-import { Card } from '@/design-system/components/Card';
 import { StatCard } from '@/design-system/components/StatCard';
-import { StageTag } from '@/design-system/components/StageTag';
+import { DistribuicaoPorEtapa } from '@/features/admin-dashboard/DistribuicaoPorEtapa';
 import {
   UsersIcon,
   CheckIcon,
@@ -16,7 +15,6 @@ import {
 export function DashboardIndicadores() {
   const { state } = useStore();
   const ind = calcularIndicadores(state);
-  const maxEtapa = Math.max(1, ...ind.porEtapa.map((p) => p.total));
 
   return (
     <section className="flex flex-col gap-4">
@@ -48,7 +46,6 @@ export function DashboardIndicadores() {
           href="/admin/equipes"
         />
       </div>
-
       <Card>
         <Card.Body className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-text">

@@ -21,6 +21,7 @@ import {
   editarUsuario,
   definirAtivoUsuario,
   redefinirSenha,
+  semestreDoMembro,
   type DadosCadastro,
 } from '@/data/repository';
 
@@ -430,5 +431,75 @@ describe('adicionarMembro (líder/mentor incluem integrantes)', () => {
     expect(adicionarMembro(s, 'eq-1', { nome: '  ', curso: 'Direito' })).toBe(s);
     expect(adicionarMembro(s, 'eq-1', { nome: 'X', curso: '' })).toBe(s);
     expect(adicionarMembro(s, 'nao-existe', { nome: 'X', curso: 'Direito' })).toBe(s);
+  });
+});
+
+describe('semestre/módulo dos membros', () => {
+  it('guarda o semestre do líder e o de cada integrante', () => {
+    const s = seed();
+    const { estado, equipe, usuario } = criarEquipeDoFormulario(s, {
+      ...dadosValidos,
+      semestre: '4',
+      integrantes: [{ nome: 'Maria Colega', curso: 'Direito', semestre: '7' }],
+    });
+
+    expect(
+      estado.alunos.find((a) => a.usuarioId === usuario.id)?.semestre,
+    ).toBe('4');
+
+    const lider = equipe.membros.find((m) => m.papel === 'lider')!;
+    const integrante = equipe.membros.find((m) => m.papel === 'integrante')!;
+    expect(lider.semestre).toBe('4');
+    expect(integrante.semestre).toBe('7');
+  });
+
+  it('aceita integrante sem semestre informado', () => {
+    const s = seed();
+    const { equipe } = criarEquipeDoFormulario(s, {
+      ...dadosValidos,
+      integrantes: [{ nome: 'Maria Colega', curso: 'Direito' }],
+    });
+    expect(equipe.membros.at(-1)!.semestre).toBeUndefined();
+  });
+
+  it('adicionarMembro guarda o semestre quando informado', () => {
+    const s = seed();
+    const r = adicionarMembro(s, 'eq-1', {
+      nome: 'Novo Aluno',
+      curso: 'Direito',
+      semestre: '5',
+    });
+    expect(r.equipes.find((e) => e.id === 'eq-1')!.membros.at(-1)!.semestre).toBe(
+      '5',
+    );
+  });
+});
+
+describe('semestreDoMembro', () => {
+  it('cai no cadastro do aluno quando o membro não traz o semestre', () => {
+    const s = seed();
+    const membro = s.equipes
+      .find((e) => e.id === 'eq-1')!
+      .membros.find((m) => m.usuarioId === 'u-aluno-1')!;
+    expect(membro.semestre).toBeUndefined();
+    expect(semestreDoMembro(s, membro)).toBe('4');
+  });
+
+  it('prefere o semestre gravado no próprio membro', () => {
+    const s = seed();
+    const r = adicionarMembro(s, 'eq-1', {
+      nome: 'Novo Aluno',
+      curso: 'Direito',
+      semestre: '9',
+    });
+    const membro = r.equipes.find((e) => e.id === 'eq-1')!.membros.at(-1)!;
+    expect(semestreDoMembro(r, membro)).toBe('9');
+  });
+
+  it('devolve string vazia quando não há semestre em lugar nenhum', () => {
+    const s = seed();
+    const r = adicionarMembro(s, 'eq-1', { nome: 'Sem Período', curso: 'Direito' });
+    const membro = r.equipes.find((e) => e.id === 'eq-1')!.membros.at(-1)!;
+    expect(semestreDoMembro(r, membro)).toBe('');
   });
 });

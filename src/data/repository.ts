@@ -61,7 +61,7 @@ export interface DadosCadastro {
   telefone: string;
   curso: string;
   semestre: string;
-  integrantes: { nome: string; curso: string }[];
+  integrantes: { nome: string; curso: string; semestre?: string }[];
   nomeIdeia: string;
   descricaoIdeia: string;
   areaId: number;
@@ -147,13 +147,21 @@ export function criarEquipeDoFormulario(
   const equipeId = `eq-${slug}`;
 
   const membros: EquipeMembro[] = [
-    { usuarioId, nome: d.nome, curso: d.curso, papel: 'lider', ativo: true },
+    {
+      usuarioId,
+      nome: d.nome,
+      curso: d.curso,
+      semestre: d.semestre || undefined,
+      papel: 'lider',
+      ativo: true,
+    },
     ...d.integrantes
       .filter((it) => !vazio(it.nome))
       .map((it, i) => ({
         usuarioId: `${equipeId}-m${i + 2}`,
         nome: it.nome,
         curso: it.curso,
+        semestre: it.semestre || undefined,
         papel: 'integrante' as const,
         ativo: true,
       })),
@@ -187,12 +195,13 @@ export function criarEquipeDoFormulario(
 /**
  * Adiciona um integrante à equipe (papel `integrante`). Gera um id único e não
  * cria conta de acesso — segue o mesmo modelo do cadastro (integrantes são
- * nome + curso). Imutável; retorna o estado inalterado se a equipe não existir.
+ * nome + curso + semestre/módulo). Imutável; retorna o estado inalterado se a
+ * equipe não existir.
  */
 export function adicionarMembro(
   s: AppState,
   equipeId: string,
-  dados: { nome: string; curso: string },
+  dados: { nome: string; curso: string; semestre?: string },
 ): AppState {
   const equipe = s.equipes.find((e) => e.id === equipeId);
   if (!equipe) return s;
@@ -209,6 +218,7 @@ export function adicionarMembro(
     usuarioId,
     nome: dados.nome.trim(),
     curso: dados.curso,
+    semestre: dados.semestre || undefined,
     papel: 'integrante',
     ativo: true,
   };
@@ -218,6 +228,19 @@ export function adicionarMembro(
       e.id === equipeId ? { ...e, membros: [...e.membros, membro] } : e,
     ),
   };
+}
+
+/**
+ * Semestre/módulo de um membro da equipe. O membro pode trazer o período
+ * consigo (cadastro novo); quando não traz, vale o que está no cadastro do
+ * aluno (`alunos`), que é a fonte de quem tem conta de acesso.
+ */
+export function semestreDoMembro(s: AppState, m: EquipeMembro): string {
+  return (
+    m.semestre ??
+    s.alunos.find((a) => a.usuarioId === m.usuarioId)?.semestre ??
+    ''
+  );
 }
 
 // ── Funil, etapas e atraso ───────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useActions } from '@/data/store';
 import { CURSO_OPTIONS } from '@/domain/cursos';
+import { SEMESTRE_LABEL, SEMESTRE_OPTIONS } from '@/domain/semestres';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
@@ -19,12 +20,14 @@ export function AdicionarMembroDialog({ equipeId }: { equipeId: string }) {
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState('');
   const [curso, setCurso] = useState('');
+  const [semestre, setSemestre] = useState('');
   const [erro, setErro] = useState('');
 
   function fechar() {
     setAberto(false);
     setNome('');
     setCurso('');
+    setSemestre('');
     setErro('');
   }
 
@@ -37,7 +40,7 @@ export function AdicionarMembroDialog({ equipeId }: { equipeId: string }) {
       setErro('Escolha o curso.');
       return;
     }
-    adicionarMembro(equipeId, { nome, curso });
+    adicionarMembro(equipeId, { nome, curso, semestre });
     fechar();
   }
 
@@ -82,6 +85,19 @@ export function AdicionarMembroDialog({ equipeId }: { equipeId: string }) {
               options={CURSO_OPTIONS}
               value={curso}
               onChange={(e) => setCurso(e.target.value)}
+            />
+          </FormField>
+          <FormField
+            label={SEMESTRE_LABEL}
+            htmlFor="membro-semestre"
+            hint="Opcional"
+          >
+            <Select
+              id="membro-semestre"
+              placeholder="Selecione…"
+              options={SEMESTRE_OPTIONS}
+              value={semestre}
+              onChange={(e) => setSemestre(e.target.value)}
             />
           </FormField>
 

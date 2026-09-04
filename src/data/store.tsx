@@ -93,7 +93,10 @@ export function useActions() {
       return { equipe, usuario };
     },
     filtrar: (f: FiltrosFunil) => filtrarEquipes(state, f),
-    adicionarMembro: (equipeId: string, dados: { nome: string; curso: string }) =>
+    adicionarMembro: (
+      equipeId: string,
+      dados: { nome: string; curso: string; semestre?: string },
+    ) =>
       set(adicionarMembro(state, equipeId, dados)),
     avancar: (
       equipeId: string,

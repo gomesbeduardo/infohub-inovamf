@@ -57,6 +57,8 @@ export interface EquipeMembro {
   usuarioId: string;
   nome: string;
   curso: string;
+  /** Período no curso (1..10). Semestre ou módulo, conforme o curso. */
+  semestre?: string;
   papel: PapelMembro;
   ativo: boolean;
 }

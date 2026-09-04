@@ -47,12 +47,34 @@ describe('CadastroForm', () => {
     );
     await user.selectOptions(screen.getByLabelText('Área'), '1');
 
+    await user.selectOptions(screen.getByLabelText(/Semestre\/Módulo/), '4');
+
     await user.click(screen.getByRole('button', { name: /adicionar integrante/i }));
     await user.type(screen.getByLabelText('Nome do integrante 1'), 'Colega Um');
+    await user.selectOptions(
+      screen.getByLabelText('Semestre/Módulo do integrante 1'),
+      '7',
+    );
 
     await user.click(screen.getByRole('button', { name: /cadastrar/i }));
 
     expect(push).toHaveBeenCalledWith('/aluno');
     expect(getUsuarioIdAtual()).toBe('u-novo');
+  });
+
+  it('o semestre/módulo é uma lista fechada, do líder e de cada integrante', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    const doLider = screen.getByLabelText(/^Semestre\/Módulo$/);
+    expect(doLider.tagName).toBe('SELECT');
+    expect(
+      screen.getByRole('option', { name: '4º semestre/módulo' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /adicionar integrante/i }));
+    expect(
+      screen.getByLabelText('Semestre/Módulo do integrante 1').tagName,
+    ).toBe('SELECT');
   });
 });
