@@ -9,9 +9,23 @@ export interface TabItem {
   content: ReactNode;
 }
 
-export function Tabs({ tabs }: { tabs: TabItem[] }) {
-  const [ativo, setAtivo] = useState(tabs[0]?.id ?? '');
+export interface TabsProps {
+  tabs: TabItem[];
+  /** Aba ativa (modo controlado). Sem isto, o componente gerencia o estado. */
+  active?: string;
+  /** Notifica a troca de aba (útil no modo controlado). */
+  onChange?: (id: string) => void;
+}
+
+export function Tabs({ tabs, active, onChange }: TabsProps) {
+  const [interno, setInterno] = useState(tabs[0]?.id ?? '');
+  const ativo = active ?? interno;
   const atual = tabs.find((t) => t.id === ativo) ?? tabs[0];
+
+  const trocar = (id: string) => {
+    if (active === undefined) setInterno(id);
+    onChange?.(id);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -22,7 +36,7 @@ export function Tabs({ tabs }: { tabs: TabItem[] }) {
             type="button"
             role="tab"
             aria-selected={ativo === t.id}
-            onClick={() => setAtivo(t.id)}
+            onClick={() => trocar(t.id)}
             className={cn(
               'px-3 py-2 text-sm transition-colors',
               ativo === t.id

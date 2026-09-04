@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/data/store';
 import {
   filtrarEquipes,
@@ -13,11 +14,31 @@ import { EquipeCard } from '@/features/admin-funil/EquipeCard';
 import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
 
+const STATUS_TAREFA_VALIDOS = [
+  'pendente',
+  'em_andamento',
+  'entregue',
+  'atrasada',
+  'aprovada',
+  'ajustar',
+] as const;
+
 export function Funil() {
   const { state } = useStore();
+  const searchParams = useSearchParams();
+  const statusParam = searchParams.get('status');
   const [filtros, setFiltros] = useState<FiltrosFunil>({});
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
+
+  // presets vindos de links do dashboard (ex.: /admin?status=atrasada).
+  // Reage à query mesmo em navegação na mesma rota (o dashboard e o funil
+  // convivem em /admin), por isso lê via useSearchParams e não só no mount.
+  useEffect(() => {
+    if (statusParam && (STATUS_TAREFA_VALIDOS as readonly string[]).includes(statusParam)) {
+      setFiltros((f) => ({ ...f, statusTarefa: statusParam as FiltrosFunil['statusTarefa'] }));
+    }
+  }, [statusParam]);
 
   // escopo por perfil (RNF-03): mentor vê só as suas equipes; admin vê todas
   const usuario = montado ? getUsuarioAtual(state) : null;
@@ -61,8 +82,9 @@ export function Funil() {
         {colunas.map((col) => (
           <section
             key={col.key}
+            id={`col-${col.key}`}
             data-testid="coluna-funil"
-            className="flex w-72 shrink-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-surface-sunken"
+            className="flex w-72 shrink-0 scroll-mt-24 flex-col gap-3 overflow-hidden rounded-2xl border border-border bg-surface-sunken"
           >
             <header className="flex items-center justify-between gap-2 border-b border-border px-3 pb-2.5 pt-3">
               <span className="flex items-center gap-2">

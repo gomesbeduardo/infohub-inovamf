@@ -18,9 +18,12 @@ const STATUS: StatusTarefa[] = [
 export function FiltrosBar({
   filtros,
   onChange,
+  ocultarMentor = false,
 }: {
   filtros: FiltrosFunil;
   onChange: (f: FiltrosFunil) => void;
+  /** Oculta o filtro de mentor (ex.: painel do mentor, que só vê as próprias). */
+  ocultarMentor?: boolean;
 }) {
   const { state } = useStore();
 
@@ -68,14 +71,16 @@ export function FiltrosBar({
           onChange({ ...filtros, curso: e.target.value || undefined })
         }
       />
-      <Select
-        aria-label="Filtrar por mentor"
-        options={comTodos('Todos os mentores', mentores)}
-        value={filtros.mentorId ?? ''}
-        onChange={(e) =>
-          onChange({ ...filtros, mentorId: e.target.value || undefined })
-        }
-      />
+      {!ocultarMentor && (
+        <Select
+          aria-label="Filtrar por mentor"
+          options={comTodos('Todos os mentores', mentores)}
+          value={filtros.mentorId ?? ''}
+          onChange={(e) =>
+            onChange({ ...filtros, mentorId: e.target.value || undefined })
+          }
+        />
+      )}
       <Select
         aria-label="Filtrar por status de tarefa"
         options={comTodos('Qualquer status', status)}
