@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { Equipe, StatusTarefa } from '@/domain/types';
+import type { AppState, Equipe, StatusTarefa } from '@/domain/types';
 import { useStore, useActions } from '@/data/store';
 import { getUsuarioAtual } from '@/data/session';
 import {
   equipesVisiveis,
   filtrarEquipes,
-  tarefasObrigatoriasPendentes,
+  planejarMovimento,
   type FiltrosFunil,
+  type MovimentoPlano,
 } from '@/data/repository';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
@@ -23,11 +24,27 @@ import { cn } from '@/design-system/cn';
 
 type Destino = number | 'pronta';
 
-interface Confirmacao {
-  equipe: Equipe;
-  destino: Destino;
-  pendentes: number;
-  etapaNome: string;
+/** Quanto tempo o aviso de "Desfazer" fica visível após um movimento silenciado. */
+const DESFAZER_MS = 6000;
+/** Preferência do usuário: quando `silenciado`, o arraste move sem confirmar. */
+const PREF_KEY = 'infohub-kanban-confirmar';
+
+/** Lê se o usuário pediu para não confirmar mais os arrastes ("não mostrar novamente"). */
+function lerSilenciado(): boolean {
+  try {
+    return localStorage.getItem(PREF_KEY) === 'silenciado';
+  } catch {
+    return false;
+  }
+}
+
+function salvarSilenciado(silenciado: boolean) {
+  try {
+    if (silenciado) localStorage.setItem(PREF_KEY, 'silenciado');
+    else localStorage.removeItem(PREF_KEY);
+  } catch {
+    /* ignora */
+  }
 }
 
 function ehPronta(status: string) {
@@ -44,23 +61,44 @@ export interface FunilBoardProps {
 /**
  * Funil por etapas com arraste (HTML5 drag-and-drop nativo): arrastar um card
  * para outra coluna move a equipe para aquela etapa (via `mover`, respeitando a
- * RN-01, com confirmação quando forçado). Usado pelo admin e pelo mentor.
+ * RN-01). Todo arraste pede confirmação por padrão — o usuário pode marcar "não
+ * mostrar novamente" para silenciar; nesse modo, cada movimento oferece
+ * "Desfazer" por alguns segundos (softlock contra arraste acidental). Usado pelo
+ * admin e pelo mentor.
  *
  * O caminho acessível por teclado continua sendo os botões Avançar/Retroceder
  * no detalhe da equipe.
  */
 export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const { mover } = useActions();
   const [montado, setMontado] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosFunil>({});
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<string | null>(null);
-  const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
-  useEffect(() => setMontado(true), []);
+  const [confirmacao, setConfirmacao] = useState<MovimentoPlano | null>(null);
+  const [naoMostrar, setNaoMostrar] = useState(false);
+  const [silenciado, setSilenciado] = useState(false);
+  const [desfazer, setDesfazer] = useState<{
+    plano: MovimentoPlano;
+    snapshot: AppState;
+  } | null>(null);
+  const undoTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    setMontado(true);
+    setSilenciado(lerSilenciado());
+  }, []);
   useEffect(() => {
     if (statusPreset) setFiltros((f) => ({ ...f, statusTarefa: statusPreset }));
   }, [statusPreset]);
+  // limpa o timer do aviso de desfazer ao desmontar
+  useEffect(
+    () => () => {
+      if (undoTimer.current) window.clearTimeout(undoTimer.current);
+    },
+    [],
+  );
 
   if (!montado) return null;
 
@@ -100,45 +138,53 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
   const testidColuna = ehAdmin ? 'coluna-funil' : 'coluna-kanban';
   const basePath = ehAdmin ? '/admin/equipes' : '/orientador/equipes';
 
+  /** Aplica o movimento planejado; guarda o estado anterior p/ o "Desfazer" quando silenciado. */
+  function executarMovimento(plano: MovimentoPlano, comDesfazer: boolean) {
+    const snapshot = state; // estado imutável de antes do move → undo exato, sem resíduo no histórico
+    mover(plano.equipe.id, {
+      destino: plano.destino,
+      autorId,
+      forcar: plano.forcado,
+    });
+    if (comDesfazer) {
+      if (undoTimer.current) window.clearTimeout(undoTimer.current);
+      setDesfazer({ plano, snapshot });
+      undoTimer.current = window.setTimeout(() => setDesfazer(null), DESFAZER_MS);
+    }
+  }
+
   function soltarEm(destino: Destino) {
     const equipeId = arrastando;
     setArrastando(null);
     setAlvo(null);
     if (!equipeId) return;
-    const equipe = equipes.find((e) => e.id === equipeId);
-    if (!equipe) return;
 
-    // mesma coluna → nada a fazer
-    if (destino === 'pronta' && ehPronta(equipe.status)) return;
-    if (typeof destino === 'number' && destino === equipe.etapaAtualId && !ehPronta(equipe.status)) {
-      return;
-    }
+    const plano = planejarMovimento(state, equipeId, destino);
+    if (!plano) return; // soltar na mesma coluna → nada a fazer
 
-    // avançar com obrigatória pendente exige confirmação (RN-01) → abre o modal
-    const avancando = typeof destino === 'number' && destino > equipe.etapaAtualId;
-    if (avancando) {
-      const pendentes = tarefasObrigatoriasPendentes(state, equipe.id, equipe.etapaAtualId);
-      if (pendentes.length > 0) {
-        setConfirmacao({
-          equipe,
-          destino,
-          pendentes: pendentes.length,
-          etapaNome: state.etapas.find((et) => et.id === destino)?.nome ?? `Etapa ${destino}`,
-        });
-        return;
-      }
+    if (silenciado) {
+      executarMovimento(plano, true); // sem modal; softlock via "Desfazer"
+    } else {
+      setNaoMostrar(false);
+      setConfirmacao(plano); // pede confirmação para qualquer movimento
     }
-    mover(equipe.id, { destino, autorId });
   }
 
   function confirmarMovimento() {
     if (!confirmacao) return;
-    mover(confirmacao.equipe.id, {
-      destino: confirmacao.destino,
-      autorId,
-      forcar: true,
-    });
+    if (naoMostrar) {
+      salvarSilenciado(true);
+      setSilenciado(true);
+    }
+    executarMovimento(confirmacao, false);
     setConfirmacao(null);
+  }
+
+  function desfazerMovimento() {
+    if (!desfazer) return;
+    if (undoTimer.current) window.clearTimeout(undoTimer.current);
+    dispatch({ type: 'SET_STATE', state: desfazer.snapshot });
+    setDesfazer(null);
   }
 
   return (
@@ -208,33 +254,90 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
         onOpenChange={(aberto) => {
           if (!aberto) setConfirmacao(null);
         }}
-        title="Mover com tarefas pendentes?"
+        title={confirmacao?.forcado ? 'Mover com tarefas pendentes?' : 'Confirmar movimento'}
       >
         {confirmacao && (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-text-muted">
-              <span className="font-medium text-text">{confirmacao.equipe.nomeIdeia}</span>{' '}
-              tem{' '}
-              <span className="font-medium text-text">
-                {confirmacao.pendentes} tarefa{confirmacao.pendentes > 1 ? 's' : ''} obrigatória
-                {confirmacao.pendentes > 1 ? 's' : ''} pendente
-                {confirmacao.pendentes > 1 ? 's' : ''}
-              </span>{' '}
-              na etapa atual. Mover para{' '}
-              <span className="font-medium text-text">{confirmacao.etapaNome}</span> mesmo assim?
-              O avanço será registrado como <span className="font-medium text-text">forçado</span>.
-            </p>
+            {confirmacao.forcado ? (
+              <p className="text-sm text-text-muted">
+                <span className="font-medium text-text">{confirmacao.equipe.nomeIdeia}</span> tem{' '}
+                <span className="font-medium text-text">
+                  {confirmacao.pendentes} tarefa{confirmacao.pendentes > 1 ? 's' : ''} obrigatória
+                  {confirmacao.pendentes > 1 ? 's' : ''} pendente
+                  {confirmacao.pendentes > 1 ? 's' : ''}
+                </span>{' '}
+                na etapa atual. Mover para{' '}
+                <span className="font-medium text-text">{confirmacao.destinoLabel}</span> mesmo assim?
+                O avanço será registrado como <span className="font-medium text-text">forçado</span>.
+              </p>
+            ) : (
+              <p className="text-sm text-text-muted">
+                Mover <span className="font-medium text-text">{confirmacao.equipe.nomeIdeia}</span> de{' '}
+                <span className="font-medium text-text">{confirmacao.origemLabel}</span> para{' '}
+                <span className="font-medium text-text">{confirmacao.destinoLabel}</span>?
+              </p>
+            )}
+
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-text-muted">
+              <input
+                type="checkbox"
+                data-testid="nao-mostrar-novamente"
+                checked={naoMostrar}
+                onChange={(e) => setNaoMostrar(e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-primary"
+              />
+              Não mostrar novamente
+            </label>
+            {naoMostrar && (
+              <p className="text-xs text-text-subtle">
+                Os próximos movimentos serão aplicados na hora, com a opção de desfazer por alguns
+                segundos.
+              </p>
+            )}
+
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setConfirmacao(null)}>
+              <Button
+                variant="secondary"
+                data-testid="cancelar-movimento"
+                onClick={() => setConfirmacao(null)}
+              >
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={confirmarMovimento}>
-                Mover mesmo assim
+              <Button
+                variant={confirmacao.forcado ? 'danger' : 'primary'}
+                data-testid="confirmar-movimento"
+                onClick={confirmarMovimento}
+              >
+                {confirmacao.forcado ? 'Mover mesmo assim' : 'Mover'}
               </Button>
             </div>
           </div>
         )}
       </Dialog>
+
+      {desfazer && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="toast-desfazer"
+          className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
+        >
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-lg">
+            <span className="text-sm text-text">
+              <span className="font-medium">{desfazer.plano.equipe.nomeIdeia}</span> movida para{' '}
+              <span className="font-medium">{desfazer.plano.destinoLabel}</span>.
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="desfazer-movimento"
+              onClick={desfazerMovimento}
+            >
+              Desfazer
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
