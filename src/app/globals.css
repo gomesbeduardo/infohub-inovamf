@@ -58,6 +58,53 @@ h2,
   }
 }
 
+/* ── Spotlight nos cards: brilho na cor da marca que segue o cursor ────────── */
+/* Posição vinda de --spot-x/--spot-y (setados no onMouseMove); cor via token
+   --primary, então adapta sozinho ao modo claro/escuro. */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-medium) var(--ease-standard),
+    box-shadow var(--duration-medium) var(--ease-standard);
+}
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-medium) var(--ease-standard);
+  background: radial-gradient(
+    16rem 16rem at var(--spot-x, 50%) var(--spot-y, 50%),
+    color-mix(in srgb, var(--primary) 14%, transparent),
+    transparent 68%
+  );
+}
+@media (hover: hover) {
+  .spotlight-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+    box-shadow: 0 12px 28px -14px
+      color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+  .spotlight-card:hover::before {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spotlight-card {
+    transition:
+      border-color var(--duration-medium) var(--ease-standard),
+      box-shadow var(--duration-medium) var(--ease-standard);
+  }
+  .spotlight-card:hover {
+    transform: none;
+  }
+}
+
 /* ── Scrollbar sutil: aparece suavemente só na interação (hover/foco) ──────── */
 .scroll-suave {
   scrollbar-width: thin;

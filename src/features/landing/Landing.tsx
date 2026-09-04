@@ -4,6 +4,7 @@ import { Button } from '@/design-system/components/Button';
 import { Card } from '@/design-system/components/Card';
 import { Badge } from '@/design-system/components/Badge';
 import { StageTag } from '@/design-system/components/StageTag';
+import { SpotlightCard } from './SpotlightCard';
 import { CURSOS_AMF } from '@/domain/cursos';
 import {
   LightbulbIcon,
@@ -243,8 +244,8 @@ export function Landing() {
           />
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {PILARES.map(({ icone: Icone, titulo, texto }) => (
-              <Card key={titulo} className="h-full">
-                <Card.Body>
+              <SpotlightCard key={titulo} className="h-full">
+                <Card.Body className="relative">
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-[0.875rem] bg-primary-soft text-primary-text">
                     <Icone size={22} />
                   </span>
@@ -255,7 +256,7 @@ export function Landing() {
                     {texto}
                   </p>
                 </Card.Body>
-              </Card>
+              </SpotlightCard>
             ))}
           </div>
 
