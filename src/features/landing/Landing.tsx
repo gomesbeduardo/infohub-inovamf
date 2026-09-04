@@ -174,13 +174,6 @@ export function Landing() {
       <section className="bg-hero-glow">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="motion-fade">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/80 px-3 py-1 text-xs font-medium text-text-muted">
-              <span
-                className="inline-flex h-1.5 w-1.5 rounded-full"
-                style={{ background: 'var(--primary)' }}
-              />
-              Faculdade Antonio Meneghetti · InfoHub → InovAMF
-            </span>
             <h1 className="mt-5 font-display text-4xl font-bold leading-[1.08] tracking-tight text-text sm:text-5xl">
               Você tem uma ideia.
               <br />

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useStore } from '@/data/store';
+import { semestreDoMembro } from '@/data/repository';
 import { getUsuarioAtual } from '@/data/session';
 import {
   ESTAGIO_LABEL,
   STATUS_EQUIPE_LABEL,
 } from '@/domain/labels';
 import { AdicionarMembroDialog } from '@/features/equipe/AdicionarMembroDialog';
+import { semestreCurto } from '@/domain/semestres';
 import { StageTag } from '@/design-system/components/StageTag';
 import { Badge } from '@/design-system/components/Badge';
 import { Avatar } from '@/design-system/components/Avatar';
@@ -71,7 +73,11 @@ export function DetalheEquipe({ slug }: { slug: string }) {
                     {m.nome}
                     {m.papel === 'lider' && <Badge tone="brand">líder</Badge>}
                   </span>
-                  <span className="text-xs text-text-muted">{m.curso}</span>
+                  <span className="text-xs text-text-muted">
+                    {[m.curso, semestreCurto(semestreDoMembro(state, m))]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
                 </div>
               </li>
             ))}

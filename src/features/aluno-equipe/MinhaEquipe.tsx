@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { StatusTarefa } from '@/domain/types';
 import { useStore } from '@/data/store';
+import { semestreDoMembro } from '@/data/repository';
 import { getUsuarioAtual } from '@/data/session';
 import {
   ESTAGIO_LABEL,
   STATUS_EQUIPE_LABEL,
   formatarData,
 } from '@/domain/labels';
+import { semestreCurto } from '@/domain/semestres';
 import { Card } from '@/design-system/components/Card';
 import { Badge } from '@/design-system/components/Badge';
 import { Avatar } from '@/design-system/components/Avatar';
@@ -147,7 +149,11 @@ export function MinhaEquipe() {
                       {m.nome}
                       {m.papel === 'lider' && <Badge tone="brand">líder</Badge>}
                     </span>
-                    <span className="text-xs text-text-muted">{m.curso}</span>
+                    <span className="text-xs text-text-muted">
+                      {[m.curso, semestreCurto(semestreDoMembro(state, m))]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
                   </div>
                 </li>
               ))}

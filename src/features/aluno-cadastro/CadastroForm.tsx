@@ -7,6 +7,7 @@ import { setUsuarioAtual } from '@/data/session';
 import { validarCadastro, type DadosCadastro } from '@/data/repository';
 import { ESTAGIO_LABEL } from '@/domain/labels';
 import { CURSO_OPTIONS } from '@/domain/cursos';
+import { SEMESTRE_LABEL, SEMESTRE_OPTIONS } from '@/domain/semestres';
 import type { EstagioIdeia } from '@/domain/types';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
@@ -15,7 +16,7 @@ import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
 
-type Integrante = { nome: string; curso: string };
+type Integrante = { nome: string; curso: string; semestre: string };
 
 const ESTAGIOS: EstagioIdeia[] = [
   'ideia',
@@ -115,8 +116,14 @@ export function CadastroForm() {
                   onChange={(e) => setCurso(e.target.value)}
                 />
               </FormField>
-              <FormField label="Semestre" htmlFor="semestre" hint="Opcional">
-                <Input id="semestre" value={semestre} onChange={(e) => setSemestre(e.target.value)} />
+              <FormField label={SEMESTRE_LABEL} htmlFor="semestre" hint="Opcional">
+                <Select
+                  id="semestre"
+                  options={SEMESTRE_OPTIONS}
+                  placeholder="Selecione…"
+                  value={semestre}
+                  onChange={(e) => setSemestre(e.target.value)}
+                />
               </FormField>
             </div>
           </section>
@@ -131,7 +138,10 @@ export function CadastroForm() {
                 variant="ghost"
                 size="sm"
                 onClick={() =>
-                  setIntegrantes((xs) => [...xs, { nome: '', curso: '' }])
+                  setIntegrantes((xs) => [
+                    ...xs,
+                    { nome: '', curso: '', semestre: '' },
+                  ])
                 }
               >
                 Adicionar integrante
@@ -143,7 +153,10 @@ export function CadastroForm() {
               </p>
             )}
             {integrantes.map((it, i) => (
-              <div key={i} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <div
+                key={i}
+                className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+              >
                 <Input
                   aria-label={`Nome do integrante ${i + 1}`}
                   placeholder="Nome"
@@ -162,6 +175,19 @@ export function CadastroForm() {
                   onChange={(e) =>
                     setIntegrantes((xs) =>
                       xs.map((x, j) => (j === i ? { ...x, curso: e.target.value } : x)),
+                    )
+                  }
+                />
+                <Select
+                  aria-label={`${SEMESTRE_LABEL} do integrante ${i + 1}`}
+                  options={SEMESTRE_OPTIONS}
+                  placeholder={SEMESTRE_LABEL}
+                  value={it.semestre}
+                  onChange={(e) =>
+                    setIntegrantes((xs) =>
+                      xs.map((x, j) =>
+                        j === i ? { ...x, semestre: e.target.value } : x,
+                      ),
                     )
                   }
                 />
