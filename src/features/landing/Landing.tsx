@@ -4,6 +4,8 @@ import { Button } from '@/design-system/components/Button';
 import { Card } from '@/design-system/components/Card';
 import { Badge } from '@/design-system/components/Badge';
 import { StageTag } from '@/design-system/components/StageTag';
+import { SpotlightCard } from './SpotlightCard';
+import { SpotlightField } from './SpotlightField';
 import { CURSOS_AMF } from '@/domain/cursos';
 import {
   LightbulbIcon,
@@ -124,7 +126,7 @@ function CardEquipe({
   destaque?: boolean;
 }) {
   return (
-    <Card className="h-full">
+    <SpotlightCard className="h-full">
       <Card.Body className="flex h-full flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-display text-lg font-bold tracking-tight text-text">
@@ -150,7 +152,7 @@ function CardEquipe({
           <span className="truncate">{caso.cursos.join(', ')}</span>
         </div>
       </Card.Body>
-    </Card>
+    </SpotlightCard>
   );
 }
 
@@ -231,11 +233,11 @@ export function Landing() {
       </section>
 
       {/* ── O que é ──────────────────────────────────────────────────────── */}
-      <section
+      <SpotlightField
         id="o-que-e"
         className="scroll-mt-20 border-t border-border py-16 sm:py-20"
       >
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
             etiqueta="O que é"
             titulo="Um laboratório para tirar a ideia do papel"
@@ -243,7 +245,7 @@ export function Landing() {
           />
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {PILARES.map(({ icone: Icone, titulo, texto }) => (
-              <Card key={titulo} className="h-full">
+              <SpotlightCard key={titulo} className="h-full">
                 <Card.Body>
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-[0.875rem] bg-primary-soft text-primary-text">
                     <Icone size={22} />
@@ -255,7 +257,7 @@ export function Landing() {
                     {texto}
                   </p>
                 </Card.Body>
-              </Card>
+              </SpotlightCard>
             ))}
           </div>
 
@@ -268,7 +270,7 @@ export function Landing() {
             ))}
           </div>
         </div>
-      </section>
+      </SpotlightField>
 
       {/* ── Como funciona ────────────────────────────────────────────────── */}
       <section
@@ -336,11 +338,11 @@ export function Landing() {
       </section>
 
       {/* ── Quem participa ───────────────────────────────────────────────── */}
-      <section
+      <SpotlightField
         id="equipes"
         className="scroll-mt-20 border-t border-border py-16 sm:py-20"
       >
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
             etiqueta="Equipes"
             titulo="Quem está no InfoHub agora"
@@ -373,14 +375,14 @@ export function Landing() {
             </div>
           </div>
         </div>
-      </section>
+      </SpotlightField>
 
       {/* ── Casos ────────────────────────────────────────────────────────── */}
-      <section
+      <SpotlightField
         id="casos"
         className="scroll-mt-20 border-t border-border bg-surface-sunken py-16 sm:py-20"
       >
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
             etiqueta="Casos"
             titulo="Ideias que completaram a jornada"
@@ -392,7 +394,7 @@ export function Landing() {
             ))}
           </div>
         </div>
-      </section>
+      </SpotlightField>
 
       {/* ── Chamada final ────────────────────────────────────────────────── */}
       <section className="border-t border-border bg-auth-hero py-16 sm:py-20">
