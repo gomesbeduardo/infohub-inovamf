@@ -23,7 +23,7 @@ const R = 12; // margem direita
 const T = 12; // margem superior
 const B = 28; // margem inferior (eixo X)
 const W = 640;
-const H = 240;
+const H = 200;
 const DIVISOES = 4;
 
 function coordenadas(valores: number[], max: number) {
