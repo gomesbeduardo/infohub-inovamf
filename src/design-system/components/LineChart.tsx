@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { cn } from '@/design-system/cn';
 
 export interface SerieLinha {
@@ -25,14 +25,14 @@ const L = 40; // margem esquerda (eixo Y)
 const R = 12; // margem direita
 const T = 12; // margem superior
 const B = 28; // margem inferior (eixo X)
-const W = 640;
-const H = 200;
+const H = 240; // altura fixa (unidades = px, largura é medida do container)
+const LARGURA_INICIAL = 640; // fallback antes de medir (evita salto no 1º render)
 const DIVISOES = 4;
 
 /** Opacidade das séries não focadas — esmaecidas, mas ainda visíveis. */
 const OPACIDADE_ESMAECIDA = 0.22;
 
-function coordenadas(valores: number[], max: number) {
+function coordenadas(valores: number[], max: number, W: number) {
   const n = valores.length;
   const larguraUtil = W - L - R;
   const alturaUtil = H - T - B;
@@ -44,13 +44,14 @@ function coordenadas(valores: number[], max: number) {
 }
 
 /** x (unidades do viewBox) do rótulo/coluna de índice `i`. */
-function xDoIndice(i: number, n: number) {
+function xDoIndice(i: number, n: number, W: number) {
   return n <= 1 ? L : L + (i * (W - L - R)) / (n - 1);
 }
 
 /**
- * Gráfico de linha em SVG puro e tokenizado (sem dependências). Responsivo via
- * `viewBox`; múltiplas séries com legenda.
+ * Gráfico de linha em SVG puro e tokenizado (sem dependências). Preenche a
+ * largura do container (medida via `ResizeObserver`) com altura fixa, então
+ * mantém círculos redondos e texto sem distorção em qualquer tela.
  *
  * A legenda funciona como seletor (tri-estado): sem foco, ambas as séries
  * aparecem cheias; ao focar uma, a outra esmaece mas continua visível. Cada
@@ -60,10 +61,26 @@ function xDoIndice(i: number, n: number) {
  */
 export function LineChart({ series, labels, ariaLabel, className }: LineChartProps) {
   const gradId = useId();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  // largura do desenho em px (= largura do container; viewBox 1:1 com pixels)
+  const [W, setW] = useState(LARGURA_INICIAL);
   // índice da série em foco (null = ambas cheias)
   const [foco, setFoco] = useState<number | null>(null);
   // índice da coluna (semana) sob o cursor (null = nenhuma)
   const [ativo, setAtivo] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const larg = Math.round(e.contentRect.width);
+        if (larg > 0) setW(larg);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const max = Math.max(
     1,
@@ -94,33 +111,46 @@ export function LineChart({ series, labels, ariaLabel, className }: LineChartPro
         aria-label="Selecionar séries do gráfico"
         className="flex flex-wrap items-center gap-2"
       >
-        {series.map((s, i) => (
-          <button
-            key={s.nome}
-            type="button"
-            aria-pressed={foco === i}
-            onClick={() => alternarFoco(i)}
-            className={cn(
-              'flex items-center gap-2 rounded-full px-2.5 py-1 text-sm text-text-muted transition-colors',
-              'hover:bg-surface-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]',
-              foco === i && 'bg-surface-sunken text-text',
-            )}
-            style={{ opacity: foco === null || foco === i ? 1 : 0.6 }}
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: s.cor }}
-              aria-hidden
-            />
-            {s.nome}
-          </button>
-        ))}
+        {series.map((s, i) => {
+          const ativoFoco = foco === i;
+          const esmaecido = foco !== null && foco !== i;
+          return (
+            <button
+              key={s.nome}
+              type="button"
+              aria-pressed={ativoFoco}
+              onClick={() => alternarFoco(i)}
+              title={ativoFoco ? 'Mostrar ambas as séries' : `Focar em ${s.nome}`}
+              className={cn(
+                'inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]',
+                ativoFoco
+                  ? 'border-primary bg-surface-sunken text-text'
+                  : 'border-border text-text-muted hover:border-border-strong hover:text-text',
+                esmaecido && 'opacity-60',
+              )}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: s.cor }}
+                aria-hidden
+              />
+              {s.nome}
+            </button>
+          );
+        })}
+        <span className="ml-1 text-xs text-text-subtle">
+          {foco === null ? 'Clique para focar uma série' : 'Clique de novo para ver ambas'}
+        </span>
       </figcaption>
 
-      <div className="relative">
+      <div ref={wrapRef} className="relative w-full">
         <svg
           viewBox={`0 0 ${W} ${H}`}
+          width={W}
+          height={H}
           className="h-auto w-full overflow-visible"
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label={ariaLabel}
         >
@@ -167,7 +197,7 @@ export function LineChart({ series, labels, ariaLabel, className }: LineChartPro
           {labels.map((lab, i) => (
             <text
               key={`${lab}-${i}`}
-              x={xDoIndice(i, n)}
+              x={xDoIndice(i, n, W)}
               y={H - 8}
               textAnchor="middle"
               fontSize={11}
@@ -180,8 +210,8 @@ export function LineChart({ series, labels, ariaLabel, className }: LineChartPro
           {/* linha-guia vertical da coluna ativa */}
           {ativo !== null && (
             <line
-              x1={xDoIndice(ativo, n)}
-              x2={xDoIndice(ativo, n)}
+              x1={xDoIndice(ativo, n, W)}
+              x2={xDoIndice(ativo, n, W)}
               y1={T}
               y2={baseY}
               stroke="var(--border-strong)"
@@ -193,7 +223,7 @@ export function LineChart({ series, labels, ariaLabel, className }: LineChartPro
 
           {/* séries: preenchimento + linha + pontos */}
           {series.map((s, i) => {
-            const pts = coordenadas(s.valores, topo);
+            const pts = coordenadas(s.valores, topo, W);
             const linha = pts
               .map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x},${p.y}`)
               .join(' ');
@@ -237,7 +267,7 @@ export function LineChart({ series, labels, ariaLabel, className }: LineChartPro
 
           {/* zonas de hover invisíveis, uma por coluna (semana) */}
           {labels.map((lab, i) => {
-            const x = xDoIndice(i, n);
+            const x = xDoIndice(i, n, W);
             const larguraCol = n <= 1 ? W - L - R : (W - L - R) / (n - 1);
             return (
               <rect
@@ -258,8 +288,8 @@ export function LineChart({ series, labels, ariaLabel, className }: LineChartPro
           <div
             className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-[0.625rem] border border-border bg-surface-raised px-3 py-2 shadow-md"
             style={{
-              left: `${(xDoIndice(ativo, n) / W) * 100}%`,
-              top: `${(Math.min(...series.map((s) => coordenadas(s.valores, topo)[ativo].y)) / H) * 100}%`,
+              left: `${(xDoIndice(ativo, n, W) / W) * 100}%`,
+              top: `${(Math.min(...series.map((s) => coordenadas(s.valores, topo, W)[ativo].y)) / H) * 100}%`,
             }}
           >
             <p className="whitespace-nowrap text-xs font-medium text-text">
