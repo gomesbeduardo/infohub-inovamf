@@ -84,6 +84,8 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
     snapshot: AppState;
   } | null>(null);
   const undoTimer = useRef<number | null>(null);
+  const [saindo, setSaindo] = useState(false); // toca a saída do toast antes de desmontar
+  const saidaTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setMontado(true);
@@ -96,6 +98,7 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
   useEffect(
     () => () => {
       if (undoTimer.current) window.clearTimeout(undoTimer.current);
+      if (saidaTimer.current) window.clearTimeout(saidaTimer.current);
     },
     [],
   );
@@ -148,9 +151,26 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
     });
     if (comDesfazer) {
       if (undoTimer.current) window.clearTimeout(undoTimer.current);
+      if (saidaTimer.current) window.clearTimeout(saidaTimer.current);
+      setSaindo(false);
       setDesfazer({ plano, snapshot });
-      undoTimer.current = window.setTimeout(() => setDesfazer(null), DESFAZER_MS);
+      undoTimer.current = window.setTimeout(() => iniciarSaida(), DESFAZER_MS);
     }
+  }
+
+  /** Toca a animação de saída do toast e só então o desmonta. */
+  function iniciarSaida() {
+    if (undoTimer.current) {
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+    setSaindo(true);
+    if (saidaTimer.current) window.clearTimeout(saidaTimer.current);
+    saidaTimer.current = window.setTimeout(() => {
+      setDesfazer(null);
+      setSaindo(false);
+      saidaTimer.current = null;
+    }, 180);
   }
 
   function soltarEm(destino: Destino) {
@@ -182,9 +202,8 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
 
   function desfazerMovimento() {
     if (!desfazer) return;
-    if (undoTimer.current) window.clearTimeout(undoTimer.current);
     dispatch({ type: 'SET_STATE', state: desfazer.snapshot });
-    setDesfazer(null);
+    iniciarSaida();
   }
 
   return (
@@ -320,9 +339,15 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
           role="status"
           aria-live="polite"
           data-testid="toast-desfazer"
-          className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
         >
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-lg">
+          <div
+            key={`${desfazer.plano.equipe.id}-${String(desfazer.plano.destino)}`}
+            className={cn(
+              'pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-lg',
+              saindo ? 'toast-out' : 'toast-in',
+            )}
+          >
             <span className="text-sm text-text">
               <span className="font-medium">{desfazer.plano.equipe.nomeIdeia}</span> movida para{' '}
               <span className="font-medium">{desfazer.plano.destinoLabel}</span>.

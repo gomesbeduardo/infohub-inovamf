@@ -254,6 +254,4 @@
   --duration-fast: 125ms;
   --duration-medium: 300ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  /* leve overshoot ("pop") para modais — como a ilha dinâmica, contido */
-  --ease-pop: cubic-bezier(0.34, 1.42, 0.5, 1);
 }

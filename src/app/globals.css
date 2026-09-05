@@ -184,40 +184,28 @@ h2,
     opacity: 0;
   }
 }
-/* Balanço tipo ilha dinâmica: sobe além do centro, desce de leve, micro-sobe
-   e assenta (oscilação amortecida). translate Y mais negativo = mais para cima. */
+/* Subida suave, sem balanço: entra de baixo e estaciona (ease-out desacelera na
+   chegada); sai descendo (ease-in acelera na saída). Sem overshoot. O conteúdo
+   já vive em translate(-50%,-50%); o offset vertical é via calc para não perder
+   a centralização. */
 @keyframes dialog-pop-in {
-  0% {
+  from {
     opacity: 0;
-    transform: translate(-50%, -38%) scale(0.82);
+    transform: translate(-50%, calc(-50% + 12px)) scale(0.99);
   }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -53%) scale(1.05);
-  }
-  72% {
-    transform: translate(-50%, -48.5%) scale(0.99);
-  }
-  88% {
-    transform: translate(-50%, -50.6%) scale(1.006);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
 }
 @keyframes dialog-pop-out {
-  0% {
+  from {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
-  25% {
-    opacity: 1;
-    transform: translate(-50%, -52.5%) scale(1.02);
-  }
-  100% {
+  to {
     opacity: 0;
-    transform: translate(-50%, -40%) scale(0.86);
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.99);
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -229,10 +217,10 @@ h2,
       forwards;
   }
   .dialog-pop[data-state='open'] {
-    animation: dialog-pop-in 460ms var(--ease-standard);
+    animation: dialog-pop-in 220ms ease-out;
   }
   .dialog-pop[data-state='closed'] {
-    animation: dialog-pop-out 300ms var(--ease-standard) forwards;
+    animation: dialog-pop-out 160ms ease-in forwards;
   }
 }
 
@@ -252,6 +240,40 @@ h2,
 }
 @media (prefers-reduced-motion: reduce) {
   .swap-in {
+    animation: none;
+  }
+}
+
+/* ── Toast (ex.: "Desfazer" do funil): sobe do rodapé, fade suave sem balanço ─ */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast-in {
+  animation: toast-in var(--duration-medium) ease-out backwards;
+}
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.toast-out {
+  animation: toast-out 160ms ease-in forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-in,
+  .toast-out {
     animation: none;
   }
 }
