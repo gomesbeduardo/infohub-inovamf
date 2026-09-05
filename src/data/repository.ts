@@ -468,6 +468,71 @@ export function moverEquipeParaEtapa(
   };
 }
 
+// ── Planejamento de movimento no funil (confirmação da UI) ───────────────────
+
+/** Rótulo humano de uma coluna do funil: etapa numerada ou "Pronta p/ InovAMF". */
+const LABEL_PRONTA = 'Pronta p/ InovAMF';
+
+function rotuloEtapa(s: AppState, id: number): string {
+  const et = s.etapas.find((e) => e.id === id);
+  return et ? `${et.numero}. ${et.nome}` : `Etapa ${id}`;
+}
+
+/**
+ * Descrição do efeito de arrastar uma equipe para uma coluna do funil. A UI usa
+ * para montar a confirmação (ou o aviso de desfazer, quando silenciada) sem
+ * duplicar as regras de no-op/RN-01 que já vivem em `moverEquipeParaEtapa`.
+ */
+export interface MovimentoPlano {
+  equipe: Equipe;
+  destino: number | 'pronta';
+  origemLabel: string;
+  destinoLabel: string;
+  /** Avanço com obrigatória(s) pendente(s) na etapa atual (RN-01): move forçado. */
+  forcado: boolean;
+  pendentes: number;
+}
+
+/**
+ * Planeja o arraste de uma equipe para `destino`, ou `null` quando o arraste não
+ * muda nada (soltar na mesma coluna). Função pura: espelha os no-ops e a RN-01 de
+ * `moverEquipeParaEtapa`, servindo a UI decidir entre confirmar e executar.
+ */
+export function planejarMovimento(
+  s: AppState,
+  equipeId: string,
+  destino: number | 'pronta',
+): MovimentoPlano | null {
+  const equipe = s.equipes.find((e) => e.id === equipeId);
+  if (!equipe) return null;
+
+  const ehProntaAtual =
+    equipe.status === 'pronta_inovamf' || equipe.status === 'encaminhada_inovamf';
+
+  // no-op: soltar na mesma coluna
+  if (destino === 'pronta') {
+    if (ehProntaAtual) return null;
+  } else {
+    if (destino < 1 || destino > 6) return null;
+    if (destino === equipe.etapaAtualId && !ehProntaAtual) return null;
+  }
+
+  const avancando =
+    typeof destino === 'number' && !ehProntaAtual && destino > equipe.etapaAtualId;
+  const pendentes = avancando
+    ? tarefasObrigatoriasPendentes(s, equipeId, equipe.etapaAtualId).length
+    : 0;
+
+  return {
+    equipe,
+    destino,
+    origemLabel: ehProntaAtual ? LABEL_PRONTA : rotuloEtapa(s, equipe.etapaAtualId),
+    destinoLabel: destino === 'pronta' ? LABEL_PRONTA : rotuloEtapa(s, destino),
+    forcado: pendentes > 0,
+    pendentes,
+  };
+}
+
 // ── Série temporal do mentor (gráfico de linha) ──────────────────────────────
 
 const MS_DIA = 86_400_000;
