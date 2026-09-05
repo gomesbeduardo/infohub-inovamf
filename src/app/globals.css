@@ -162,3 +162,118 @@ h2,
 .scroll-suave:active::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--text-muted) 55%, transparent);
 }
+
+/* ── Modais: abrir/fechar com "pop" (sobe ao abrir, desce ao fechar) ───────── */
+/* Aplicado no Dialog (Radix): as classes leem o data-state que o Radix põe no
+   overlay/conteúdo — o Radix segura a desmontagem até a animação de saída
+   terminar. O conteúdo já vive em translate(-50%,-50%); os keyframes carregam
+   essa base para não pular. */
+@keyframes dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* Subida suave, sem balanço: entra de baixo e estaciona (ease-out desacelera na
+   chegada); sai descendo (ease-in acelera na saída). Sem overshoot. O conteúdo
+   já vive em translate(-50%,-50%); o offset vertical é via calc para não perder
+   a centralização. */
+@keyframes dialog-pop-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 12px)) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes dialog-pop-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.99);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-overlay[data-state='open'] {
+    animation: dialog-overlay-in var(--duration-fast) var(--ease-standard);
+  }
+  .dialog-overlay[data-state='closed'] {
+    animation: dialog-overlay-out var(--duration-fast) var(--ease-standard)
+      forwards;
+  }
+  .dialog-pop[data-state='open'] {
+    animation: dialog-pop-in 220ms ease-out;
+  }
+  .dialog-pop[data-state='closed'] {
+    animation: dialog-pop-out 160ms ease-in forwards;
+  }
+}
+
+/* ── Swap suave gráfico ↔ tabela (e afins): entra com fade + leve subida ───── */
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.swap-in {
+  animation: swap-in var(--duration-medium) var(--ease-standard) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .swap-in {
+    animation: none;
+  }
+}
+
+/* ── Toast (ex.: "Desfazer" do funil): sobe do rodapé, fade suave sem balanço ─ */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast-in {
+  animation: toast-in var(--duration-medium) ease-out backwards;
+}
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.toast-out {
+  animation: toast-out 160ms ease-in forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-in,
+  .toast-out {
+    animation: none;
+  }
+}

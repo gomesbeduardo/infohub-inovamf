@@ -13,14 +13,14 @@ export interface PontoEtapa {
 }
 
 // Geometria do desenho (unidades do viewBox — o SVG escala uniformemente).
-const L = 34; // margem esquerda (rótulos do eixo Y)
-const R = 16;
-const TOPO = 18;
-const BASE = 214; // linha do zero
+const L = 64; // gutter esquerdo: rótulo "Etapa N"
+const R = 36; // folga direita: rótulo do valor no fim da barra
+const TOPO = 6;
 const LARG = 720;
-const ALT = 250;
+const ALT_BARRA = 14; // espessura de cada barra (fina, para fechar com as KPIs)
+const GAP = 10; // respiro entre barras
 
-/** Ticks "redondos" do eixo Y a partir do maior valor da série. */
+/** Ticks "redondos" do eixo de valor a partir do maior total da série. */
 function ticksY(max: number): number[] {
   const passo = max <= 4 ? 1 : max <= 10 ? 2 : Math.ceil(max / 5);
   const topo = Math.ceil(max / passo) * passo;
@@ -32,10 +32,10 @@ function ticksY(max: number): number[] {
 /**
  * Distribuição das equipes ativas ao longo das seis etapas (RF-22).
  *
- * Barras verticais, uma por etapa, na cor da própria etapa (as mesmas do
- * `StageTag` / do funil). A coordenação lê o **volume absoluto** em cada etapa e
- * compara as alturas de relance; a cor amarra cada barra à etapa correspondente
- * no kanban.
+ * Barras horizontais, uma por etapa, na cor da própria etapa (as mesmas do
+ * `StageTag` / do funil). A coordenação lê o volume absoluto de cada etapa e
+ * compara os comprimentos de relance; passar o mouse realça a barra e mostra o
+ * detalhe, escurecendo as demais.
  */
 export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
   const [ativo, setAtivo] = useState<number | null>(null);
@@ -47,10 +47,13 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
   const topoEscala = ticks[ticks.length - 1] || 1;
 
   const n = Math.max(1, pontos.length);
-  const faixa = (LARG - L - R) / n; // largura da faixa reservada a cada etapa
-  const larguraBarra = Math.min(56, faixa * 0.6); // barra centrada na faixa, com teto
-  const cx = (i: number) => L + faixa * (i + 0.5); // centro da faixa da etapa i
-  const y = (v: number) => BASE - (v / topoEscala) * (BASE - TOPO);
+  const x0 = L;
+  const xMax = LARG - R;
+  const larguraUtil = xMax - x0;
+  const bw = (v: number) => (v / topoEscala) * larguraUtil; // comprimento da barra
+  const rowY = (i: number) => TOPO + i * (ALT_BARRA + GAP); // topo da faixa da etapa i
+  const baseY = rowY(n - 1) + ALT_BARRA; // fim da última barra
+  const ALT = baseY + 26; // + faixa dos rótulos do eixo de valor
 
   const resumo = pontos
     .map((p) => `etapa ${p.numero} (${p.nome}): ${p.total}`)
@@ -65,8 +68,8 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
               Distribuição por etapa
             </h3>
             <p className="mt-0.5 text-xs text-text-muted">
-              Equipes ativas em cada etapa do funil — a inclinação mostra onde a
-              jornada aperta.
+              Equipes ativas em cada etapa do funil — o comprimento mostra o
+              volume de cada etapa.
             </p>
           </div>
           <Button
@@ -80,29 +83,30 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
           </Button>
         </div>
 
-        {!tabela && (
-          <div className="relative">
+        <div key={tabela ? 'tabela' : 'grafico'} className="swap-in">
+          {!tabela ? (
+            <div className="relative">
             <svg
               viewBox={`0 0 ${LARG} ${ALT}`}
               className="h-auto w-full overflow-visible"
               role="img"
               aria-label={`Equipes ativas por etapa — ${resumo}.`}
             >
-              {/* grade e eixo Y — hairline, recessivos */}
+              {/* grade vertical e eixo de valor — hairline, recessivos */}
               {ticks.map((t) => (
                 <g key={t}>
                   <line
-                    x1={L}
-                    x2={LARG - R}
-                    y1={y(t)}
-                    y2={y(t)}
+                    x1={x0 + bw(t)}
+                    x2={x0 + bw(t)}
+                    y1={TOPO}
+                    y2={baseY}
                     stroke="var(--border)"
                     strokeWidth={1}
                   />
                   <text
-                    x={L - 10}
-                    y={y(t) + 4}
-                    textAnchor="end"
+                    x={x0 + bw(t)}
+                    y={baseY + 16}
+                    textAnchor="middle"
                     className="fill-[color:var(--text-subtle)] text-[11px] tabular-nums"
                   >
                     {t}
@@ -111,45 +115,39 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
               ))}
 
               {pontos.map((p, i) => {
-                const altura = BASE - y(p.total);
+                const comprimento = bw(p.total);
                 return (
                   <g key={p.etapaId}>
-                    {/* barra na cor da etapa; realça um tom quando é a ativa */}
-                    <rect
-                      x={cx(i) - larguraBarra / 2}
-                      y={y(p.total)}
-                      width={larguraBarra}
-                      height={Math.max(0, altura)}
-                      rx={4}
-                      fill={`var(--stage-${p.etapaId})`}
-                      opacity={ativo === null || ativo === i ? 1 : 0.55}
-                    />
+                    {/* rótulo da etapa no gutter esquerdo */}
                     <text
-                      x={cx(i)}
-                      y={y(p.total) - 8}
-                      textAnchor="middle"
-                      className="fill-[color:var(--text)] text-[12px] font-semibold tabular-nums"
-                    >
-                      {p.total}
-                    </text>
-                    <text
-                      x={cx(i)}
-                      y={BASE + 22}
-                      textAnchor="middle"
+                      x={x0 - 10}
+                      y={rowY(i) + ALT_BARRA / 2 + 3.5}
+                      textAnchor="end"
                       className="fill-[color:var(--text-muted)] text-[11px]"
                     >
                       Etapa {p.numero}
                     </text>
-                    {/* faixa de hover: alvo cobre toda a coluna, não só a barra */}
+                    {/* barra na cor da etapa; o hover mora aqui — só sobre a
+                        barra é que o foco aciona (realça esta, escurece as outras) */}
                     <rect
-                      x={L + faixa * i}
-                      y={TOPO - 10}
-                      width={faixa}
-                      height={BASE - TOPO + 30}
-                      fill="transparent"
+                      x={x0}
+                      y={rowY(i)}
+                      width={Math.max(0, comprimento)}
+                      height={ALT_BARRA}
+                      rx={3}
+                      fill={`var(--stage-${p.etapaId})`}
+                      opacity={ativo === null || ativo === i ? 1 : 0.55}
                       onMouseEnter={() => setAtivo(i)}
                       onMouseLeave={() => setAtivo(null)}
                     />
+                    <text
+                      x={x0 + comprimento + 7}
+                      y={rowY(i) + ALT_BARRA / 2 + 3.5}
+                      textAnchor="start"
+                      className="pointer-events-none fill-[color:var(--text)] text-[11px] font-semibold tabular-nums"
+                    >
+                      {p.total}
+                    </text>
                   </g>
                 );
               })}
@@ -159,8 +157,8 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
               <div
                 className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-[0.625rem] border border-border bg-surface-raised px-3 py-2 shadow-md"
                 style={{
-                  left: `${(cx(ativo) / LARG) * 100}%`,
-                  top: `${(y(pontos[ativo].total) / ALT) * 100 - 4}%`,
+                  left: `${(Math.min(xMax, x0 + bw(pontos[ativo].total)) / LARG) * 100}%`,
+                  top: `${(rowY(ativo) / ALT) * 100}%`,
                 }}
               >
                 <p className="whitespace-nowrap text-xs font-medium text-text">
@@ -174,11 +172,9 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
                 </p>
               </div>
             )}
-          </div>
-        )}
-
-        {tabela && (
-          <table id={idTabela} className="w-full text-sm">
+            </div>
+          ) : (
+            <table id={idTabela} className="w-full text-sm">
             <caption className="sr-only">
               Equipes ativas por etapa do funil
             </caption>
@@ -208,8 +204,9 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
+            </table>
+          )}
+        </div>
       </Card.Body>
     </Card>
   );
