@@ -33,7 +33,6 @@ export function RecuperarSenhaForm() {
 
   return (
     <Card className="w-full overflow-hidden shadow-md">
-      <div className="ignition-rail" />
       <Card.Body className="flex flex-col gap-5 p-7">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-text">Recuperar senha</h1>
