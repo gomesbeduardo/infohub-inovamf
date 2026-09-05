@@ -16,11 +16,11 @@ const PONTOS: PontoEtapa[] = [
 ];
 
 describe('DistribuicaoPorEtapa', () => {
-  it('desenha uma linha com um ponto por etapa', () => {
+  it('desenha uma barra por etapa, na cor da etapa', () => {
     const { container } = render(<DistribuicaoPorEtapa pontos={PONTOS} />);
 
-    expect(container.querySelector('polyline')).not.toBeNull();
-    expect(container.querySelectorAll('circle')).toHaveLength(PONTOS.length);
+    const barras = container.querySelectorAll('rect[fill^="var(--stage"]');
+    expect(barras).toHaveLength(PONTOS.length);
   });
 
   it('descreve a série para leitores de tela', () => {
