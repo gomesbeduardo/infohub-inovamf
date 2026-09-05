@@ -48,7 +48,7 @@ export function StatCard({ label, value, Icon, tone = 'neutral', href, onClick }
   if (href) {
     return (
       <Link href={href} className="group block rounded-[1.25rem]">
-        <Card className="h-full transition-colors group-hover:border-border-strong group-focus-visible:border-border-strong">
+        <Card className="h-full transition-all group-hover:-translate-y-px group-hover:border-border-strong group-hover:shadow-md group-focus-visible:-translate-y-px group-focus-visible:border-border-strong group-focus-visible:shadow-md group-active:translate-y-0">
           {conteudo}
         </Card>
       </Link>
@@ -58,7 +58,7 @@ export function StatCard({ label, value, Icon, tone = 'neutral', href, onClick }
   if (onClick) {
     return (
       <button type="button" onClick={onClick} className="group block w-full text-left">
-        <Card className="h-full transition-colors group-hover:border-border-strong group-focus-visible:border-border-strong">
+        <Card className="h-full transition-all group-hover:-translate-y-px group-hover:border-border-strong group-hover:shadow-md group-focus-visible:-translate-y-px group-focus-visible:border-border-strong group-focus-visible:shadow-md group-active:translate-y-0">
           {conteudo}
         </Card>
       </button>

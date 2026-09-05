@@ -24,10 +24,10 @@ export function Dialog({
     <RD.Root open={open} onOpenChange={onOpenChange}>
       <RD.Portal>
         <RD.Overlay
-          className="fixed inset-0 z-40"
+          className="dialog-overlay fixed inset-0 z-40"
           style={{ background: 'var(--overlay)' }}
         />
-        <RD.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-lg focus:outline-none">
+        <RD.Content className="dialog-pop fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-lg focus:outline-none">
           <RD.Title className="text-lg font-semibold text-text">
             {title}
           </RD.Title>
