@@ -9,6 +9,7 @@ import {
   tarefasObrigatoriasPendentes,
   avancarEtapa,
   retrocederEtapa,
+  planejarMovimento,
   calcularStatusAtraso,
   criarTarefa,
   enviarEntrega,
@@ -203,6 +204,57 @@ describe('retrocederEtapa', () => {
     const r = retrocederEtapa(s, 'eq-1', { autorId: 'u-mentor-1' });
     expect(r.equipes.find((e) => e.id === 'eq-1')!.etapaAtualId).toBe(1);
     expect(r.historico.length).toBe(s.historico.length);
+  });
+});
+
+describe('planejarMovimento', () => {
+  it('soltar na mesma etapa (ativa) é no-op → null', () => {
+    const s = seed();
+    const eq = s.equipes.find((e) => e.id === 'eq-3')!;
+    expect(planejarMovimento(s, 'eq-3', eq.etapaAtualId)).toBeNull();
+  });
+
+  it('equipe pronta solta em "pronta" é no-op → null', () => {
+    const s = seed();
+    const pronta = s.equipes.find(
+      (e) => e.status === 'pronta_inovamf' || e.status === 'encaminhada_inovamf',
+    );
+    if (!pronta) return; // seed pode não ter equipe pronta
+    expect(planejarMovimento(s, pronta.id, 'pronta')).toBeNull();
+  });
+
+  it('equipe inexistente → null', () => {
+    expect(planejarMovimento(seed(), 'eq-inexistente', 2)).toBeNull();
+  });
+
+  it('avanço sem obrigatória pendente: plano normal (não forçado)', () => {
+    const plano = planejarMovimento(seed(), 'eq-1', 2);
+    expect(plano).not.toBeNull();
+    expect(plano!.forcado).toBe(false);
+    expect(plano!.pendentes).toBe(0);
+    expect(plano!.destino).toBe(2);
+    expect(plano!.destinoLabel).toContain('2.');
+  });
+
+  it('avanço com obrigatória pendente: plano forçado (RN-01)', () => {
+    const plano = planejarMovimento(seed(), 'eq-3', 4);
+    expect(plano).not.toBeNull();
+    expect(plano!.forcado).toBe(true);
+    expect(plano!.pendentes).toBeGreaterThan(0);
+  });
+
+  it('retroceder é um plano válido e nunca forçado', () => {
+    const plano = planejarMovimento(seed(), 'eq-3', 2);
+    expect(plano).not.toBeNull();
+    expect(plano!.forcado).toBe(false);
+    expect(plano!.destino).toBe(2);
+  });
+
+  it('mover para "pronta" é um plano válido com rótulo de destino "Pronta"', () => {
+    const plano = planejarMovimento(seed(), 'eq-6', 'pronta');
+    expect(plano).not.toBeNull();
+    expect(plano!.destino).toBe('pronta');
+    expect(plano!.destinoLabel).toContain('Pronta');
   });
 });
 
