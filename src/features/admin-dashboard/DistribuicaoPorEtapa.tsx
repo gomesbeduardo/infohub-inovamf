@@ -83,8 +83,9 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
           </Button>
         </div>
 
-        {!tabela && (
-          <div className="relative">
+        <div key={tabela ? 'tabela' : 'grafico'} className="swap-in">
+          {!tabela ? (
+            <div className="relative">
             <svg
               viewBox={`0 0 ${LARG} ${ALT}`}
               className="h-auto w-full overflow-visible"
@@ -171,11 +172,9 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
                 </p>
               </div>
             )}
-          </div>
-        )}
-
-        {tabela && (
-          <table id={idTabela} className="w-full text-sm">
+            </div>
+          ) : (
+            <table id={idTabela} className="w-full text-sm">
             <caption className="sr-only">
               Equipes ativas por etapa do funil
             </caption>
@@ -205,8 +204,9 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
                 </tr>
               ))}
             </tbody>
-          </table>
-        )}
+            </table>
+          )}
+        </div>
       </Card.Body>
     </Card>
   );

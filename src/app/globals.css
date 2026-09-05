@@ -162,3 +162,96 @@ h2,
 .scroll-suave:active::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--text-muted) 55%, transparent);
 }
+
+/* ── Modais: abrir/fechar com "pop" (sobe ao abrir, desce ao fechar) ───────── */
+/* Aplicado no Dialog (Radix): as classes leem o data-state que o Radix põe no
+   overlay/conteúdo — o Radix segura a desmontagem até a animação de saída
+   terminar. O conteúdo já vive em translate(-50%,-50%); os keyframes carregam
+   essa base para não pular. */
+@keyframes dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* Balanço tipo ilha dinâmica: sobe além do centro, desce de leve, micro-sobe
+   e assenta (oscilação amortecida). translate Y mais negativo = mais para cima. */
+@keyframes dialog-pop-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -38%) scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -53%) scale(1.05);
+  }
+  72% {
+    transform: translate(-50%, -48.5%) scale(0.99);
+  }
+  88% {
+    transform: translate(-50%, -50.6%) scale(1.006);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes dialog-pop-out {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -52.5%) scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.86);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-overlay[data-state='open'] {
+    animation: dialog-overlay-in var(--duration-fast) var(--ease-standard);
+  }
+  .dialog-overlay[data-state='closed'] {
+    animation: dialog-overlay-out var(--duration-fast) var(--ease-standard)
+      forwards;
+  }
+  .dialog-pop[data-state='open'] {
+    animation: dialog-pop-in 460ms var(--ease-standard);
+  }
+  .dialog-pop[data-state='closed'] {
+    animation: dialog-pop-out 300ms var(--ease-standard) forwards;
+  }
+}
+
+/* ── Swap suave gráfico ↔ tabela (e afins): entra com fade + leve subida ───── */
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.swap-in {
+  animation: swap-in var(--duration-medium) var(--ease-standard) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .swap-in {
+    animation: none;
+  }
+}
