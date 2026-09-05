@@ -13,14 +13,14 @@ export interface PontoEtapa {
 }
 
 // Geometria do desenho (unidades do viewBox — o SVG escala uniformemente).
-const L = 34; // margem esquerda (rótulos do eixo Y)
-const R = 16;
-const TOPO = 18;
-const BASE = 214; // linha do zero
+const L = 64; // gutter esquerdo: rótulo "Etapa N"
+const R = 36; // folga direita: rótulo do valor no fim da barra
+const TOPO = 6;
 const LARG = 720;
-const ALT = 250;
+const ALT_BARRA = 14; // espessura de cada barra (fina, para fechar com as KPIs)
+const GAP = 10; // respiro entre barras
 
-/** Ticks "redondos" do eixo Y a partir do maior valor da série. */
+/** Ticks "redondos" do eixo de valor a partir do maior total da série. */
 function ticksY(max: number): number[] {
   const passo = max <= 4 ? 1 : max <= 10 ? 2 : Math.ceil(max / 5);
   const topo = Math.ceil(max / passo) * passo;
@@ -32,10 +32,10 @@ function ticksY(max: number): number[] {
 /**
  * Distribuição das equipes ativas ao longo das seis etapas (RF-22).
  *
- * É uma linha, não barras: as etapas formam uma escala ordenada (1 → 6) e o que
- * a coordenação precisa ler é a **queda** de uma etapa para a outra — onde o
- * funil aperta. Barras isoladas obrigam a comparar alturas duas a duas; a linha
- * mostra a inclinação de uma vez.
+ * Barras horizontais, uma por etapa, na cor da própria etapa (as mesmas do
+ * `StageTag` / do funil). A coordenação lê o volume absoluto de cada etapa e
+ * compara os comprimentos de relance; passar o mouse realça a barra e mostra o
+ * detalhe, escurecendo as demais.
  */
 export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
   const [ativo, setAtivo] = useState<number | null>(null);
@@ -46,21 +46,14 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
   const ticks = ticksY(max);
   const topoEscala = ticks[ticks.length - 1] || 1;
 
-  const x = (i: number) =>
-    pontos.length <= 1
-      ? L
-      : L + (i * (LARG - L - R)) / (pontos.length - 1);
-  const y = (v: number) => BASE - (v / topoEscala) * (BASE - TOPO);
-
-  const linha = pontos.map((p, i) => `${x(i)},${y(p.total)}`).join(' ');
-  const area = `${L},${BASE} ${linha} ${x(pontos.length - 1)},${BASE}`;
-
-  // Rótulos diretos, com parcimônia: só o topo do funil e a última etapa.
-  const iMax = pontos.reduce(
-    (best, p, i) => (p.total > pontos[best].total ? i : best),
-    0,
-  );
-  const rotulados = new Set([iMax, pontos.length - 1]);
+  const n = Math.max(1, pontos.length);
+  const x0 = L;
+  const xMax = LARG - R;
+  const larguraUtil = xMax - x0;
+  const bw = (v: number) => (v / topoEscala) * larguraUtil; // comprimento da barra
+  const rowY = (i: number) => TOPO + i * (ALT_BARRA + GAP); // topo da faixa da etapa i
+  const baseY = rowY(n - 1) + ALT_BARRA; // fim da última barra
+  const ALT = baseY + 26; // + faixa dos rótulos do eixo de valor
 
   const resumo = pontos
     .map((p) => `etapa ${p.numero} (${p.nome}): ${p.total}`)
@@ -75,8 +68,8 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
               Distribuição por etapa
             </h3>
             <p className="mt-0.5 text-xs text-text-muted">
-              Equipes ativas em cada etapa do funil — a inclinação mostra onde a
-              jornada aperta.
+              Equipes ativas em cada etapa do funil — o comprimento mostra o
+              volume de cada etapa.
             </p>
           </div>
           <Button
@@ -98,21 +91,21 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
               role="img"
               aria-label={`Equipes ativas por etapa — ${resumo}.`}
             >
-              {/* grade e eixo Y — hairline, recessivos */}
+              {/* grade vertical e eixo de valor — hairline, recessivos */}
               {ticks.map((t) => (
                 <g key={t}>
                   <line
-                    x1={L}
-                    x2={LARG - R}
-                    y1={y(t)}
-                    y2={y(t)}
+                    x1={x0 + bw(t)}
+                    x2={x0 + bw(t)}
+                    y1={TOPO}
+                    y2={baseY}
                     stroke="var(--border)"
                     strokeWidth={1}
                   />
                   <text
-                    x={L - 10}
-                    y={y(t) + 4}
-                    textAnchor="end"
+                    x={x0 + bw(t)}
+                    y={baseY + 16}
+                    textAnchor="middle"
                     className="fill-[color:var(--text-subtle)] text-[11px] tabular-nums"
                   >
                     {t}
@@ -120,67 +113,51 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
                 </g>
               ))}
 
-              {/* área: a mesma cor da linha, em lavagem */}
-              <polygon points={area} fill="var(--primary)" opacity={0.1} />
-              <polyline
-                points={linha}
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {pontos.map((p, i) => (
-                <g key={p.etapaId}>
-                  {/* anel na cor da superfície: o ponto continua legível
-                      onde cruza a linha, e é parte da área de toque */}
-                  <circle
-                    cx={x(i)}
-                    cy={y(p.total)}
-                    r={6}
-                    fill="var(--primary)"
-                    stroke="var(--surface)"
-                    strokeWidth={2}
-                  />
-                  {rotulados.has(i) && (
+              {pontos.map((p, i) => {
+                const comprimento = bw(p.total);
+                return (
+                  <g key={p.etapaId}>
+                    {/* rótulo da etapa no gutter esquerdo */}
                     <text
-                      x={x(i)}
-                      y={y(p.total) - 12}
-                      textAnchor="middle"
-                      className="fill-[color:var(--text)] text-[12px] font-semibold tabular-nums"
+                      x={x0 - 10}
+                      y={rowY(i) + ALT_BARRA / 2 + 3.5}
+                      textAnchor="end"
+                      className="fill-[color:var(--text-muted)] text-[11px]"
+                    >
+                      Etapa {p.numero}
+                    </text>
+                    {/* barra na cor da etapa; o hover mora aqui — só sobre a
+                        barra é que o foco aciona (realça esta, escurece as outras) */}
+                    <rect
+                      x={x0}
+                      y={rowY(i)}
+                      width={Math.max(0, comprimento)}
+                      height={ALT_BARRA}
+                      rx={3}
+                      fill={`var(--stage-${p.etapaId})`}
+                      opacity={ativo === null || ativo === i ? 1 : 0.55}
+                      onMouseEnter={() => setAtivo(i)}
+                      onMouseLeave={() => setAtivo(null)}
+                    />
+                    <text
+                      x={x0 + comprimento + 7}
+                      y={rowY(i) + ALT_BARRA / 2 + 3.5}
+                      textAnchor="start"
+                      className="pointer-events-none fill-[color:var(--text)] text-[11px] font-semibold tabular-nums"
                     >
                       {p.total}
                     </text>
-                  )}
-                  <text
-                    x={x(i)}
-                    y={BASE + 22}
-                    textAnchor="middle"
-                    className="fill-[color:var(--text-muted)] text-[11px]"
-                  >
-                    Etapa {p.numero}
-                  </text>
-                  {/* faixa de hover: alvo bem maior que o ponto */}
-                  <rect
-                    x={x(i) - (LARG - L - R) / (2 * Math.max(1, pontos.length - 1))}
-                    y={TOPO - 10}
-                    width={(LARG - L - R) / Math.max(1, pontos.length - 1)}
-                    height={BASE - TOPO + 30}
-                    fill="transparent"
-                    onMouseEnter={() => setAtivo(i)}
-                    onMouseLeave={() => setAtivo(null)}
-                  />
-                </g>
-              ))}
+                  </g>
+                );
+              })}
             </svg>
 
             {ativo !== null && (
               <div
                 className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-[0.625rem] border border-border bg-surface-raised px-3 py-2 shadow-md"
                 style={{
-                  left: `${(x(ativo) / LARG) * 100}%`,
-                  top: `${(y(pontos[ativo].total) / ALT) * 100 - 4}%`,
+                  left: `${(Math.min(xMax, x0 + bw(pontos[ativo].total)) / LARG) * 100}%`,
+                  top: `${(rowY(ativo) / ALT) * 100}%`,
                 }}
               >
                 <p className="whitespace-nowrap text-xs font-medium text-text">
