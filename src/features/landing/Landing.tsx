@@ -121,12 +121,16 @@ function TituloSecao({
 function CardEquipe({
   caso,
   destaque,
+  reativo = true,
 }: {
   caso: CasoVitrine;
   destaque?: boolean;
+  /** Aplica o hover com brilho/borda reflexiva (usado só na seção Equipes). */
+  reativo?: boolean;
 }) {
+  const Wrapper = reativo ? SpotlightCard : Card;
   return (
-    <SpotlightCard className="h-full">
+    <Wrapper className="h-full">
       <Card.Body className="flex h-full flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-display text-lg font-bold tracking-tight text-text">
@@ -152,7 +156,7 @@ function CardEquipe({
           <span className="truncate">{caso.cursos.join(', ')}</span>
         </div>
       </Card.Body>
-    </SpotlightCard>
+    </Wrapper>
   );
 }
 
@@ -371,11 +375,11 @@ export function Landing() {
       </SpotlightField>
 
       {/* ── Casos ────────────────────────────────────────────────────────── */}
-      <SpotlightField
+      <section
         id="casos"
         className="scroll-mt-20 border-t border-border bg-surface-sunken py-16 sm:py-20"
       >
-        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
             etiqueta="Casos"
             titulo="Ideias que completaram a jornada"
@@ -383,11 +387,11 @@ export function Landing() {
           />
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {CASOS_VITRINE.map((c) => (
-              <CardEquipe key={c.id} caso={c} destaque />
+              <CardEquipe key={c.id} caso={c} destaque reativo={false} />
             ))}
           </div>
         </div>
-      </SpotlightField>
+      </section>
 
       {/* ── Chamada final ────────────────────────────────────────────────── */}
       <section className="border-t border-border bg-auth-hero py-16 sm:py-20">
