@@ -45,8 +45,8 @@ O scaffold é gerado pelo init oficial do framework (`create-next-app@14`); nenh
 ### Design System
 
 - **Tipografia**: `Space Grotesk` (display) + `Inter` (corpo).
-- **Marca**: a lâmpada-rede em **SVG** (`src/design-system/brand/`) + a assinatura *ignition rail* (o gradiente da marca faísca→forja), reaproveitada em headers e cards.
-- **Cores**: extraídas dos logos, declaradas como CSS variables em `src/design-system/tokens.css` — nenhum hex literal em componente.
+- **Marca**: a lâmpada-rede em **SVG** (`frontend/src/design-system/brand/`) + a assinatura *ignition rail* (o gradiente da marca faísca→forja), reaproveitada em headers e cards.
+- **Cores**: extraídas dos logos, declaradas como CSS variables em `frontend/src/design-system/tokens.css` — nenhum hex literal em componente.
 - **Movimento**: animações contidas (fade de entrada + cross-fade de tema), sempre respeitando `prefers-reduced-motion`.
 - **Acessibilidade**: foco visível tokenizado, `color-scheme` por tema, labels via `FormField`, datas via `Intl`.
 
@@ -61,20 +61,24 @@ Ao evoluir para um deploy real, revisar e atualizar as dependências (incluindo 
 
 ## Estrutura do repositório
 
-Por feature, não por camada técnica — arquivos que mudam juntos ficam juntos:
+Monorepo: `frontend/` (Next.js) e `api/` (backend, a nascer) como irmãos; docs e
+planos ficam na raiz. Dentro do frontend, por feature — arquivos que mudam juntos
+ficam juntos:
 
 ```
-src/
-  app/            # rotas (App Router): / (landing pública), login, cadastro,
+frontend/         # app Next.js (pacote próprio: package.json, tsconfig, testes)
+  src/
+    app/          # rotas (App Router): / (landing pública), login, cadastro,
                   #   recuperar-senha,
                   #   admin (funil+dashboard), admin/equipes/[slug], admin/contas, aluno
-  design-system/  # tokens.css, tema, cn, componentes-marca, brand/ (logos SVG)
-  domain/         # tipos derivados do schema + labels pt-BR
-  data/           # fixtures (seed), repository (funções puras), store, session
-  features/       # telas por feature (landing, auth, aluno-cadastro, admin-funil,
+    design-system/# tokens.css, tema, cn, componentes-marca, brand/ (logos SVG)
+    domain/       # tipos derivados do schema + labels pt-BR
+    data/         # fixtures (seed), repository (funções puras), store, session
+    features/     # telas por feature (landing, auth, aluno-cadastro, admin-funil,
                   #   admin-detalhe, admin-tarefas, admin-dashboard, admin-contas,
                   #   aluno-tarefas, shell)
-tests/            # Vitest: repository/domain (funções puras) + componentes (RTL)
+  tests/          # Vitest: repository/domain (funções puras) + componentes (RTL)
+api/              # backend Node/Express/Prisma (ver plan-backend.md)
 docs/             # requisitos (RF/RNF/RN) + schema SQL
 plan.md           # plano de implementação (decisões, paleta, tarefas TDD)
 ```
@@ -82,6 +86,7 @@ plan.md           # plano de implementação (decisões, paleta, tarefas TDD)
 ## Como rodar
 
 ```bash
+cd frontend      # o app é um pacote próprio dentro do monorepo
 npm install      # instala as dependências
 npm run dev      # sobe o app em http://localhost:3000 (landing pública em /)
 npm test         # roda a suíte Vitest (TDD)
