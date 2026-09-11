@@ -228,5 +228,13 @@ describe("POST /entregas/:slug/avaliacoes (RF-15)", () => {
       .get(`/api/v1/tarefas/${taskSlug}`)
       .set(bearer(adminAccess));
     expect(det.body.status).toBe("ajustar");
+
+    // RF-18: quem enviou recebe a notificação de ajuste.
+    const inbox = await request(app)
+      .get("/api/v1/notificacoes")
+      .set(bearer(alunoAccess));
+    expect(
+      inbox.body.data.some((n: { tipo: string }) => n.tipo === "entrega_ajustar"),
+    ).toBe(true);
   });
 });

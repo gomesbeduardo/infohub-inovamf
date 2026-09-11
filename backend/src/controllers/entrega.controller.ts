@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { Prisma } from "@prisma/client";
 import { httpError } from "../utils/error.js";
 import { fromSlug, toSlug } from "../utils/slug.js";
 import { ehUrlHttps } from "../utils/text.js";
@@ -86,43 +85,30 @@ export async function store(req: Request, res: Response, next: NextFunction) {
       throw httpError(400, "INVALID_COMENTARIO", "Comentário inválido");
     }
 
+    // Colisão de versão por reenvio simultâneo (P2002) → 409 pelo handler central.
     const versao = await entregaModel.proximaVersao(tarefaId as string);
-    let entrega;
-    try {
-      entrega = await entregaModel.criarComArquivos({
-        tarefaId: tarefaId as string,
-        versao,
-        enviadoPor: idDoChamador(req),
-        comentario: typeof comentario === "string" ? comentario.trim() : null,
-        arquivos,
-      });
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-        throw httpError(409, "VERSION_CONFLICT", "Reenvio simultâneo; tente de novo");
-      }
-      throw e;
-    }
+    const entrega = await entregaModel.criarComArquivos({
+      tarefaId: tarefaId as string,
+      versao,
+      enviadoPor: idDoChamador(req),
+      comentario: typeof comentario === "string" ? comentario.trim() : null,
+      arquivos,
+    });
 
     await tarefaModel.atualizarPorId(tarefaId as string, { status: "entregue" });
 
-    // Notifica admins (RF-19), best-effort: um destinatário ruim não derruba os demais.
+    // Notifica admins (RF-19), best-effort.
     const admins = await usuarioModel.listarEmailsAdminsAtivos().catch(() => []);
-    const notif = await Promise.allSettled(
-      admins.map((a) =>
-        emailModel.enfileirar({
-          tipo: "entrega_recebida_admin",
-          destinatarioId: a.id,
-          destinatarioEmail: a.email,
-          assunto: "Nova entrega recebida",
-          template: "entrega_recebida_admin",
-          dadosTemplate: { tarefa: tarefa.titulo, versao },
-        }),
-      ),
+    await emailModel.enfileirarLote(
+      admins.map((a) => ({
+        tipo: "entrega_recebida_admin",
+        destinatarioId: a.id,
+        destinatarioEmail: a.email,
+        assunto: "Nova entrega recebida",
+        template: "entrega_recebida_admin",
+        dadosTemplate: { tarefa: tarefa.titulo, versao },
+      })),
     );
-    const falhas = notif.filter((r) => r.status === "rejected").length;
-    if (falhas > 0) {
-      console.warn(`[entrega] ${falhas} notificação(ões) de admin não enfileiradas`);
-    }
 
     res.status(201).json(mapEntrega(entrega));
   } catch (err) {
@@ -200,6 +186,22 @@ export async function avaliar(req: Request, res: Response, next: NextFunction) {
       status: resultado,
       concluida_em: resultado === "aprovada" ? new Date() : null,
     });
+
+    // RF-18: avisa quem enviou a entrega do resultado (best-effort).
+    await emailModel.enfileirarLote([
+      {
+        tipo: resultado === "aprovada" ? "entrega_aprovada" : "entrega_ajustar",
+        destinatarioId: entrega.usuarios.id,
+        destinatarioEmail: entrega.usuarios.email,
+        assunto:
+          resultado === "aprovada" ? "Entrega aprovada" : "Ajustes solicitados",
+        template: resultado === "aprovada" ? "entrega_aprovada" : "entrega_ajustar",
+        dadosTemplate: {
+          comentario: typeof comentario === "string" ? comentario.trim() : "",
+        },
+        tarefaId: entrega.tarefas.id,
+      },
+    ]);
 
     res.status(201).json({
       resultado: avaliacao.resultado,

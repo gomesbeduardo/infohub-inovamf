@@ -10,6 +10,7 @@ import { STATUS_TAREFA } from "../domain/enums.js";
 import * as tarefaModel from "../models/tarefa.model.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as etapaModel from "../models/etapa.model.js";
+import * as emailModel from "../models/email.model.js";
 
 function parseDataEntrega(v: unknown): Date {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
@@ -116,6 +117,24 @@ export async function store(req: Request, res: Response, next: NextFunction) {
       data_entrega: data,
       criado_por: idDoChamador(req),
     });
+
+    // RF-18: notifica os membros da equipe da nova tarefa (best-effort).
+    const membros = await equipeModel.listarEmailsMembros(controle.id);
+    await emailModel.enfileirarLote(
+      membros.map((m) => ({
+        tipo: "nova_tarefa",
+        destinatarioId: m.usuarios.id,
+        destinatarioEmail: m.usuarios.email,
+        assunto: "Nova tarefa atribuída",
+        template: "nova_tarefa",
+        dadosTemplate: {
+          titulo: tarefa.titulo,
+          data_entrega: tarefa.data_entrega.toISOString().slice(0, 10),
+        },
+        equipeId: controle.id,
+        tarefaId: tarefa.id,
+      })),
+    );
 
     res.status(201).json(mapTarefa(tarefa));
   } catch (err) {

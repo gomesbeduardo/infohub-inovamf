@@ -6,7 +6,7 @@ const LIST_SELECT = {
   versao: true,
   comentario: true,
   criado_em: true,
-  usuarios: { select: { slug: true, nome: true } },
+  usuarios: { select: { id: true, slug: true, nome: true, email: true } },
   arquivos_entrega: {
     select: { tipo: true, nome_original: true, url_externa: true },
   },
