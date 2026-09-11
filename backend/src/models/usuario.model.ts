@@ -150,6 +150,16 @@ export function findAnyByEmail(email: string) {
   });
 }
 
+// Quais destes e-mails já existem (uma query só, para a inscrição em lote).
+export async function findEmailsExistentes(emails: string[]): Promise<string[]> {
+  if (emails.length === 0) return [];
+  const rows = await prisma.usuarios.findMany({
+    where: { email: { in: emails } },
+    select: { email: true },
+  });
+  return rows.map((r) => r.email);
+}
+
 // Cria a conta pendente (sem senha usável): a pessoa define a senha ao aceitar
 // o convite. senhaHash aqui é um hash de valor aleatório, impossível de logar.
 export function criarPendente(data: {

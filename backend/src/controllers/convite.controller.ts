@@ -1,15 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { httpError } from "../utils/error.js";
+import { paginacao } from "../utils/http.js";
 import { env } from "../env.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
 import * as emailModel from "../models/email.model.js";
-
-function paginacao(req: Request) {
-  const page = Math.max(1, Number(req.query.page ?? 1) || 1);
-  const perPage = Math.min(100, Math.max(1, Number(req.query.perPage ?? 20) || 20));
-  return { page, perPage, skip: (page - 1) * perPage };
-}
 
 // GET /convites/pendentes — admin lista contas ainda não aceitas.
 export async function pendentes(req: Request, res: Response, next: NextFunction) {

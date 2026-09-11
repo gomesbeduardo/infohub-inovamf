@@ -2,20 +2,15 @@ import type { NextFunction, Request, Response } from "express";
 import { httpError } from "../utils/error.js";
 import { novoIdComSlug } from "../utils/slug.js";
 import { hashSenha, tokenAleatorio } from "../utils/hash.js";
+import { EMAIL_RE } from "../utils/text.js";
+import { paginacao } from "../utils/http.js";
 import { env } from "../env.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
 import * as emailModel from "../models/email.model.js";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Convite de conta cria só admin/mentor (RF-03). Aluno entra pelo formulário de ideia.
 const TIPOS_CONVIDAVEIS = ["admin", "mentor"];
-
-function paginacao(req: Request): { page: number; perPage: number; skip: number } {
-  const page = Math.max(1, Number(req.query.page ?? 1) || 1);
-  const perPage = Math.min(100, Math.max(1, Number(req.query.perPage ?? 20) || 20));
-  return { page, perPage, skip: (page - 1) * perPage };
-}
 
 // POST /usuarios — admin cria conta (sem senha) e dispara convite por e-mail.
 export async function store(req: Request, res: Response, next: NextFunction) {

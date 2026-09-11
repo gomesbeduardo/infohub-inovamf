@@ -1,14 +1,8 @@
-// Busca (RF-07). O schema indexa `equipes.nome_ideia` com
-// gin(to_tsvector('portuguese', ...)). Logo a busca é full-text português via
-// plainto_tsquery no model (com $queryRaw), NÃO unaccent/pg_trgm (que não
-// existem no schema). Ver ENTITIES.md §3.
-//
-// Aqui só sanitizamos o termo cru vindo de ?q=: trim, colapsa espaços e limita
-// tamanho. Retorna null quando não há termo útil (o model ignora o filtro).
-export function normalizarBusca(q: unknown): string | null {
-  if (typeof q !== "string") return null;
-  const limpo = q.trim().replace(/\s+/g, " ").slice(0, 120);
-  return limpo.length === 0 ? null : limpo;
+// Validação de e-mail (fonte única — usada pelos controllers).
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function ehEmail(v: unknown): v is string {
+  return typeof v === "string" && EMAIL_RE.test(v.trim());
 }
 
 // Entrega por link (v1): só aceita URL https bem formada e ≤500 chars

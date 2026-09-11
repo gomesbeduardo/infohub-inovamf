@@ -29,6 +29,18 @@ export function enfileirar(data: {
   });
 }
 
+// Enfileira vários de uma vez, best-effort: um destinatário ruim não derruba os
+// demais. Retorna quantos entraram na fila (para o caller reportar/logar).
+export async function enfileirarLote(
+  itens: Array<Parameters<typeof enfileirar>[0]>,
+): Promise<{ enfileirados: number; total: number }> {
+  const r = await Promise.allSettled(itens.map(enfileirar));
+  return {
+    enfileirados: r.filter((x) => x.status === "fulfilled").length,
+    total: itens.length,
+  };
+}
+
 // Inbox do usuário: e-mails endereçados a ele (RF-18 — o aluno vê o que recebeu).
 export function listarPorDestinatario(
   usuarioId: string,

@@ -1,16 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { httpError } from "../utils/error.js";
 import { idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
+import { paginacao } from "../utils/http.js";
 import { TIPOS_EMAIL, ehTipoEmail } from "../domain/enums.js";
 import * as preferenciaModel from "../models/preferencia.model.js";
 import * as emailModel from "../models/email.model.js";
 import * as equipeModel from "../models/equipe.model.js";
-
-function paginacao(req: Request) {
-  const page = Math.max(1, Number(req.query.page ?? 1) || 1);
-  const perPage = Math.min(100, Math.max(1, Number(req.query.perPage ?? 20) || 20));
-  return { page, perPage, skip: (page - 1) * perPage };
-}
 
 // GET /notificacoes/preferencias — do próprio usuário (ausência de linha = habilitado).
 export async function preferencias(req: Request, res: Response, next: NextFunction) {
@@ -94,23 +89,20 @@ export async function lembrete(req: Request, res: Response, next: NextFunction) 
         : "Lembrete da equipe InfoHub";
 
     const membros = await equipeModel.listarEmailsMembros(controle.id);
-    const resultado = await Promise.allSettled(
-      membros.map((m) =>
-        emailModel.enfileirar({
-          tipo: "lembrete_manual",
-          destinatarioId: m.usuarios.id,
-          destinatarioEmail: m.usuarios.email,
-          assunto: titulo,
-          template: "lembrete_manual",
-          dadosTemplate: {
-            mensagem: typeof mensagem === "string" ? mensagem.trim() : "",
-          },
-          equipeId: controle.id,
-        }),
-      ),
+    const { enfileirados, total } = await emailModel.enfileirarLote(
+      membros.map((m) => ({
+        tipo: "lembrete_manual",
+        destinatarioId: m.usuarios.id,
+        destinatarioEmail: m.usuarios.email,
+        assunto: titulo,
+        template: "lembrete_manual",
+        dadosTemplate: {
+          mensagem: typeof mensagem === "string" ? mensagem.trim() : "",
+        },
+        equipeId: controle.id,
+      })),
     );
-    const enfileirados = resultado.filter((r) => r.status === "fulfilled").length;
-    res.status(201).json({ enfileirados, total: membros.length });
+    res.status(201).json({ enfileirados, total });
   } catch (err) {
     next(err);
   }

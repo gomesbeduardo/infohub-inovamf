@@ -3,6 +3,9 @@ import { httpError } from "../utils/error.js";
 import { fromSlug, newId, novoIdComSlug } from "../utils/slug.js";
 import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
+import { EMAIL_RE } from "../utils/text.js";
+import { paginacao } from "../utils/http.js";
+import { idDoChamador } from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
@@ -16,25 +19,12 @@ import * as etapaModel from "../models/etapa.model.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as emailModel from "../models/email.model.js";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_COLEGAS = 9; // Q5 (máx integrantes) em aberto — teto p/ conter abuso no endpoint público.
-
-// Nosso slug é bijeção do UUID (slug = base64url(id)), então o id do chamador
-// sai direto do slug do token, sem ida ao banco.
-function callerId(req: Request): string {
-  return fromSlug(req.auth.slug) ?? "";
-}
-
-function paginacao(req: Request) {
-  const page = Math.max(1, Number(req.query.page ?? 1) || 1);
-  const perPage = Math.min(100, Math.max(1, Number(req.query.perPage ?? 20) || 20));
-  return { page, perPage, skip: (page - 1) * perPage };
-}
 
 function escopoDo(req: Request): equipeModel.Escopo {
   if (req.auth.role === "admin") return { tipo: "admin" };
-  if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: callerId(req) };
-  return { tipo: "aluno", usuarioId: callerId(req) };
+  if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: idDoChamador(req) };
+  return { tipo: "aluno", usuarioId: idDoChamador(req) };
 }
 
 // GET /equipes — funil/lista com escopo por papel (RF-06, RNF-03).
@@ -293,7 +283,7 @@ export async function moverEtapa(req: Request, res: Response, next: NextFunction
     const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
     if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
 
-    if (req.auth.role === "mentor" && controle.mentor_id !== callerId(req)) {
+    if (req.auth.role === "mentor" && controle.mentor_id !== idDoChamador(req)) {
       throw httpError(403, "NOT_TEAM_MENTOR", "Equipe fora do seu escopo");
     }
     if (req.auth.role === "aluno") {
@@ -307,7 +297,7 @@ export async function moverEtapa(req: Request, res: Response, next: NextFunction
       equipeId: controle.id,
       etapaOrigemId: controle.etapa_atual_id,
       etapaDestinoId: destino.id,
-      movidoPor: callerId(req),
+      movidoPor: idDoChamador(req),
       forcado: forcado === true,
       observacao: typeof observacao === "string" ? observacao.trim() : null,
     });
@@ -396,10 +386,9 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     if (new Set(todosEmails).size !== todosEmails.length) {
       throw httpError(400, "DUP_EMAIL", "E-mails repetidos na inscrição");
     }
-    for (const email of todosEmails) {
-      if (await usuarioModel.findAnyByEmail(email)) {
-        throw httpError(409, "EMAIL_TAKEN", `E-mail já cadastrado: ${email}`);
-      }
+    const jaExistem = await usuarioModel.findEmailsExistentes(todosEmails);
+    if (jaExistem.length > 0) {
+      throw httpError(409, "EMAIL_TAKEN", `E-mail já cadastrado: ${jaExistem[0]}`);
     }
 
     // Preparar dados (hashes prontos; model só grava)
@@ -460,27 +449,21 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     const link = (token: string) =>
       `${env.inviteUrlBase}?token=${encodeURIComponent(token)}`;
     const admins = await usuarioModel.listarEmailsAdminsAtivos().catch(() => []);
-    const notif = await Promise.allSettled(
-      admins.map((a) =>
-        emailModel.enfileirar({
-          tipo: "novo_cadastro_admin",
-          destinatarioId: a.id,
-          destinatarioEmail: a.email,
-          assunto: "Novo cadastro no InfoHub",
-          template: "novo_cadastro_admin",
-          dadosTemplate: {
-            equipe: ideia.nome.trim(),
-            lider: lider.nome.trim(),
-            equipe_slug: equipeIds.slug,
-          },
-          equipeId: equipeIds.id,
-        }),
-      ),
+    await emailModel.enfileirarLote(
+      admins.map((a) => ({
+        tipo: "novo_cadastro_admin",
+        destinatarioId: a.id,
+        destinatarioEmail: a.email,
+        assunto: "Novo cadastro no InfoHub",
+        template: "novo_cadastro_admin",
+        dadosTemplate: {
+          equipe: ideia.nome.trim(),
+          lider: lider.nome.trim(),
+          equipe_slug: equipeIds.slug,
+        },
+        equipeId: equipeIds.id,
+      })),
     );
-    const falhasAdmin = notif.filter((r) => r.status === "rejected").length;
-    if (falhasAdmin > 0) {
-      console.warn(`[inscricao] ${falhasAdmin} notificação(ões) de admin não enfileiradas`);
-    }
     for (const c of colegasPrep) {
       try {
         await emailModel.enfileirar({
