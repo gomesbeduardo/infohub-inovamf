@@ -125,3 +125,38 @@ Convenções do time (2 devs) para trabalhar em paralelo sem conflito:
 - **Uma branch por issue/feature**; a branch é deletada logo após o merge.
 - **Nenhum merge sem aprovação** (na conversa ou no GitHub).
 - **Conventional Commits**; TDD na camada de domínio/repositório (teste antes da implementação); `npm test` e `npm run build` verdes antes do PR.
+
+## Deploy (Coolify, sem Docker, um resource só)
+
+Front e backend sobem **juntos, num único resource**, com **um comando**:
+`npm start` na raiz roda `scripts/start-all.mjs`, que dá spawn nos dois.
+
+No Coolify: **Build Pack = Railpack**, **Base Directory = `/`**, **Port = 3000**.
+O `railpack.json` da raiz instala e builda os dois apps e define o start command.
+
+> O `nixpacks.toml` da raiz é o mesmo plano para quem usar **Nixpacks**. Só um
+> dos dois vale por vez — o build pack escolhido no Coolify ignora o outro
+> arquivo. Mexeu em um, mexa no outro.
+
+Como fica dentro do container:
+
+| Processo | Porta | Exposto |
+| -------- | ----- | ------- |
+| Express (API) | `127.0.0.1:3333` | não |
+| Next.js (front) | `0.0.0.0:$PORT` (3000) | sim, é o domínio do app |
+
+O Next repassa `/api/*` para o Express (rewrite em `frontend/next.config.mjs`),
+então **front e API vivem no mesmo domínio** — uma porta pública, sem CORS entre
+eles, e o browser nunca fala com a API diretamente.
+
+Duas armadilhas que já custaram tempo:
+
+- A porta interna `3333` é **constante nos dois arquivos**, não env. Os rewrites
+  do Next são resolvidos no build e viram `routes-manifest.json`; uma env aqui
+  seria lida no build e ignorada em runtime.
+- Se qualquer um dos dois processos morrer, o supervisor derruba o outro e sai
+  com código ≠ 0, para o Coolify reiniciar o container inteiro. Nada de meia
+  aplicação no ar.
+
+As variáveis de ambiente vão todas numa lista só, no resource — ver
+[.env.example](.env.example).
