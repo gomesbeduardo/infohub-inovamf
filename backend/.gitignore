@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+
+# Client gerado pelo Prisma (recriado por `npm run db:pull` / postinstall)
+# schema.prisma É versionado; o client gerado não.

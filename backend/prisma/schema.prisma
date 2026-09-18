@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model alunos {
+  usuario_id String   @id @db.Uuid
+  curso      String?  @db.VarChar(120)
+  semestre   String?  @db.VarChar(20)
+  matricula  String?  @db.VarChar(30)
+  criado_em  DateTime @default(now()) @db.Timestamptz(6)
+  usuarios   usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model anotacoes_internas {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipe_id     String   @db.Uuid
+  etapa_id      Int?     @db.SmallInt
+  autor_id      String   @db.Uuid
+  conteudo      String
+  criado_em     DateTime @default(now()) @db.Timestamptz(6)
+  atualizado_em DateTime @default(now()) @db.Timestamptz(6)
+  usuarios      usuarios @relation(fields: [autor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipes       equipes  @relation(fields: [equipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  etapas        etapas?  @relation(fields: [etapa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([equipe_id, criado_em(sort: Desc)], map: "idx_anotacoes_equipe")
+}
+
+model areas_ideia {
+  id      Int       @id @default(autoincrement())
+  nome    String    @unique @db.VarChar(80)
+  ordem   Int       @default(0) @db.SmallInt
+  ativo   Boolean   @default(true)
+  equipes equipes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model arquivos_entrega {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entrega_id    String   @db.Uuid
+  tipo          String   @db.VarChar(10)
+  nome_original String?  @db.VarChar(255)
+  url_externa   String?  @db.VarChar(500)
+  mime_type     String?  @db.VarChar(100)
+  criado_em     DateTime @default(now()) @db.Timestamptz(6)
+  entregas      entregas @relation(fields: [entrega_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([entrega_id], map: "idx_arquivos_entrega")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model avaliacoes_entrega {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entrega_id   String   @db.Uuid
+  avaliador_id String   @db.Uuid
+  resultado    String   @db.VarChar(15)
+  comentario   String?
+  criado_em    DateTime @default(now()) @db.Timestamptz(6)
+  usuarios     usuarios @relation(fields: [avaliador_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  entregas     entregas @relation(fields: [entrega_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([entrega_id, criado_em(sort: Desc)], map: "idx_avaliacoes_entrega")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ciclos {
+  id          Int       @id @default(autoincrement())
+  nome        String    @unique @db.VarChar(60)
+  data_inicio DateTime  @db.Date
+  data_fim    DateTime? @db.Date
+  ativo       Boolean   @default(true)
+  equipes     equipes[]
+}
+
+model consentimentos_lgpd {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id      String   @db.Uuid
+  versao_politica String   @db.VarChar(20)
+  aceito          Boolean
+  ip_origem       String?  @db.Inet
+  user_agent      String?
+  registrado_em   DateTime @default(now()) @db.Timestamptz(6)
+  usuarios        usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model emails {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo                String    @db.VarChar(40)
+  destinatario_id     String?   @db.Uuid
+  destinatario_email  String    @db.VarChar(255)
+  assunto             String    @db.VarChar(255)
+  template            String?   @db.VarChar(80)
+  dados_template      Json?
+  equipe_id           String?   @db.Uuid
+  tarefa_id           String?   @db.Uuid
+  status              String    @default("pendente") @db.VarChar(15)
+  tentativas          Int       @default(0) @db.SmallInt
+  agendado_para       DateTime  @default(now()) @db.Timestamptz(6)
+  enviado_em          DateTime? @db.Timestamptz(6)
+  erro                String?
+  provider_message_id String?   @db.VarChar(255)
+  criado_em           DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios            usuarios? @relation(fields: [destinatario_id], references: [id], onUpdate: NoAction)
+  equipes             equipes?  @relation(fields: [equipe_id], references: [id], onUpdate: NoAction)
+  tarefas             tarefas?  @relation(fields: [tarefa_id], references: [id], onUpdate: NoAction)
+
+  @@index([destinatario_id, criado_em(sort: Desc)], map: "idx_emails_destinatario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model encontros {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipe_id     String    @db.Uuid
+  etapa_id      Int?      @db.SmallInt
+  mentor_id     String?   @db.Uuid
+  data_hora     DateTime  @db.Timestamptz(6)
+  local_ou_link String?   @db.VarChar(255)
+  status        String    @default("agendado") @db.VarChar(20)
+  criado_em     DateTime  @default(now()) @db.Timestamptz(6)
+  equipes       equipes   @relation(fields: [equipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  etapas        etapas?   @relation(fields: [etapa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios      usuarios? @relation(fields: [mentor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([equipe_id, data_hora], map: "idx_encontros_equipe")
+}
+
+model entregas {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tarefa_id          String               @db.Uuid
+  versao             Int                  @db.SmallInt
+  enviado_por        String               @db.Uuid
+  comentario         String?
+  criado_em          DateTime             @default(now()) @db.Timestamptz(6)
+  arquivos_entrega   arquivos_entrega[]
+  avaliacoes_entrega avaliacoes_entrega[]
+  usuarios           usuarios             @relation(fields: [enviado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tarefas            tarefas              @relation(fields: [tarefa_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([tarefa_id, versao], map: "uq_entrega_versao")
+  @@index([tarefa_id, versao(sort: Desc)], map: "idx_entregas_tarefa")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model equipe_membros {
+  equipe_id  String    @db.Uuid
+  usuario_id String    @db.Uuid
+  papel      String    @default("integrante") @db.VarChar(15)
+  ativo      Boolean   @default(true)
+  entrou_em  DateTime  @default(now()) @db.Timestamptz(6)
+  saiu_em    DateTime? @db.Timestamptz(6)
+  equipes    equipes   @relation(fields: [equipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onUpdate: NoAction)
+
+  @@id([equipe_id, usuario_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model equipes {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome_ideia         String               @db.VarChar(150)
+  slug               String               @unique(map: "uq_equipes_slug") @db.VarChar(120)
+  descricao_ideia    String
+  area_id            Int?
+  estagio_ideia      String               @db.VarChar(30)
+  origem_divulgacao  String?              @db.VarChar(120)
+  mentor_id          String?              @db.Uuid
+  ciclo_id           Int?
+  etapa_atual_id     Int                  @default(1) @db.SmallInt
+  status             String               @default("ativa") @db.VarChar(25)
+  pronta_inovamf_em  DateTime?            @db.Timestamptz(6)
+  criado_em          DateTime             @default(now()) @db.Timestamptz(6)
+  atualizado_em      DateTime             @default(now()) @db.Timestamptz(6)
+  anotacoes_internas anotacoes_internas[]
+  emails             emails[]
+  encontros          encontros[]
+  equipe_membros     equipe_membros[]
+  areas_ideia        areas_ideia?         @relation(fields: [area_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ciclos             ciclos?              @relation(fields: [ciclo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  etapas             etapas               @relation(fields: [etapa_atual_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios           usuarios?            @relation(fields: [mentor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  historico_etapas   historico_etapas[]
+  tarefas            tarefas[]
+
+  @@index([ciclo_id], map: "idx_equipes_ciclo")
+  @@index([mentor_id], map: "idx_equipes_mentor")
+}
+
+model etapas {
+  id                                                         Int                  @id @db.SmallInt
+  numero                                                     Int                  @unique @db.SmallInt
+  nome                                                       String               @db.VarChar(100)
+  descricao                                                  String?
+  entregavel                                                 String?
+  ativo                                                      Boolean              @default(true)
+  anotacoes_internas                                         anotacoes_internas[]
+  encontros                                                  encontros[]
+  equipes                                                    equipes[]
+  historico_etapas_historico_etapas_etapa_destino_idToetapas historico_etapas[]   @relation("historico_etapas_etapa_destino_idToetapas")
+  historico_etapas_historico_etapas_etapa_origem_idToetapas  historico_etapas[]   @relation("historico_etapas_etapa_origem_idToetapas")
+  modelos_tarefa                                             modelos_tarefa[]
+  tarefas                                                    tarefas[]
+}
+
+model historico_etapas {
+  id                                               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipe_id                                        String    @db.Uuid
+  etapa_origem_id                                  Int?      @db.SmallInt
+  etapa_destino_id                                 Int       @db.SmallInt
+  movido_por                                       String?   @db.Uuid
+  forcado                                          Boolean   @default(false)
+  observacao                                       String?
+  criado_em                                        DateTime  @default(now()) @db.Timestamptz(6)
+  equipes                                          equipes   @relation(fields: [equipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  etapas_historico_etapas_etapa_destino_idToetapas etapas    @relation("historico_etapas_etapa_destino_idToetapas", fields: [etapa_destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  etapas_historico_etapas_etapa_origem_idToetapas  etapas?   @relation("historico_etapas_etapa_origem_idToetapas", fields: [etapa_origem_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios                                         usuarios? @relation(fields: [movido_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([equipe_id, criado_em(sort: Desc)], map: "idx_historico_equipe")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lembretes_tarefa {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tarefa_id       String    @db.Uuid
+  dias_antes      Int?      @db.SmallInt
+  data_especifica DateTime? @db.Date
+  disparado_em    DateTime? @db.Timestamptz(6)
+  ativo           Boolean   @default(true)
+  criado_em       DateTime  @default(now()) @db.Timestamptz(6)
+  tarefas         tarefas   @relation(fields: [tarefa_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model log_auditoria {
+  id               BigInt    @id @default(autoincrement())
+  usuario_id       String?   @db.Uuid
+  entidade         String    @db.VarChar(50)
+  entidade_id      String    @db.VarChar(64)
+  acao             String    @db.VarChar(40)
+  dados_anteriores Json?
+  dados_novos      Json?
+  ip_origem        String?   @db.Inet
+  criado_em        DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios         usuarios? @relation(fields: [usuario_id], references: [id], onUpdate: NoAction)
+
+  @@index([criado_em(sort: Desc)], map: "idx_auditoria_data")
+  @@index([entidade, entidade_id, criado_em(sort: Desc)], map: "idx_auditoria_entidade")
+}
+
+model modelos_tarefa {
+  id                Int       @id @default(autoincrement())
+  etapa_id          Int       @db.SmallInt
+  titulo            String    @db.VarChar(150)
+  descricao         String?
+  obrigatoria       Boolean   @default(true)
+  prazo_padrao_dias Int?      @default(7) @db.SmallInt
+  ordem             Int       @default(0) @db.SmallInt
+  ativo             Boolean   @default(true)
+  etapas            etapas    @relation(fields: [etapa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tarefas           tarefas[]
+}
+
+model preferencias_notificacao {
+  usuario_id    String   @db.Uuid
+  tipo          String   @db.VarChar(40)
+  habilitado    Boolean  @default(true)
+  atualizado_em DateTime @default(now()) @db.Timestamptz(6)
+  usuarios      usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([usuario_id, tipo])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tarefas {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipe_id        String             @db.Uuid
+  etapa_id         Int                @db.SmallInt
+  modelo_id        Int?
+  titulo           String             @db.VarChar(150)
+  descricao        String?
+  obrigatoria      Boolean            @default(true)
+  data_entrega     DateTime           @db.Date
+  status           String             @default("pendente") @db.VarChar(20)
+  criado_por       String?            @db.Uuid
+  concluida_em     DateTime?          @db.Timestamptz(6)
+  criado_em        DateTime           @default(now()) @db.Timestamptz(6)
+  atualizado_em    DateTime           @default(now()) @db.Timestamptz(6)
+  emails           emails[]
+  entregas         entregas[]
+  lembretes_tarefa lembretes_tarefa[]
+  usuarios         usuarios?          @relation(fields: [criado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipes          equipes            @relation(fields: [equipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  etapas           etapas             @relation(fields: [etapa_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  modelos_tarefa   modelos_tarefa?    @relation(fields: [modelo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([equipe_id, status], map: "idx_tarefas_equipe")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tokens_acesso {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id          String          @db.Uuid
+  tipo                String          @default("acesso") @db.VarChar(10)
+  token_pai_id        String?         @db.Uuid
+  token_hash          String          @unique(map: "uq_tokens_acesso_hash") @db.Char(64)
+  escopos             String[]        @default(["app"])
+  user_agent          String?
+  ip_origem           String?         @db.Inet
+  expira_em           DateTime        @db.Timestamptz(6)
+  ultimo_uso_em       DateTime?       @db.Timestamptz(6)
+  revogado_em         DateTime?       @db.Timestamptz(6)
+  motivo_revogacao    String?         @db.VarChar(40)
+  criado_em           DateTime        @default(now()) @db.Timestamptz(6)
+  tokens_acesso       tokens_acesso?  @relation("tokens_acessoTotokens_acesso", fields: [token_pai_id], references: [id], onUpdate: NoAction)
+  other_tokens_acesso tokens_acesso[] @relation("tokens_acessoTotokens_acesso")
+  usuarios            usuarios        @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([token_pai_id], map: "idx_tokens_acesso_pai")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tokens_senha {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id String    @db.Uuid
+  token_hash String    @unique(map: "uq_tokens_senha_hash") @db.VarChar(255)
+  finalidade String    @default("recuperacao") @db.VarChar(20)
+  ip_origem  String?   @db.Inet
+  expira_em  DateTime  @db.Timestamptz(6)
+  usado_em   DateTime? @db.Timestamptz(6)
+  criado_em  DateTime  @default(now()) @db.Timestamptz(6)
+  usuarios   usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id, expira_em], map: "idx_tokens_senha_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model usuarios {
+  id                       String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nome                     String                     @db.VarChar(150)
+  email                    String                     @unique(map: "uq_usuarios_email") @db.VarChar(255)
+  senha                    String                     @db.VarChar(255)
+  slug                     String                     @unique(map: "uq_usuarios_slug") @db.VarChar(100)
+  telefone                 String                     @db.VarChar(20)
+  tipo_usuario             String                     @db.VarChar(20)
+  ativo                    Boolean                    @default(true)
+  convite_aceito_em        DateTime?                  @db.Timestamptz(6)
+  email_verificado_em      DateTime?                  @db.Timestamptz(6)
+  ultimo_login_em          DateTime?                  @db.Timestamptz(6)
+  criado_em                DateTime                   @default(now()) @db.Timestamptz(6)
+  atualizado_em            DateTime                   @default(now()) @db.Timestamptz(6)
+  excluido_em              DateTime?                  @db.Timestamptz(6)
+  alunos                   alunos?
+  anotacoes_internas       anotacoes_internas[]
+  avaliacoes_entrega       avaliacoes_entrega[]
+  consentimentos_lgpd      consentimentos_lgpd[]
+  emails                   emails[]
+  encontros                encontros[]
+  entregas                 entregas[]
+  equipe_membros           equipe_membros[]
+  equipes                  equipes[]
+  historico_etapas         historico_etapas[]
+  log_auditoria            log_auditoria[]
+  preferencias_notificacao preferencias_notificacao[]
+  tarefas                  tarefas[]
+  tokens_acesso            tokens_acesso[]
+  tokens_senha             tokens_senha[]
+}

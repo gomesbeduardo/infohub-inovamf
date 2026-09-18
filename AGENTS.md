@@ -24,12 +24,13 @@ seção "Fluxo de desenvolvimento" do [`README.md`](README.md).
 
 ## Arquitetura (hexagonal / ports & adapters)
 O núcleo de domínio é isolado dos detalhes de entrega e infraestrutura:
-- **Núcleo** — `src/domain/` (tipos derivados do schema + labels/regras) e a
-  lógica de negócio como **funções puras** `(estado, args) → estado`.
-- **Adaptadores de dados** — `src/data/` (`repository` de funções puras, `store`
-  React, `session` mockada); hoje é memória, amanhã persistência real, sem tocar
-  no núcleo.
-- **Adaptadores de entrega (UI)** — `src/features/` + `src/app/` (App Router).
+- **Núcleo** — `frontend/src/domain/` (tipos derivados do schema + labels/regras)
+  e a lógica de negócio como **funções puras** `(estado, args) → estado`.
+- **Adaptadores de dados** — `frontend/src/data/` (`repository` de funções puras,
+  `store` React, `session` mockada); hoje é memória, amanhã persistência real, sem
+  tocar no núcleo.
+- **Adaptadores de entrega (UI)** — `frontend/src/features/` + `frontend/src/app/`
+  (App Router).
 Regras práticas: o domínio **não importa** UI, store nem framework; dependências
 apontam para dentro (UI/data → domínio, nunca o contrário); regra de negócio nova
 entra no núcleo com teste antes (TDD), não dentro de componente.
