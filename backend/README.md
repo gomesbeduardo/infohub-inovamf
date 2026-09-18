@@ -54,7 +54,7 @@ desenho; quem manda hoje é `prisma/migrations/`.
 ## Deploy no Coolify (sem Docker)
 
 A API **não é publicada sozinha**: front e backend sobem juntos, num único
-resource Nixpacks com `Base Directory = /` (raiz). Ver `README.md` na raiz.
+resource (Railpack) com `Base Directory = /` (raiz). Ver `README.md` na raiz.
 
 O `npm start` do backend é `prisma migrate deploy && node dist/server.js`: **cada
 deploy aplica as migrations pendentes** antes de a API abrir a porta. Se uma

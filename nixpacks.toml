@@ -1,3 +1,5 @@
+# Plano do Railpack fica em railpack.json — este arquivo só vale se o build pack
+# do Coolify for Nixpacks. Mantenha os dois em sincronia.
 # Build pack do Coolify para o monorepo inteiro num único resource.
 # No Coolify: Build Pack = Nixpacks, Base Directory = / (raiz), Port = 3000.
 #

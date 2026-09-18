@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "packages": {
+    "node": "22"
+  },
+  "buildAptPackages": ["openssl"],
+  "deployAptPackages": ["openssl"],
+  "caches": {
+    "npm": {
+      "directory": "/root/.npm",
+      "type": "shared"
+    }
+  },
+  "steps": {
+    "install": {
+      "commands": [
+        "npm --prefix backend ci --include=dev",
+        "npm --prefix frontend ci --include=dev"
+      ],
+      "caches": ["npm"]
+    },
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": ["npm run build"],
+      "secrets": ["DATABASE_URL"]
+    }
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "inputs": [{ "step": "build", "include": ["."] }]
+  }
+}

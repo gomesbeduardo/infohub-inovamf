@@ -131,8 +131,12 @@ Convenções do time (2 devs) para trabalhar em paralelo sem conflito:
 Front e backend sobem **juntos, num único resource**, com **um comando**:
 `npm start` na raiz roda `scripts/start-all.mjs`, que dá spawn nos dois.
 
-No Coolify: **Build Pack = Nixpacks**, **Base Directory = `/`**, **Port = 3000**.
-O `nixpacks.toml` da raiz instala e builda os dois workspaces.
+No Coolify: **Build Pack = Railpack**, **Base Directory = `/`**, **Port = 3000**.
+O `railpack.json` da raiz instala e builda os dois apps e define o start command.
+
+> O `nixpacks.toml` da raiz é o mesmo plano para quem usar **Nixpacks**. Só um
+> dos dois vale por vez — o build pack escolhido no Coolify ignora o outro
+> arquivo. Mexeu em um, mexa no outro.
 
 Como fica dentro do container:
 
