@@ -1,0 +1,19 @@
+# Build pack do Coolify para a API (sem Docker).
+# No Coolify: Build Pack = Nixpacks, Base Directory = /backend.
+# O `npm start` roda `prisma migrate deploy` antes de subir o servidor, então
+# toda publicação aplica as migrations pendentes no schema da DATABASE_URL.
+
+[phases.setup]
+# openssl: exigido pelos engines do Prisma.
+nixPkgs = ['nodejs_22', 'openssl']
+
+[phases.install]
+# --include=dev: o build precisa do TypeScript, e o Coolify costuma exportar
+# NODE_ENV=production (que faria o npm pular as devDependencies).
+cmds = ['npm ci --include=dev']
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'npm start'

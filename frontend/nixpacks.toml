@@ -1,0 +1,14 @@
+# Build pack do Coolify para o front Next.js (sem Docker).
+# No Coolify: Build Pack = Nixpacks, Base Directory = /frontend.
+
+[phases.setup]
+nixPkgs = ['nodejs_22']
+
+[phases.install]
+cmds = ['npm ci --include=dev']
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'npm start'
