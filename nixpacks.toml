@@ -17,8 +17,8 @@ nixPkgs = ['nodejs_22', 'openssl']
 # --include=dev: o build precisa de TypeScript/Next, e o Coolify exporta
 # NODE_ENV=production (que faria o npm pular as devDependencies).
 cmds = [
-  'npm --prefix backend ci --include=dev',
-  'npm --prefix frontend ci --include=dev',
+  'cd backend && npm ci --include=dev',
+  'cd frontend && npm ci --include=dev',
 ]
 
 [phases.build]

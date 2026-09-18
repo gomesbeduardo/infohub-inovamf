@@ -15,15 +15,15 @@
   "steps": {
     "install": {
       "commands": [
-        "npm --prefix backend ci --include=dev",
-        "npm --prefix frontend ci --include=dev"
+        { "src": ".", "dest": "." },
+        "cd backend && npm ci --include=dev",
+        "cd frontend && npm ci --include=dev"
       ],
       "caches": ["npm"]
     },
     "build": {
       "inputs": [{ "step": "install" }],
-      "commands": ["npm run build"],
-      "secrets": ["DATABASE_URL"]
+      "commands": ["npm run build"]
     }
   },
   "deploy": {
