@@ -53,17 +53,17 @@ desenho; quem manda hoje é `prisma/migrations/`.
 
 ## Deploy no Coolify (sem Docker)
 
-Aplicação **Nixpacks**, `Base Directory = /backend` (o `backend/nixpacks.toml`
-cuida do resto: `npm ci --include=dev` → `npm run build` → `npm start`).
+A API **não é publicada sozinha**: front e backend sobem juntos, num único
+resource Nixpacks com `Base Directory = /` (raiz). Ver `README.md` na raiz.
 
-Variáveis de ambiente no Coolify: `DATABASE_URL` (com `?schema=`), `JWT_SECRET`,
-`CORS_ORIGIN`, `INVITE_URL_BASE`, `PORT` (o Coolify injeta) e `NODE_ENV=production`.
+O `npm start` do backend é `prisma migrate deploy && node dist/server.js`: **cada
+deploy aplica as migrations pendentes** antes de a API abrir a porta. Se uma
+migration falhar, o processo morre com log do Prisma, e o supervisor da raiz
+derruba o front junto — o deploy não sobe pela metade.
 
-O `npm start` é `prisma migrate deploy && node dist/server.js`: **cada deploy
-aplica as migrations pendentes** antes de a API abrir a porta. Se uma migration
-falhar, o processo morre com log do Prisma e o deploy não sobe quebrado.
-
-O front Next.js é uma segunda aplicação Nixpacks com `Base Directory = /frontend`.
+Em produção a API escuta em `127.0.0.1:3333` e quem expõe é o Next, que repassa
+`/api/*` (rewrite em `frontend/next.config.mjs`). Mesmo domínio para os dois,
+então `CORS_ORIGIN` deixa de importar entre front e API.
 
 ## Scripts
 
