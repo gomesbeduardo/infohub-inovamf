@@ -70,7 +70,7 @@ export function PainelOrientador() {
             <EmptyState title="Sem dados ainda" description="Seus indicadores aparecem quando houver equipes atribuídas." />
           ) : (
             <LineChart
-              className="w-full max-w-2xl"
+              className="w-full"
               labels={serie.map((p) => p.rotulo)}
               ariaLabel="Gráfico de linha com avanços de etapa e entregas concluídas por semana"
               series={[
