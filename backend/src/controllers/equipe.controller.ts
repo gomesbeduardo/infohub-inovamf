@@ -28,6 +28,57 @@ import * as tokenModel from "../models/token.model.js";
 
 const MAX_COLEGAS = 9; // Q5 (máx integrantes) em aberto — teto p/ conter abuso no endpoint público.
 
+const MSG_RECUSA = {
+  RN03_EQUIPE_ATIVA: (e: string) => `${e} já participa de uma equipe ativa`,
+  EMAIL_NAO_ALUNO: (e: string) => `${e} pertence a uma conta de mentor/admin`,
+} as const;
+
+// Prepara (hashes prontos) o vínculo de UMA pessoa a uma equipe — RN-03 decide
+// entre criar, reaproveitar ou recusar. Usado pela inscrição e por "adicionar membro".
+async function prepararColega(
+  c: { nome: string; email: string; telefone: string },
+  existente: Awaited<ReturnType<typeof usuarioModel.findParaVinculo>>[number] | null,
+  expiraConvite: Date,
+) {
+  const v = classificarColega(existente);
+  if (v.acao === "recusar") throw httpError(409, v.codigo, MSG_RECUSA[v.codigo](c.email));
+
+  const precisaConvite = v.acao === "criar" || v.comConvite;
+  const segredo = tokenAleatorio(24);
+  const conviteId = newId();
+  const convite = precisaConvite
+    ? { id: conviteId, hash: await hashTokenSenha(segredo), expiraEm: expiraConvite }
+    : null;
+
+  if (v.acao === "criar") {
+    const ids = novoIdComSlug();
+    return {
+      usuarioId: ids.id,
+      slug: ids.slug,
+      nome: c.nome,
+      email: c.email,
+      criar: {
+        slug: ids.slug,
+        nome: c.nome,
+        email: c.email,
+        telefone: c.telefone,
+        senhaHash: await hashSenha(tokenAleatorio(32)),
+      },
+      convite,
+      conviteToken: `${conviteId}.${segredo}`,
+    };
+  }
+  return {
+    usuarioId: existente!.id,
+    slug: existente!.slug,
+    nome: existente!.nome,
+    email: c.email,
+    criar: null,
+    convite,
+    conviteToken: convite ? `${conviteId}.${segredo}` : null,
+  };
+}
+
 // Filtros do funil (RF-07) a partir da query — compartilhado pela lista e pelo CSV.
 async function lerFiltros(req: Request) {
   let areaId: number | undefined;
@@ -453,10 +504,6 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     const existentes = new Map(
       (await usuarioModel.findParaVinculo(listaColegas.map((c) => c.email))).map((u) => [u.email, u]),
     );
-    const MSG_RECUSA = {
-      RN03_EQUIPE_ATIVA: (e: string) => `${e} já participa de uma equipe ativa`,
-      EMAIL_NAO_ALUNO: (e: string) => `${e} pertence a uma conta de mentor/admin`,
-    } as const;
 
     // Preparar dados (hashes prontos; model só grava)
     const liderIds = novoIdComSlug();
@@ -464,46 +511,7 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     const expiraConvite = new Date(Date.now() + env.inviteTtlHoras * 3_600_000);
 
     const colegasPrep = await Promise.all(
-      listaColegas.map(async (c) => {
-        const existente = existentes.get(c.email) ?? null;
-        const v = classificarColega(existente);
-        if (v.acao === "recusar") throw httpError(409, v.codigo, MSG_RECUSA[v.codigo](c.email));
-
-        const precisaConvite = v.acao === "criar" || v.comConvite;
-        const segredo = tokenAleatorio(24);
-        const conviteId = newId();
-        const convite = precisaConvite
-          ? { id: conviteId, hash: await hashTokenSenha(segredo), expiraEm: expiraConvite }
-          : null;
-
-        if (v.acao === "criar") {
-          const ids = novoIdComSlug();
-          return {
-            usuarioId: ids.id,
-            slug: ids.slug,
-            nome: c.nome,
-            email: c.email,
-            criar: {
-              slug: ids.slug,
-              nome: c.nome,
-              email: c.email,
-              telefone: c.telefone,
-              senhaHash: await hashSenha(tokenAleatorio(32)),
-            },
-            convite,
-            conviteToken: `${conviteId}.${segredo}`,
-          };
-        }
-        return {
-          usuarioId: existente!.id,
-          slug: existente!.slug,
-          nome: existente!.nome,
-          email: c.email,
-          criar: null,
-          convite,
-          conviteToken: convite ? `${conviteId}.${segredo}` : null,
-        };
-      }),
+      listaColegas.map((c) => prepararColega(c, existentes.get(c.email) ?? null, expiraConvite)),
     );
 
     const cicloAtual = await cicloModel.findAtual();
@@ -628,6 +636,56 @@ export async function gerarConviteMembro(req: Request, res: Response, next: Next
     res.status(201).json({
       conviteUrl: linkConvite(convite.tokenBruto),
       expiraEm: convite.expiraEm.toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /equipes/:slug/membros — líder, mentor da equipe ou admin adicionam um
+// integrante por nome + e-mail. RN-03 igual à inscrição; devolve o link.
+export async function adicionarMembro(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    const eu = idDoChamador(req);
+    const ehLider = controle.equipe_membros.some((m) => m.usuario_id === eu && m.papel === "lider");
+    if (!podeGerirEquipe(req, controle.mentor_id) && !(req.auth.role === "aluno" && ehLider)) {
+      throw httpError(403, "FORBIDDEN", "Só o líder, o mentor ou o admin adicionam integrantes");
+    }
+
+    const { nome, email } = req.body ?? {};
+    if (typeof nome !== "string" || nome.trim().length < 3) {
+      throw httpError(400, "INVALID_NOME", "Nome deve ter ao menos 3 caracteres");
+    }
+    if (typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
+      throw httpError(400, "INVALID_EMAIL", "E-mail inválido");
+    }
+    const emailNorm = email.toLowerCase().trim();
+    const [existente] = await usuarioModel.findParaVinculo([emailNorm]);
+    const expira = new Date(Date.now() + env.inviteTtlHoras * 3_600_000);
+    const c = await prepararColega({ nome: nome.trim(), email: emailNorm, telefone: "" }, existente ?? null, expira);
+
+    await equipeModel.adicionarMembro(controle.id, { usuarioId: c.usuarioId, criar: c.criar, convite: c.convite });
+    if (c.conviteToken) {
+      await emailModel
+        .enfileirar({
+          tipo: "convite_conta",
+          destinatarioId: c.usuarioId,
+          destinatarioEmail: c.email,
+          assunto: "Você foi adicionado a uma equipe no InfoHub",
+          template: "convite_conta",
+          dadosTemplate: { nome: c.nome, link: linkConvite(c.conviteToken) },
+          equipeId: controle.id,
+        })
+        .catch((e) => console.error("[adicionarMembro] falha ao enfileirar convite", e));
+    }
+    res.status(201).json({
+      slug: c.slug,
+      nome: c.nome,
+      email: c.email,
+      conviteUrl: c.conviteToken ? linkConvite(c.conviteToken) : null,
+      pendente: c.conviteToken !== null,
     });
   } catch (err) {
     next(err);
