@@ -52,4 +52,48 @@ describe('CopiarLink', () => {
     await user.click(screen.getByRole('button', { name: /^copiar$/i }));
     expect(screen.getByText(/selecione e copie o link/i)).toBeInTheDocument();
   });
+
+  it('sem Clipboard API: tenta execCommand; sucesso (true) → "Copiado!"', async () => {
+    const user = userEvent.setup();
+    definirClipboard(undefined);
+    const execCommandMock = vi.fn(() => true);
+    Object.defineProperty(document, 'execCommand', {
+      value: execCommandMock,
+      configurable: true,
+    });
+
+    try {
+      render(<CopiarLink url={URL_CONVITE} />);
+      await user.click(screen.getByRole('button', { name: /^copiar$/i }));
+
+      expect(execCommandMock).toHaveBeenCalledWith('copy');
+      expect(screen.getByRole('button', { name: /copiado!/i })).toBeInTheDocument();
+      expect(screen.queryByText(/não foi possível copiar/i)).not.toBeInTheDocument();
+    } finally {
+      delete (document as any).execCommand;
+    }
+  });
+
+  it('sem Clipboard API: execCommand retorna false → mensagem manual', async () => {
+    const user = userEvent.setup();
+    definirClipboard(undefined);
+    const execCommandMock = vi.fn(() => false);
+    Object.defineProperty(document, 'execCommand', {
+      value: execCommandMock,
+      configurable: true,
+    });
+
+    try {
+      render(<CopiarLink url={URL_CONVITE} />);
+      await user.click(screen.getByRole('button', { name: /^copiar$/i }));
+
+      expect(execCommandMock).toHaveBeenCalledWith('copy');
+      expect(
+        screen.getByText('Não foi possível copiar automaticamente — selecione e copie o link.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/copiado!/i)).not.toBeInTheDocument();
+    } finally {
+      delete (document as any).execCommand;
+    }
+  });
 });

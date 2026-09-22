@@ -42,7 +42,17 @@ export function CopiarLink({ url, rotulo = 'Link de convite', className }: Copia
       await navigator.clipboard.writeText(url);
       setEstado('copiado');
     } catch {
+      // Fallback: tentar execCommand se Clipboard API falhar. execCommand é
+      // deprecated mas funciona em HTTP puro onde navigator.clipboard pode não estar disponível.
       selecionar();
+      try {
+        if (document.execCommand && document.execCommand('copy')) {
+          setEstado('copiado');
+          return;
+        }
+      } catch {
+        // ignore
+      }
       setEstado('falhou');
     }
   }
