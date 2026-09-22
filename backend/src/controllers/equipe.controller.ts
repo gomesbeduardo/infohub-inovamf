@@ -10,14 +10,17 @@ import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
   STATUS_EQUIPE,
+  STATUS_TAREFA,
   type EstagioIdeia,
   type StatusEquipe,
 } from "../domain/enums.js";
 import { POSICAO_PRONTA } from "../domain/transicao.js";
 import { classificarColega } from "../domain/membros.js";
+import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as areaModel from "../models/area.model.js";
+import * as cicloModel from "../models/ciclo.model.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as emailModel from "../models/email.model.js";
 import * as tokenModel from "../models/token.model.js";
@@ -30,60 +33,72 @@ function escopoDo(req: Request): equipeModel.Escopo {
   return { tipo: "aluno", usuarioId: idDoChamador(req) };
 }
 
+// Filtros do funil (RF-07) a partir da query — compartilhado pela lista e pelo CSV.
+async function lerFiltros(req: Request) {
+  let areaId: number | undefined;
+  if (typeof req.query.area === "string" && req.query.area.trim()) {
+    const area = await areaModel.findIdByNome(req.query.area.trim());
+    if (!area) throw httpError(400, "INVALID_AREA", "Área desconhecida");
+    areaId = area.id;
+  }
+  let cicloId: number | undefined;
+  if (typeof req.query.ciclo === "string" && req.query.ciclo.trim()) {
+    const ciclo = await cicloModel.findIdByNome(req.query.ciclo.trim());
+    if (!ciclo) throw httpError(400, "INVALID_CICLO", "Ciclo desconhecido");
+    cicloId = ciclo.id;
+  }
+  const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  const etapaNumero = req.query.etapa !== undefined ? Number(req.query.etapa) : undefined;
+  const status = texto(req.query.status);
+  const statusTarefa = texto(req.query.statusTarefa);
+  const mentor = texto(req.query.mentor);
+  return {
+    escopo: escopoDo(req),
+    etapaNumero: etapaNumero && etapaNumero >= 1 ? etapaNumero : undefined,
+    areaId,
+    cicloId,
+    status: status && (STATUS_EQUIPE as string[]).includes(status) ? status : undefined,
+    statusTarefa:
+      statusTarefa && (STATUS_TAREFA as string[]).includes(statusTarefa) ? statusTarefa : undefined,
+    mentorId: mentor ? (fromSlug(mentor) ?? undefined) : undefined,
+    q: texto(req.query.q),
+    curso: texto(req.query.curso),
+    hoje: hojeISO(),
+  };
+}
+
+type LinhaResumo = Awaited<ReturnType<typeof equipeModel.listar>>[number];
+
+// Linha do funil/lista (RF-06). Exportada para o CSV (Task 6) reusar.
+export function mapResumo(e: LinhaResumo) {
+  const lider = e.equipe_membros[0]?.usuarios ?? null;
+  return {
+    slug: e.slug,
+    nomeIdeia: e.nome_ideia,
+    descricaoIdeia: e.descricao_ideia,
+    status: e.status,
+    estagio: e.estagio_ideia,
+    etapa: { numero: e.etapas.numero, nome: e.etapas.nome },
+    area: e.areas_ideia?.nome ?? null,
+    ciclo: e.ciclos?.nome ?? null,
+    mentor: e.usuarios ? { slug: e.usuarios.slug, nome: e.usuarios.nome } : null,
+    lider: lider ? { slug: lider.slug, nome: lider.nome, curso: lider.alunos?.curso ?? null } : null,
+    membrosCount: e._count.equipe_membros,
+    tarefasAtrasadas: e._count.tarefas,
+    criadoEm: e.criado_em,
+  };
+}
+
 // GET /equipes — funil/lista com escopo por papel (RF-06, RNF-03).
 export async function index(req: Request, res: Response, next: NextFunction) {
   try {
     const { page, perPage, skip } = paginacao(req);
-
-    let areaId: number | undefined;
-    if (typeof req.query.area === "string" && req.query.area.trim()) {
-      const area = await areaModel.findIdByNome(req.query.area.trim());
-      if (!area) throw httpError(400, "INVALID_AREA", "Área desconhecida");
-      areaId = area.id;
-    }
-
-    const etapaNumero =
-      req.query.etapa !== undefined ? Number(req.query.etapa) : undefined;
-    const status =
-      typeof req.query.status === "string" &&
-      (STATUS_EQUIPE as string[]).includes(req.query.status)
-        ? req.query.status
-        : undefined;
-    const mentorId =
-      typeof req.query.mentor === "string" && req.query.mentor.trim()
-        ? (fromSlug(req.query.mentor.trim()) ?? undefined)
-        : undefined;
-    const q = typeof req.query.q === "string" ? req.query.q.trim() || undefined : undefined;
-
-    const filtros = {
-      escopo: escopoDo(req),
-      etapaNumero: etapaNumero && etapaNumero >= 1 ? etapaNumero : undefined,
-      areaId,
-      status,
-      mentorId,
-      q,
-    };
-
+    const filtros = await lerFiltros(req);
     const [linhas, total] = await Promise.all([
       equipeModel.listar({ skip, take: perPage, ...filtros }),
       equipeModel.contar(filtros),
     ]);
-
-    res.json({
-      data: linhas.map((e) => ({
-        slug: e.slug,
-        nomeIdeia: e.nome_ideia,
-        status: e.status,
-        estagio: e.estagio_ideia,
-        etapa: { numero: e.etapas.numero, nome: e.etapas.nome },
-        area: e.areas_ideia?.nome ?? null,
-        mentor: e.usuarios ? { slug: e.usuarios.slug, nome: e.usuarios.nome } : null,
-        criadoEm: e.criado_em,
-      })),
-      page,
-      perPage,
-      total,
-    });
+    res.json({ data: linhas.map(mapResumo), page, perPage, total });
   } catch (err) {
     next(err);
   }
@@ -467,6 +482,8 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
       }),
     );
 
+    const cicloAtual = await cicloModel.findAtual();
+
     await equipeModel.inscrever({
       lider: {
         id: liderIds.id,
@@ -490,6 +507,7 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
         descricao_ideia: ideia.descricao.trim(),
         estagio_ideia: estagioIdeia,
         area_id: areaId,
+        ciclo_id: cicloAtual?.id ?? null,
         origem_divulgacao:
           typeof ideia.origem === "string" ? ideia.origem.trim() : null,
       },

@@ -8,6 +8,7 @@ import {
   type Pendencia,
 } from "../domain/transicao.js";
 import { toSlug } from "../utils/slug.js";
+import { whereStatusEfetivo } from "./tarefa.model.js";
 
 // --- Escopo por papel (RNF-03) ------------------------------------------------
 export type Escopo =
@@ -29,6 +30,10 @@ interface FiltrosEquipe {
   status?: string;
   mentorId?: string;
   q?: string;
+  curso?: string;
+  statusTarefa?: string;
+  cicloId?: number;
+  hoje: string;
 }
 
 function whereFiltros(f: FiltrosEquipe): Prisma.equipesWhereInput {
@@ -37,22 +42,45 @@ function whereFiltros(f: FiltrosEquipe): Prisma.equipesWhereInput {
   if (f.areaId) w.area_id = f.areaId;
   if (f.status) w.status = f.status;
   if (f.mentorId) w.mentor_id = f.mentorId;
+  if (f.cicloId) w.ciclo_id = f.cicloId;
   // Busca simples por enquanto (ILIKE). O índice GIN full-text de nome_ideia
   // fica como otimização futura (ENTITIES.md §3).
   if (f.q) w.nome_ideia = { contains: f.q, mode: "insensitive" };
+  // RF-07: curso de QUALQUER integrante ativo.
+  if (f.curso) {
+    w.equipe_membros = {
+      some: { ativo: true, usuarios: { alunos: { curso: { equals: f.curso, mode: "insensitive" } } } },
+    };
+  }
+  // RF-07: a equipe TEM ao menos uma tarefa com esse status (efetivo — RN-04).
+  if (f.statusTarefa) w.tarefas = { some: whereStatusEfetivo(f.statusTarefa, f.hoje) };
   return w;
 }
 
-const RESUMO_SELECT = {
-  slug: true,
-  nome_ideia: true,
-  status: true,
-  estagio_ideia: true,
-  criado_em: true,
-  etapas: { select: { numero: true, nome: true } },
-  areas_ideia: { select: { nome: true } },
-  usuarios: { select: { slug: true, nome: true } },
-} satisfies Prisma.equipesSelect;
+export function resumoSelect(hoje: string) {
+  return {
+    slug: true,
+    nome_ideia: true,
+    descricao_ideia: true,
+    status: true,
+    estagio_ideia: true,
+    criado_em: true,
+    etapas: { select: { numero: true, nome: true } },
+    areas_ideia: { select: { nome: true } },
+    ciclos: { select: { nome: true } },
+    usuarios: { select: { slug: true, nome: true } },
+    equipe_membros: {
+      where: { ativo: true, papel: "lider" },
+      select: { usuarios: { select: { slug: true, nome: true, alunos: { select: { curso: true } } } } },
+    },
+    _count: {
+      select: {
+        equipe_membros: { where: { ativo: true } },
+        tarefas: { where: whereStatusEfetivo("atrasada", hoje) },
+      },
+    },
+  } satisfies Prisma.equipesSelect;
+}
 
 export function listar(
   params: { skip: number; take: number; escopo: Escopo } & FiltrosEquipe,
@@ -62,7 +90,7 @@ export function listar(
     skip: params.skip,
     take: params.take,
     orderBy: { criado_em: "desc" },
-    select: RESUMO_SELECT,
+    select: resumoSelect(params.hoje),
   });
 }
 
@@ -342,6 +370,7 @@ export interface DadosInscricao {
     descricao_ideia: string;
     estagio_ideia: string;
     area_id: number | null;
+    ciclo_id: number | null;
     origem_divulgacao: string | null;
   };
   colegas: Array<{
@@ -382,6 +411,7 @@ export function inscrever(p: DadosInscricao) {
         descricao_ideia: p.equipe.descricao_ideia,
         estagio_ideia: p.equipe.estagio_ideia,
         area_id: p.equipe.area_id,
+        ciclo_id: p.equipe.ciclo_id,
         origem_divulgacao: p.equipe.origem_divulgacao,
       },
     }),

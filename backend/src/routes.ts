@@ -41,6 +41,7 @@ routes.post("/usuarios/:slug/convite", auth, role("admin"), conviteCtrl.reenviar
 // --- Referência (leitura) -----------------------------------------------------
 routes.get("/areas-ideia", referenciaCtrl.areas);
 routes.get("/etapas-funil", referenciaCtrl.etapas);
+routes.get("/ciclos", referenciaCtrl.ciclos);
 
 // --- Equipes (RF-02/05/06/08/09) ----------------------------------------------
 // Inscrição do aluno é pública (formulário de ideia).
