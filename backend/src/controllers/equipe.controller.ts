@@ -14,10 +14,13 @@ import {
   type StatusEquipe,
 } from "../domain/enums.js";
 import { POSICAO_PRONTA } from "../domain/transicao.js";
+import { classificarColega } from "../domain/membros.js";
+import { linkConvite } from "../utils/convite.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as areaModel from "../models/area.model.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as emailModel from "../models/email.model.js";
+import * as tokenModel from "../models/token.model.js";
 
 const MAX_COLEGAS = 9; // Q5 (máx integrantes) em aberto — teto p/ conter abuso no endpoint público.
 
@@ -405,10 +408,16 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     if (new Set(todosEmails).size !== todosEmails.length) {
       throw httpError(400, "DUP_EMAIL", "E-mails repetidos na inscrição");
     }
-    const jaExistem = await usuarioModel.findEmailsExistentes(todosEmails);
-    if (jaExistem.length > 0) {
-      throw httpError(409, "EMAIL_TAKEN", `E-mail já cadastrado: ${jaExistem[0]}`);
+    if (await usuarioModel.findAnyByEmail(emailLider)) {
+      throw httpError(409, "EMAIL_TAKEN", "Você já tem conta: entre com seu e-mail e senha");
     }
+    const existentes = new Map(
+      (await usuarioModel.findParaVinculo(listaColegas.map((c) => c.email))).map((u) => [u.email, u]),
+    );
+    const MSG_RECUSA = {
+      RN03_EQUIPE_ATIVA: (e: string) => `${e} já participa de uma equipe ativa`,
+      EMAIL_NAO_ALUNO: (e: string) => `${e} pertence a uma conta de mentor/admin`,
+    } as const;
 
     // Preparar dados (hashes prontos; model só grava)
     const liderIds = novoIdComSlug();
@@ -417,20 +426,43 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
 
     const colegasPrep = await Promise.all(
       listaColegas.map(async (c) => {
-        const ids = novoIdComSlug();
-        const conviteId = newId();
+        const existente = existentes.get(c.email) ?? null;
+        const v = classificarColega(existente);
+        if (v.acao === "recusar") throw httpError(409, v.codigo, MSG_RECUSA[v.codigo](c.email));
+
+        const precisaConvite = v.acao === "criar" || v.comConvite;
         const segredo = tokenAleatorio(24);
+        const conviteId = newId();
+        const convite = precisaConvite
+          ? { id: conviteId, hash: await hashTokenSenha(segredo), expiraEm: expiraConvite }
+          : null;
+
+        if (v.acao === "criar") {
+          const ids = novoIdComSlug();
+          return {
+            usuarioId: ids.id,
+            slug: ids.slug,
+            nome: c.nome,
+            email: c.email,
+            criar: {
+              slug: ids.slug,
+              nome: c.nome,
+              email: c.email,
+              telefone: c.telefone,
+              senhaHash: await hashSenha(tokenAleatorio(32)),
+            },
+            convite,
+            conviteToken: `${conviteId}.${segredo}`,
+          };
+        }
         return {
-          id: ids.id,
-          slug: ids.slug,
-          nome: c.nome,
+          usuarioId: existente!.id,
+          slug: existente!.slug,
+          nome: existente!.nome,
           email: c.email,
-          telefone: c.telefone,
-          senhaHash: await hashSenha(tokenAleatorio(32)),
-          conviteId,
-          conviteHash: await hashTokenSenha(segredo),
-          conviteExpiraEm: expiraConvite,
-          conviteToken: `${conviteId}.${segredo}`,
+          criar: null,
+          convite,
+          conviteToken: convite ? `${conviteId}.${segredo}` : null,
         };
       }),
     );
@@ -461,12 +493,10 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
         origem_divulgacao:
           typeof ideia.origem === "string" ? ideia.origem.trim() : null,
       },
-      colegas: colegasPrep,
+      colegas: colegasPrep.map((c) => ({ usuarioId: c.usuarioId, criar: c.criar, convite: c.convite })),
     });
 
     // E-mails (best-effort; não derruba a inscrição já gravada).
-    const link = (token: string) =>
-      `${env.inviteUrlBase}?token=${encodeURIComponent(token)}`;
     const admins = await usuarioModel.listarEmailsAdminsAtivos().catch(() => []);
     await emailModel.enfileirarLote(
       admins.map((a) => ({
@@ -483,15 +513,15 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
         equipeId: equipeIds.id,
       })),
     );
-    for (const c of colegasPrep) {
+    for (const c of colegasPrep.filter((x) => x.conviteToken)) {
       try {
         await emailModel.enfileirar({
           tipo: "convite_conta",
-          destinatarioId: c.id,
+          destinatarioId: c.usuarioId,
           destinatarioEmail: c.email,
           assunto: "Você foi adicionado a uma equipe no InfoHub",
           template: "convite_conta",
-          dadosTemplate: { nome: c.nome, link: link(c.conviteToken) },
+          dadosTemplate: { nome: c.nome, link: linkConvite(c.conviteToken!) },
           equipeId: equipeIds.id,
         });
       } catch (e) {
@@ -516,9 +546,46 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
       equipe: { slug: equipeIds.slug, nomeIdeia: ideia.nome.trim() },
       colegas: colegasPrep.map((c) => ({
         slug: c.slug,
+        nome: c.nome,
         email: c.email,
-        ...(env.nodeEnv !== "production" ? { token_dev: c.conviteToken } : {}),
+        conviteUrl: c.conviteToken ? linkConvite(c.conviteToken) : null,
+        ...(env.nodeEnv !== "production" && c.conviteToken ? { token_dev: c.conviteToken } : {}),
       })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /equipes/:slug/membros/:membro/convite — gera um link NOVO para um
+// integrante que ainda não aceitou (o anterior é invalidado). Líder da equipe,
+// mentor da equipe ou admin. Sem e-mail configurado, quem pede copia o link.
+export async function gerarConviteMembro(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+
+    const eu = idDoChamador(req);
+    const ehLider = controle.equipe_membros.some((m) => m.usuario_id === eu && m.papel === "lider");
+    if (!podeGerirEquipe(req, controle.mentor_id) && !(req.auth.role === "aluno" && ehLider)) {
+      throw httpError(403, "FORBIDDEN", "Só o líder, o mentor ou o admin geram convites");
+    }
+
+    const membroId = fromSlug(req.params.membro ?? "");
+    if (!membroId || !controle.equipe_membros.some((m) => m.usuario_id === membroId)) {
+      throw httpError(404, "MEMBRO_NOT_FOUND", "Integrante não encontrado nesta equipe");
+    }
+    const dados = await usuarioModel.findDadosConvite(membroId);
+    if (!dados) throw httpError(404, "MEMBRO_NOT_FOUND", "Integrante não encontrado");
+    if (dados.convite_aceito_em) {
+      throw httpError(409, "ALREADY_ACCEPTED", "Esta pessoa já ativou a conta");
+    }
+
+    await tokenModel.invalidarConvitesAtivos(membroId);
+    const convite = await tokenModel.criarConvite({ usuarioId: membroId, ttlHoras: env.inviteTtlHoras });
+    res.status(201).json({
+      conviteUrl: linkConvite(convite.tokenBruto),
+      expiraEm: convite.expiraEm.toISOString(),
     });
   } catch (err) {
     next(err);

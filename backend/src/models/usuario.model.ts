@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import { STATUS_EQUIPE_ATIVA, type ColegaExistente } from "../domain/membros.js";
 
 // Só queries. Regra de negócio fica no controller.
 
@@ -158,6 +159,37 @@ export async function findEmailsExistentes(emails: string[]): Promise<string[]> 
     select: { email: true },
   });
   return rows.map((r) => r.email);
+}
+
+// Para a inscrição: quem destes e-mails já existe, e se está em equipe ativa (RN-03).
+export async function findParaVinculo(
+  emails: string[],
+): Promise<Array<ColegaExistente & { email: string; nome: string }>> {
+  if (emails.length === 0) return [];
+  const rows = await prisma.usuarios.findMany({
+    where: { email: { in: emails } },
+    select: {
+      id: true,
+      slug: true,
+      nome: true,
+      email: true,
+      tipo_usuario: true,
+      convite_aceito_em: true,
+      equipe_membros: {
+        where: { ativo: true, equipes: { status: { in: [...STATUS_EQUIPE_ATIVA] } } },
+        select: { equipe_id: true },
+      },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    nome: r.nome,
+    email: r.email,
+    tipo_usuario: r.tipo_usuario,
+    convite_aceito_em: r.convite_aceito_em,
+    emEquipeAtiva: r.equipe_membros.length > 0,
+  }));
 }
 
 // Cria a conta pendente (sem senha usável): a pessoa define a senha ao aceitar

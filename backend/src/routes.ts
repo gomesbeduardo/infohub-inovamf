@@ -50,6 +50,7 @@ routes.get("/equipes/:slug", auth, equipeCtrl.show);
 routes.post("/equipes", auth, role("admin"), equipeCtrl.store);
 routes.patch("/equipes/:slug", auth, role("admin"), equipeCtrl.update);
 routes.post("/equipes/:slug/etapa", auth, role("admin", "mentor"), equipeCtrl.moverEtapa);
+routes.post("/equipes/:slug/membros/:membro/convite", auth, equipeCtrl.gerarConviteMembro);
 
 // --- Tarefas (RF-11/12/13/15) -------------------------------------------------
 routes.get("/equipes/:slug/tarefas", auth, tarefaCtrl.index);
