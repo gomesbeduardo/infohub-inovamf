@@ -104,6 +104,7 @@ export function findDetalheBySlug(slug: string) {
   return prisma.equipes.findUnique({
     where: { slug },
     select: {
+      id: true,
       slug: true,
       nome_ideia: true,
       descricao_ideia: true,
@@ -126,6 +127,7 @@ export function findDetalheBySlug(slug: string) {
               nome: true,
               tipo_usuario: true,
               convite_aceito_em: true,
+              alunos: { select: { curso: true, semestre: true } },
             },
           },
         },
@@ -264,6 +266,17 @@ async function pendenciasDaPosicao(
     );
   }
   return pendencias;
+}
+
+// Pendências que hoje impedem a equipe de avançar (preview do drag no kanban).
+// Mesma função da transação — a regra não é duplicada.
+export async function pendenciasParaAvancar(equipeId: string): Promise<Pendencia[]> {
+  const eq = await prisma.equipes.findUniqueOrThrow({
+    where: { id: equipeId },
+    select: { status: true, etapas: { select: { numero: true } } },
+  });
+  const posicao = eq.status === "pronta_inovamf" ? POSICAO_PRONTA : eq.etapas.numero;
+  return pendenciasDaPosicao(prisma, equipeId, posicao);
 }
 
 // RN-01 como UMA transação ACID: trava a equipe, lê a posição, busca pendências,
