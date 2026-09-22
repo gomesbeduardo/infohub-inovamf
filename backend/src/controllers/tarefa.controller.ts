@@ -7,6 +7,7 @@ import {
   podeVerEquipe,
 } from "../utils/acesso.js";
 import { STATUS_TAREFA } from "../domain/enums.js";
+import { hojeISO, statusEfetivo } from "../domain/atraso.js";
 import * as tarefaModel from "../models/tarefa.model.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as etapaModel from "../models/etapa.model.js";
@@ -48,7 +49,7 @@ function mapTarefa(t: TarefaDetalhe) {
     descricao: t.descricao,
     obrigatoria: t.obrigatoria,
     dataEntrega: t.data_entrega,
-    status: t.status,
+    status: statusEfetivo(t.status, t.data_entrega, hojeISO()),
     etapa: { numero: t.etapas.numero, nome: t.etapas.nome },
     equipe: { slug: t.equipes.slug, nomeIdeia: t.equipes.nome_ideia },
     criadoEm: t.criado_em,
@@ -73,7 +74,10 @@ export async function index(req: Request, res: Response, next: NextFunction) {
         ? req.query.status
         : undefined;
 
-    const tarefas = await tarefaModel.listarPorEquipe(controle.id, { status });
+    const tarefas = await tarefaModel.listarPorEquipe(controle.id, {
+      status,
+      hoje: hojeISO(),
+    });
     res.json({ data: tarefas.map(mapTarefa) });
   } catch (err) {
     next(err);
