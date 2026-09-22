@@ -345,15 +345,10 @@ export interface DadosInscricao {
     origem_divulgacao: string | null;
   };
   colegas: Array<{
-    id: string;
-    slug: string;
-    nome: string;
-    email: string;
-    telefone: string;
-    senhaHash: string;
-    conviteId: string;
-    conviteHash: string;
-    conviteExpiraEm: Date;
+    usuarioId: string;
+    // null = pessoa já existe (RN-03): só ganha o vínculo com a equipe.
+    criar: { slug: string; nome: string; email: string; telefone: string; senhaHash: string } | null;
+    convite: { id: string; hash: string; expiraEm: Date } | null;
   }>;
 }
 
@@ -368,6 +363,7 @@ export function inscrever(p: DadosInscricao) {
         telefone: p.lider.telefone,
         senha: p.lider.senhaHash,
         tipo_usuario: "aluno",
+        convite_aceito_em: new Date(),
       },
     }),
     prisma.alunos.create({
@@ -395,35 +391,47 @@ export function inscrever(p: DadosInscricao) {
   ];
 
   for (const c of p.colegas) {
+    if (c.criar) {
+      ops.push(
+        prisma.usuarios.create({
+          data: {
+            id: c.usuarioId,
+            slug: c.criar.slug,
+            nome: c.criar.nome,
+            email: c.criar.email,
+            telefone: c.criar.telefone,
+            senha: c.criar.senhaHash,
+            tipo_usuario: "aluno",
+          },
+        }),
+      );
+    }
     ops.push(
-      prisma.usuarios.create({
-        data: {
-          id: c.id,
-          slug: c.slug,
-          nome: c.nome,
-          email: c.email,
-          telefone: c.telefone,
-          senha: c.senhaHash,
-          tipo_usuario: "aluno",
-        },
-      }),
       prisma.equipe_membros.create({
-        data: {
-          equipe_id: p.equipe.id,
-          usuario_id: c.id,
-          papel: "integrante",
-        },
-      }),
-      prisma.tokens_senha.create({
-        data: {
-          id: c.conviteId,
-          usuario_id: c.id,
-          token_hash: c.conviteHash,
-          finalidade: "convite",
-          expira_em: c.conviteExpiraEm,
-        },
+        data: { equipe_id: p.equipe.id, usuario_id: c.usuarioId, papel: "integrante" },
       }),
     );
+    if (c.convite) {
+      if (!c.criar) {
+        ops.push(
+          prisma.tokens_senha.updateMany({
+            where: { usuario_id: c.usuarioId, finalidade: "convite", usado_em: null },
+            data: { usado_em: new Date() },
+          }),
+        );
+      }
+      ops.push(
+        prisma.tokens_senha.create({
+          data: {
+            id: c.convite.id,
+            usuario_id: c.usuarioId,
+            token_hash: c.convite.hash,
+            finalidade: "convite",
+            expira_em: c.convite.expiraEm,
+          },
+        }),
+      );
+    }
   }
 
   return prisma.$transaction(ops);

@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { httpError } from "../utils/error.js";
 import { paginacao } from "../utils/http.js";
 import { env } from "../env.js";
+import { linkConvite } from "../utils/convite.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
 import * as emailModel from "../models/email.model.js";
@@ -45,7 +46,7 @@ export async function reenviar(req: Request, res: Response, next: NextFunction) 
       usuarioId: usuario.id,
       ttlHoras: env.inviteTtlHoras,
     });
-    const link = `${env.inviteUrlBase}?token=${encodeURIComponent(convite.tokenBruto)}`;
+    const link = linkConvite(convite.tokenBruto);
 
     let enfileirado = true;
     try {
@@ -64,6 +65,7 @@ export async function reenviar(req: Request, res: Response, next: NextFunction) 
     }
 
     res.status(201).json({
+      conviteUrl: link,
       convite: {
         expira_em: convite.expiraEm.toISOString(),
         email_enfileirado: enfileirado,
