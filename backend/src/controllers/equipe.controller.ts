@@ -18,6 +18,7 @@ import { POSICAO_PRONTA } from "../domain/transicao.js";
 import { classificarColega } from "../domain/membros.js";
 import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
+import { equipesCSV } from "../domain/csv.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as areaModel from "../models/area.model.js";
 import * as cicloModel from "../models/ciclo.model.js";
@@ -81,6 +82,30 @@ export function mapResumo(e: LinhaResumo) {
     tarefasAtrasadas: e._count.tarefas,
     criadoEm: e.criado_em,
   };
+}
+
+// GET /equipes/export.csv — RF-23, com os mesmos filtros e escopo da lista.
+export async function exportarCSV(req: Request, res: Response, next: NextFunction) {
+  try {
+    const filtros = await lerFiltros(req);
+    const linhas = (await equipeModel.listarTodas(filtros)).map(mapResumo);
+    const csv = equipesCSV(
+      linhas.map((e) => ({
+        nomeIdeia: e.nomeIdeia,
+        area: e.area,
+        etapa: e.etapa,
+        status: e.status,
+        mentor: e.mentor?.nome ?? null,
+        cursoLider: e.lider?.curso ?? null,
+        tarefasAtrasadas: e.tarefasAtrasadas,
+      })),
+    );
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="equipes-infohub.csv"');
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
 }
 
 // GET /equipes — funil/lista com escopo por papel (RF-06, RNF-03).

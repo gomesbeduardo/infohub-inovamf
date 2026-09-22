@@ -100,6 +100,17 @@ export function contar(params: { escopo: Escopo } & FiltrosEquipe) {
   });
 }
 
+// Sem paginação (export). Teto defensivo para não varrer o banco inteiro (Problema 5).
+export const LIMITE_EXPORT = 5000;
+export function listarTodas(params: { escopo: Escopo } & FiltrosEquipe) {
+  return prisma.equipes.findMany({
+    where: { AND: [whereEscopo(params.escopo), whereFiltros(params)] },
+    take: LIMITE_EXPORT,
+    orderBy: [{ etapa_atual_id: "asc" }, { nome_ideia: "asc" }],
+    select: resumoSelect(params.hoje),
+  });
+}
+
 export function findDetalheBySlug(slug: string) {
   return prisma.equipes.findUnique({
     where: { slug },
