@@ -12,6 +12,7 @@ import * as conviteCtrl from "./controllers/convite.controller.js";
 import * as notificacaoCtrl from "./controllers/notificacao.controller.js";
 import * as referenciaCtrl from "./controllers/referencia.controller.js";
 import * as anotacaoCtrl from "./controllers/anotacao.controller.js";
+import * as dashboardCtrl from "./controllers/dashboard.controller.js";
 
 // Router único, montado em /api/v1 pelo app.ts.
 // Recursos entram aqui na ordem do §10: auth → usuarios → equipes → ...
@@ -77,3 +78,6 @@ routes.get("/notificacoes", auth, notificacaoCtrl.index);
 routes.get("/notificacoes/preferencias", auth, notificacaoCtrl.preferencias);
 routes.patch("/notificacoes/preferencias", auth, notificacaoCtrl.definirPreferencia);
 routes.post("/equipes/:slug/lembrete", auth, role("admin", "mentor"), notificacaoCtrl.lembrete);
+
+// --- Dashboard (RF-22) ---------------------------------------------------------
+routes.get("/dashboard", auth, role("admin", "mentor"), dashboardCtrl.show);

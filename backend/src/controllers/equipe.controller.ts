@@ -5,7 +5,7 @@ import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
-import { idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
+import { escopoDo, idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
@@ -26,12 +26,6 @@ import * as emailModel from "../models/email.model.js";
 import * as tokenModel from "../models/token.model.js";
 
 const MAX_COLEGAS = 9; // Q5 (máx integrantes) em aberto — teto p/ conter abuso no endpoint público.
-
-function escopoDo(req: Request): equipeModel.Escopo {
-  if (req.auth.role === "admin") return { tipo: "admin" };
-  if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: idDoChamador(req) };
-  return { tipo: "aluno", usuarioId: idDoChamador(req) };
-}
 
 // Filtros do funil (RF-07) a partir da query — compartilhado pela lista e pelo CSV.
 async function lerFiltros(req: Request) {

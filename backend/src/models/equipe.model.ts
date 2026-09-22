@@ -16,7 +16,7 @@ export type Escopo =
   | { tipo: "mentor"; usuarioId: string }
   | { tipo: "aluno"; usuarioId: string };
 
-function whereEscopo(e: Escopo): Prisma.equipesWhereInput {
+export function whereEscopo(e: Escopo): Prisma.equipesWhereInput {
   if (e.tipo === "mentor") return { mentor_id: e.usuarioId };
   if (e.tipo === "aluno") {
     return { equipe_membros: { some: { usuario_id: e.usuarioId, ativo: true } } };
