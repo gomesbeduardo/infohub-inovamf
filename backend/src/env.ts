@@ -29,4 +29,6 @@ export const env = {
     process.env.INVITE_URL_BASE ??
     `${process.env.CORS_ORIGIN ?? "http://localhost:3000"}/convite`,
   inviteTtlHoras: Number(process.env.INVITE_TTL_HORAS ?? 72),
+  // G1: monta o cenário de demonstração no boot (contas @demo.infohub.dev).
+  seedDemo: process.env.SEED_DEMO === "true",
 } as const;
