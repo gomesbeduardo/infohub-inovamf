@@ -149,7 +149,7 @@ O Next repassa `/api/*` para o Express (rewrite em `frontend/next.config.mjs`),
 então **front e API vivem no mesmo domínio** — uma porta pública, sem CORS entre
 eles, e o browser nunca fala com a API diretamente.
 
-Duas armadilhas que já custaram tempo:
+Três armadilhas que já custaram tempo:
 
 - A porta interna `3333` é **constante nos dois arquivos**, não env. Os rewrites
   do Next são resolvidos no build e viram `routes-manifest.json`; uma env aqui
@@ -157,6 +157,13 @@ Duas armadilhas que já custaram tempo:
 - Se qualquer um dos dois processos morrer, o supervisor derruba o outro e sai
   com código ≠ 0, para o Coolify reiniciar o container inteiro. Nada de meia
   aplicação no ar.
+- `deploy.inputs` no `railpack.json` **substitui** os inputs padrão do Railpack.
+  Sem a camada `packages:mise` o Node não vai para a imagem final, e o container
+  entra em loop com `npm: command not found` — o build passa, só o start quebra.
+
+No resource do Coolify: **Ports Exposes = `3000`** (é para lá que o Traefik
+manda o tráfego) e **sem Port Mapping** — o servidor é compartilhado e não há
+motivo para publicar a porta no host. Healthcheck, se ligado: `/api/v1/health`.
 
 As variáveis de ambiente vão todas numa lista só, no resource — ver
 [.env.example](.env.example).
