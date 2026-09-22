@@ -167,3 +167,9 @@ motivo para publicar a porta no host. Healthcheck, se ligado: `/api/v1/health`.
 
 As variáveis de ambiente vão todas numa lista só, no resource — ver
 [.env.example](.env.example).
+
+### Seed (G1)
+O `npm start` roda `prisma migrate deploy` → **seed** → servidor.
+- **Base** (sempre): ciclo 2026/2, modelos de tarefa por etapa e o admin inicial `admin@infohub.dev` / `admin123`.
+- **Demo** (`SEED_DEMO=true`): cenário do G1 com contas `@demo.infohub.dev` — mentores `mentor1..4` / `mentor123`, alunos `<nome.sobrenome>` / `aluno123` (ex.: `bruna.lopes@demo.infohub.dev`). Roda uma vez; o link de convite pendente da Letícia sai no log do deploy.
+- Remover a demo quando o sistema entrar em uso real: `npm --prefix backend run seed:demo:purge`.
