@@ -1,5 +1,5 @@
 'use client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, requisicao } from './http';
 import { sessao, type RespostaSessao } from './sessao';
 import type {
@@ -50,6 +50,8 @@ export function useEquipes(filtros: FiltrosEquipes = {}) {
         if (todas.length >= r.total || r.data.length === 0) return todas;
       }
     },
+    // trocar filtro mantém a lista anterior na tela até a nova chegar (sem "piscar")
+    placeholderData: keepPreviousData,
   });
 }
 export const useEquipe = (slug: string) =>
