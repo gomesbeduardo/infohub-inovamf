@@ -10,6 +10,7 @@ import * as entregaCtrl from "./controllers/entrega.controller.js";
 import * as conviteCtrl from "./controllers/convite.controller.js";
 import * as notificacaoCtrl from "./controllers/notificacao.controller.js";
 import * as referenciaCtrl from "./controllers/referencia.controller.js";
+import * as anotacaoCtrl from "./controllers/anotacao.controller.js";
 
 // Router único, montado em /api/v1 pelo app.ts.
 // Recursos entram aqui na ordem do §10: auth → usuarios → equipes → ...
@@ -52,6 +53,10 @@ routes.post("/equipes", auth, role("admin"), equipeCtrl.store);
 routes.patch("/equipes/:slug", auth, role("admin"), equipeCtrl.update);
 routes.post("/equipes/:slug/etapa", auth, role("admin", "mentor"), equipeCtrl.moverEtapa);
 routes.post("/equipes/:slug/membros/:membro/convite", auth, equipeCtrl.gerarConviteMembro);
+
+// --- Anotações internas (RF-10) — nunca chegam ao aluno -----------------------
+routes.get("/equipes/:slug/anotacoes", auth, role("admin", "mentor"), anotacaoCtrl.index);
+routes.post("/equipes/:slug/anotacoes", auth, role("admin", "mentor"), anotacaoCtrl.store);
 
 // --- Tarefas (RF-11/12/13/15) -------------------------------------------------
 routes.get("/equipes/:slug/tarefas", auth, tarefaCtrl.index);
