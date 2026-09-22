@@ -26,6 +26,7 @@ const DETALHE_SELECT = {
 export function criar(data: {
   equipe_id: string;
   etapa_id: number;
+  modelo_id?: number | null;
   titulo: string;
   descricao?: string | null;
   obrigatoria: boolean;
@@ -36,6 +37,7 @@ export function criar(data: {
     data: {
       equipe_id: data.equipe_id,
       etapa_id: data.etapa_id,
+      modelo_id: data.modelo_id ?? null,
       titulo: data.titulo,
       descricao: data.descricao ?? null,
       obrigatoria: data.obrigatoria,

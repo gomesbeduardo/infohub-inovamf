@@ -6,6 +6,7 @@ import * as authCtrl from "./controllers/auth.controller.js";
 import * as usuarioCtrl from "./controllers/usuario.controller.js";
 import * as equipeCtrl from "./controllers/equipe.controller.js";
 import * as tarefaCtrl from "./controllers/tarefa.controller.js";
+import * as modeloCtrl from "./controllers/modelo.controller.js";
 import * as entregaCtrl from "./controllers/entrega.controller.js";
 import * as conviteCtrl from "./controllers/convite.controller.js";
 import * as notificacaoCtrl from "./controllers/notificacao.controller.js";
@@ -59,6 +60,7 @@ routes.get("/equipes/:slug/anotacoes", auth, role("admin", "mentor"), anotacaoCt
 routes.post("/equipes/:slug/anotacoes", auth, role("admin", "mentor"), anotacaoCtrl.store);
 
 // --- Tarefas (RF-11/12/13/15) -------------------------------------------------
+routes.get("/modelos-tarefa", auth, role("admin", "mentor"), modeloCtrl.index);
 routes.get("/equipes/:slug/tarefas", auth, tarefaCtrl.index);
 routes.post("/equipes/:slug/tarefas", auth, role("admin", "mentor"), tarefaCtrl.store);
 routes.get("/tarefas/:slug", auth, tarefaCtrl.show);
