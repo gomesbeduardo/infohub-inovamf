@@ -2,24 +2,27 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useStore } from '@/data/store';
-import { filtrarEquipes } from '@/data/repository';
+import { useEquipes } from '@/data/api/consultas';
 import { STATUS_EQUIPE_LABEL } from '@/domain/labels';
 import { Input } from '@/design-system/components/Input';
 import { StageTag } from '@/design-system/components/StageTag';
 import { Badge } from '@/design-system/components/Badge';
+import { Button } from '@/design-system/components/Button';
 import { EmptyState } from '@/design-system/components/EmptyState';
+import { limparFiltros, useAdiado } from '@/features/funil/filtros';
 
 export function EquipesList() {
-  const { state } = useStore();
   const [busca, setBusca] = useState('');
+  const q = useAdiado(busca);
+  const consulta = useEquipes(limparFiltros({ q }));
 
-  const equipes = useMemo(() => {
-    return [...filtrarEquipes(state, { busca })].sort(
-      (a, b) =>
-        a.etapaAtualId - b.etapaAtualId || a.nomeIdeia.localeCompare(b.nomeIdeia),
-    );
-  }, [state, busca]);
+  const equipes = useMemo(
+    () =>
+      [...(consulta.data ?? [])].sort(
+        (a, b) => a.etapa.numero - b.etapa.numero || a.nomeIdeia.localeCompare(b.nomeIdeia),
+      ),
+    [consulta.data],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,12 +34,25 @@ export function EquipesList() {
           onChange={(e) => setBusca(e.target.value)}
           className="sm:max-w-xs"
         />
-        <span className="text-sm text-text-muted">
-          {equipes.length} equipe{equipes.length === 1 ? '' : 's'}
-        </span>
+        {consulta.isSuccess && (
+          <span className="text-sm text-text-muted">
+            {equipes.length} equipe{equipes.length === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
 
-      {equipes.length === 0 ? (
+      {consulta.isError ? (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-6 py-10 text-center">
+          <p role="alert" className="text-sm font-medium text-danger-text">
+            {consulta.error.message}
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => void consulta.refetch()}>
+            Tentar de novo
+          </Button>
+        </div>
+      ) : consulta.isPending ? (
+        <p className="px-1 py-10 text-center text-sm text-text-muted">Carregando…</p>
+      ) : equipes.length === 0 ? (
         <EmptyState
           title="Nenhuma equipe encontrada"
           description="Ajuste a busca para ver outras equipes."
@@ -55,46 +71,39 @@ export function EquipesList() {
               </tr>
             </thead>
             <tbody>
-              {equipes.map((e) => {
-                const area = state.areas.find((a) => a.id === e.areaId);
-                const etapa = state.etapas.find((et) => et.id === e.etapaAtualId);
-                const mentor = state.usuarios.find((u) => u.id === e.mentorId);
-                const atrasadas = state.tarefas.filter(
-                  (t) => t.equipeId === e.id && t.status === 'atrasada',
-                ).length;
-                return (
-                  <tr
-                    key={e.id}
-                    className="border-b border-border last:border-0 transition-colors hover:bg-surface-sunken"
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/admin/equipes/${e.slug}`}
-                        className="font-medium text-text hover:text-primary-text hover:underline"
-                      >
-                        {e.nomeIdeia}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-text-muted">{area?.nome ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      <StageTag etapaId={e.etapaAtualId}>
-                        {etapa ? `${etapa.numero}. ${etapa.nome}` : `Etapa ${e.etapaAtualId}`}
-                      </StageTag>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge>{STATUS_EQUIPE_LABEL[e.status]}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-text-muted">{mentor?.nome ?? '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {atrasadas > 0 ? (
-                        <span className="font-medium text-danger-text">{atrasadas}</span>
-                      ) : (
-                        <span className="text-text-subtle">0</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {equipes.map((e) => (
+                <tr
+                  key={e.slug}
+                  data-testid="linha-equipe"
+                  className="border-b border-border last:border-0 transition-colors hover:bg-surface-sunken"
+                >
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/admin/equipes/${e.slug}`}
+                      className="font-medium text-text hover:text-primary-text hover:underline"
+                    >
+                      {e.nomeIdeia}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-text-muted">{e.area ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <StageTag etapaId={e.etapa.numero}>
+                      {`${e.etapa.numero}. ${e.etapa.nome}`}
+                    </StageTag>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge>{STATUS_EQUIPE_LABEL[e.status]}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-text-muted">{e.mentor?.nome ?? '—'}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {e.tarefasAtrasadas > 0 ? (
+                      <span className="font-medium text-danger-text">{e.tarefasAtrasadas}</span>
+                    ) : (
+                      <span className="text-text-subtle">0</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
