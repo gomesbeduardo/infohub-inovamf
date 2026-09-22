@@ -5,50 +5,39 @@ import userEvent from '@testing-library/user-event';
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: vi.fn() }) }));
 
-import { StoreProvider } from '@/data/store';
 import { LoginForm } from '@/features/auth/LoginForm';
-import { getUsuarioIdAtual } from '@/data/session';
+import { sessao } from '@/data/api/sessao';
+import { ApiError } from '@/data/api/erro';
 
-function renderLogin() {
-  return render(
-    <StoreProvider>
-      <LoginForm />
-    </StoreProvider>,
-  );
-}
-
-describe('LoginForm', () => {
+describe('LoginForm (API real)', () => {
   beforeEach(() => {
     push.mockClear();
-    sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
-  it('mostra erro com credenciais inválidas', async () => {
+  it('401 mostra "Credenciais inválidas"', async () => {
+    vi.spyOn(sessao, 'entrar').mockRejectedValue(new ApiError(401, 'INVALID_CREDENTIALS', 'x'));
     const user = userEvent.setup();
-    renderLogin();
+    render(<LoginForm />);
     await user.type(screen.getByLabelText('E-mail'), 'x@y.dev');
-    await user.type(screen.getByLabelText('Senha'), 'errada');
+    await user.type(screen.getByLabelText('Senha'), 'errada123');
     await user.click(screen.getByRole('button', { name: /entrar/i }));
-    expect(screen.getByText(/credenciais inválidas/i)).toBeInTheDocument();
+    expect(await screen.findByText(/credenciais inválidas/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('loga o admin, grava a sessão e redireciona para /admin', async () => {
+  it('sucesso redireciona pela role', async () => {
+    vi.spyOn(sessao, 'entrar').mockResolvedValue({ slug: 's', nome: 'M', role: 'mentor' });
     const user = userEvent.setup();
-    renderLogin();
-    await user.type(screen.getByLabelText('E-mail'), 'admin@infohub.dev');
-    await user.type(screen.getByLabelText('Senha'), '123456');
+    render(<LoginForm />);
+    await user.type(screen.getByLabelText('E-mail'), 'mentor1@demo.infohub.dev');
+    await user.type(screen.getByLabelText('Senha'), 'mentor123');
     await user.click(screen.getByRole('button', { name: /entrar/i }));
-    expect(getUsuarioIdAtual()).toBe('u-admin');
-    expect(push).toHaveBeenCalledWith('/admin');
+    expect(push).toHaveBeenCalledWith('/orientador');
   });
 
-  it('redireciona o aluno para /aluno', async () => {
-    const user = userEvent.setup();
-    renderLogin();
-    await user.type(screen.getByLabelText('E-mail'), 'aluno@infohub.dev');
-    await user.type(screen.getByLabelText('Senha'), '123456');
-    await user.click(screen.getByRole('button', { name: /entrar/i }));
-    expect(push).toHaveBeenCalledWith('/aluno');
+  it('não existe mais atalho de conta de demonstração', () => {
+    render(<LoginForm />);
+    expect(screen.queryByLabelText(/conta de demonstração/i)).not.toBeInTheDocument();
   });
 });
