@@ -2,9 +2,25 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/prisma.js";
+import { dataISO, hojeISO, STATUS_SEM_ENTREGA } from "../src/domain/atraso.js";
 import { ADMIN_EMAIL, ADMIN_SENHA, CICLO_ATUAL, MODELOS_TAREFA, seedBase } from "../src/seed/base.js";
 import { DEMO_DOMINIO, SENHAS_DEMO, seedDemo } from "../src/seed/demo.js";
 import { purgeDemo } from "../src/seed/purge-demo.js";
+
+// Lista fechada de cursos da AMF (frontend/src/domain/cursos.ts CURSOS_AMF) —
+// duplicada aqui de propósito: o teste garante que o seed nunca usa um curso
+// que o formulário de cadastro real não aceitaria, sem o backend depender do
+// frontend.
+const CURSOS_AMF = [
+  "Administração",
+  "Ciências Contábeis",
+  "Direito",
+  "Gastronomia",
+  "Hotelaria",
+  "Ontopsicologia",
+  "Pedagogia",
+  "Sistemas de Informação",
+] as const;
 
 const app = createApp();
 
@@ -76,18 +92,27 @@ describe("seedDemo — cenário obrigatório do G1", () => {
         nome_ideia: true,
         etapas: { select: { numero: true } },
         usuarios: { select: { email: true } },
-        equipe_membros: { where: { ativo: true }, select: { papel: true } },
+        equipe_membros: {
+          where: { ativo: true },
+          select: { papel: true, usuarios: { select: { convite_aceito_em: true } } },
+        },
         historico_etapas: { select: { etapa_destino_id: true } },
-        tarefas: { select: { status: true, obrigatoria: true, etapas: { select: { numero: true } } } },
+        tarefas: {
+          select: { status: true, obrigatoria: true, data_entrega: true, etapas: { select: { numero: true } } },
+        },
       },
     });
 
-  it("3 equipes, cada uma com ≥3 integrantes e exatamente 1 líder", async () => {
+  it("3 equipes, cada uma com ≥4 membros ativos, exatamente 1 líder e ≥3 integrantes com convite aceito", async () => {
     const eqs = await equipesDemo();
     expect(eqs).toHaveLength(3);
     for (const e of eqs) {
-      expect(e.equipe_membros.length).toBeGreaterThanOrEqual(3);
+      expect(e.equipe_membros.length).toBeGreaterThanOrEqual(4);
       expect(e.equipe_membros.filter((m) => m.papel === "lider")).toHaveLength(1);
+      const integrantesComConvite = e.equipe_membros.filter(
+        (m) => m.papel === "integrante" && m.usuarios.convite_aceito_em !== null,
+      );
+      expect(integrantesComConvite.length).toBeGreaterThanOrEqual(3);
     }
   });
 
@@ -128,6 +153,31 @@ describe("seedDemo — cenário obrigatório do G1", () => {
     expect(comAtraso).toBe(1);
   });
 
+  it("das 3 equipes demo, exatamente 1 tem tarefa atrasada (via prisma, mesma regra da RN-04)", async () => {
+    const hoje = hojeISO();
+    const eqs = await equipesDemo();
+    expect(eqs).toHaveLength(3);
+    const comAtraso = eqs.filter((e) =>
+      e.tarefas.some(
+        (t) =>
+          (STATUS_SEM_ENTREGA as readonly string[]).includes(t.status) && dataISO(t.data_entrega) < hoje,
+      ),
+    );
+    expect(comAtraso).toHaveLength(1);
+  });
+
+  it("todo aluno seedado tem curso na lista fechada da AMF e semestre válido ('1'..'10')", async () => {
+    const alunos = await prisma.alunos.findMany({
+      where: { usuarios: { email: { endsWith: DEMO_DOMINIO } } },
+      select: { curso: true, semestre: true },
+    });
+    expect(alunos.length).toBeGreaterThan(0);
+    for (const a of alunos) {
+      expect(CURSOS_AMF).toContain(a.curso);
+      expect(a.semestre).toMatch(/^(10|[1-9])$/);
+    }
+  });
+
   it("ensaio da demo: A avança após aprovar a entrega; B é barrada pela RN-01", async () => {
     const access = await entrar(`mentor1${DEMO_DOMINIO}`, SENHAS_DEMO.mentor);
     const lista = await request(app).get("/api/v1/equipes").set(bearer(access));
@@ -163,10 +213,11 @@ describe("seedDemo — cenário obrigatório do G1", () => {
 });
 
 describe("purgeDemo", () => {
-  it("remove só a camada demo; a base fica", async () => {
+  it("remove só a camada demo (3 equipes, 17 contas — 4 mentores + 13 alunos); a base fica", async () => {
     await seedDemo(prisma);
     const r = await purgeDemo(prisma);
     expect(r.equipes).toBe(3);
+    expect(r.usuarios).toBe(17);
     expect(await prisma.usuarios.count({ where: { email: { endsWith: DEMO_DOMINIO } } })).toBe(0);
     expect(await prisma.usuarios.count({ where: { email: ADMIN_EMAIL } })).toBe(1);
   });

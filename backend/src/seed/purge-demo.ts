@@ -5,6 +5,10 @@ import { DEMO_DOMINIO } from "./demo.js";
 // preservando a base e qualquer dado real. Equipe real que tinha mentor demo
 // fica sem mentor. Tudo numa transação: se algo real referenciar uma conta demo
 // de um jeito não previsto (FK), nada é apagado e o erro aparece.
+//
+// Só conta como "equipe demo" quando a conta demo é líder ATIVO (papel:
+// "lider", ativo: true) — um demo que só passou pela equipe (ex.: saiu ou
+// nunca foi líder de fato) não derruba uma equipe que pode ter virado real.
 export async function purgeDemo(db: PrismaClient): Promise<{ equipes: number; usuarios: number }> {
   return db.$transaction(
     async (tx) => {
@@ -15,7 +19,7 @@ export async function purgeDemo(db: PrismaClient): Promise<{ equipes: number; us
 
       const equipeIds = (
         await tx.equipes.findMany({
-          where: { equipe_membros: { some: { papel: "lider", usuario_id: { in: ids } } } },
+          where: { equipe_membros: { some: { papel: "lider", ativo: true, usuario_id: { in: ids } } } },
           select: { id: true },
         })
       ).map((e) => e.id);
