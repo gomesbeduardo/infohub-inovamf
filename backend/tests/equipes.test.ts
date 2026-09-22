@@ -136,7 +136,7 @@ describe("POST /equipes/inscricao (formulário de ideia)", () => {
   it("colega aceita o convite e define a senha", async () => {
     const res = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: colegaToken, senha: "senha-colega-forte", telefone: "55993334444" });
+      .send({ token: colegaToken, senha: "senha-colega-forte", telefone: "55993334444", curso: "Engenharia", semestre: "3º" });
     expect(res.status).toBe(201);
     expect(res.body.usuario.role).toBe("aluno");
   });

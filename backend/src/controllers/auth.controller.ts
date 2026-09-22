@@ -94,7 +94,7 @@ export async function invitePreview(
 // senha; o convite é queimado e ela já entra logada (rate-limited).
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    const { token, senha, nome, telefone } = req.body ?? {};
+    const { token, senha, nome, telefone, curso, semestre, matricula } = req.body ?? {};
     if (typeof senha !== "string") {
       throw httpError(400, "INVALID_BODY", "Informe token de convite e senha");
     }
@@ -110,6 +110,22 @@ export async function register(req: Request, res: Response, next: NextFunction) 
 
     const convite = await abrirConvite(token);
 
+    const dados = await usuarioModel.findDadosConvite(convite.usuario_id);
+    let aluno: { curso: string; semestre: string; matricula: string | null } | undefined;
+    if (dados?.tipo_usuario === "aluno") {
+      if (typeof curso !== "string" || curso.trim().length === 0) {
+        throw httpError(400, "INVALID_CURSO", "Informe seu curso");
+      }
+      if (typeof semestre !== "string" || semestre.trim().length === 0) {
+        throw httpError(400, "INVALID_SEMESTRE", "Informe seu semestre");
+      }
+      aluno = {
+        curso: curso.trim(),
+        semestre: semestre.trim(),
+        matricula: typeof matricula === "string" && matricula.trim() ? matricula.trim() : null,
+      };
+    }
+
     const senhaHash = await hashSenha(senha);
     await tokenModel.consumirConvite({
       conviteId: convite.id,
@@ -119,6 +135,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
         ...(typeof nome === "string" ? { nome: nome.trim() } : {}),
         ...(typeof telefone === "string" ? { telefone: telefone.trim() } : {}),
       },
+      aluno,
     });
 
     const usuario = await usuarioModel.findParaSessaoById(convite.usuario_id);

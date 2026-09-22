@@ -103,3 +103,32 @@ describe("POST /equipes/:slug/membros/:membro/convite", () => {
     expect(proibido.status).toBe(403);
   });
 });
+
+describe("POST /auth/register completa os dados do aluno", () => {
+  let token = "";
+  beforeAll(async () => {
+    const r = await request(app)
+      .post(`/api/v1/equipes/${equipeSlug}/membros/${novoSlug}/convite`)
+      .set(bearer(liderAccess));
+    token = decodeURIComponent(r.body.conviteUrl.split("token=")[1]);
+  });
+
+  it("400 sem curso", async () => {
+    const r = await request(app).post("/api/v1/auth/register").send({ token, senha: "senha-forte-123" });
+    expect(r.status).toBe(400);
+    expect(r.body.error.code).toBe("INVALID_CURSO");
+  });
+
+  it("201 grava curso/semestre/matrícula em alunos", async () => {
+    const r = await request(app)
+      .post("/api/v1/auth/register")
+      .send({ token, senha: "senha-forte-123", curso: "Direito", semestre: "2º", matricula: "20260001" });
+    expect(r.status).toBe(201);
+    const u = await prisma.usuarios.findUnique({
+      where: { email: email("novo") },
+      select: { convite_aceito_em: true, alunos: { select: { curso: true, semestre: true, matricula: true } } },
+    });
+    expect(u?.convite_aceito_em).toBeTruthy();
+    expect(u?.alunos).toEqual({ curso: "Direito", semestre: "2º", matricula: "20260001" });
+  });
+});
