@@ -30,6 +30,8 @@ routes.get("/auth/invite", authCtrl.invitePreview);
 routes.post("/auth/refresh", authCtrl.refresh);
 routes.post("/auth/logout", auth, authCtrl.logout);
 routes.get("/auth/me", auth, authCtrl.me);
+routes.patch("/auth/me", auth, authCtrl.atualizarMe);
+routes.post("/auth/senha", auth, authLimiter, authCtrl.trocarSenha);
 
 // --- Usuários (RF-03: admin cria/edita/desativa; convite por e-mail) ----------
 routes.get("/usuarios", auth, role("admin"), usuarioCtrl.index);

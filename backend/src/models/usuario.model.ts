@@ -251,3 +251,20 @@ export function touchUltimoLogin(id: string) {
     data: { ultimo_login_em: new Date() },
   });
 }
+
+// PATCH /auth/me — a própria pessoa edita nome/telefone (nunca e-mail/papel).
+export function atualizarPerfil(id: string, data: { nome?: string; telefone?: string }) {
+  return prisma.usuarios.update({ where: { id }, data, select: { slug: true } });
+}
+
+// POST /auth/senha — busca o hash atual para conferir antes da troca.
+export function findSenhaById(id: string) {
+  return prisma.usuarios.findFirst({
+    where: { id, ativo: true, excluido_em: null },
+    select: { id: true, slug: true, nome: true, tipo_usuario: true, senha: true },
+  });
+}
+
+export function definirSenha(id: string, senhaHash: string) {
+  return prisma.usuarios.update({ where: { id }, data: { senha: senhaHash } });
+}
