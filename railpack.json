@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "packages": {
+    "node": "22"
+  },
+  "buildAptPackages": ["openssl"],
+  "caches": {
+    "npm": {
+      "directory": "/root/.npm",
+      "type": "shared"
+    }
+  },
+  "steps": {
+    "install": {
+      "commands": [
+        { "src": ".", "dest": "." },
+        "cd backend && npm ci --include=dev",
+        "cd frontend && npm ci --include=dev"
+      ],
+      "caches": ["npm"]
+    },
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": ["npm run build"]
+    }
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "aptPackages": ["...", "curl"],
+    "inputs": [
+      {
+        "step": "packages:mise",
+        "include": [
+          "/mise/shims",
+          "/mise/installs",
+          "/usr/local/bin/mise",
+          "/etc/mise/config.toml",
+          "/root/.local/state/mise"
+        ]
+      },
+      { "step": "build", "include": ["."] }
+    ]
+  }
+}

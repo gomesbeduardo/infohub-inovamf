@@ -8,17 +8,18 @@
 
 - Monorepo. Frontend Next.js vive em `frontend/`; o backend nasce em `api/`, irmão dele.
 - `docs/sql/infohub_schema.sql` é a **fonte de verdade do banco**. `docs/Infohub_InovAMF_Requisitos*` traz os RFs.
-- PostgreSQL **gerenciado por DBA**. O backend só lê e escreve dados, nunca estrutura.
+- PostgreSQL **versionado pelo próprio backend** via `prisma migrate` (desde 2026-09-17).
+  O schema-alvo dentro do banco vem do `?schema=` da `DATABASE_URL`.
 - Domínio: jornada empreendedora de alunos — usuários, equipes, etapas de funil, tarefas, entregas por link, convites, notificações.
 
 ---
 
 ## 1. Regras invioláveis
 
-1. **Nunca rodar `prisma migrate`** (dev, deploy, reset, diff). Não existe `prisma/migrations/`.
-2. **Nunca rodar DDL** (`CREATE`, `ALTER`, `DROP`) em código, script, seed ou teste.
-3. `schema.prisma` é gerado por `prisma db pull`. Models nunca escritos à mão.
-4. Precisa de coluna/tabela nova? **Pare**, escreva em `docs/sql/CHANGE_REQUEST.md`, aguarde o DBA. Sem gambiarra de JSON ou tabela paralela.
+1. **DDL só dentro de `prisma/migrations/`.** Nada de `CREATE`/`ALTER`/`DROP` em controller, model, seed ou teste.
+2. `schema.prisma` é a **fonte de verdade**; mudança de estrutura = editar o model + `npm run db:migrate:dev -- --name <slug>` e **commitar a migration junto**.
+3. Migration já commitada **nunca** é editada — corrige-se com uma nova.
+4. CHECK, índice parcial/expressão e trigger o Prisma não modela: entram **à mão** na migration (ver `20260917120100_constraints_triggers_indices`). Antes de aceitar um diff do `migrate dev`, confira se ele não está dropando um desses.
 5. **ID numérico nunca sai da API.** URL e resposta usam `slug` (cuid2, `VARCHAR(32)`).
 6. Regra de negócio no **controller**. Model só fala com Prisma.
 7. **Tudo é função exportada.** Sem classe, sem objeto de métodos, sem `this`, sem factory. `export async function nome(req, res, next)`.
@@ -73,9 +74,9 @@ Direção: `routes.ts → middlewares → controller → model → prisma`. Mode
 
 ---
 
-## 4. Prisma por introspecção
+## 4. Prisma com migrations
 
-Cabeçalho do `schema.prisma` (única parte manual):
+Cabeçalho do `schema.prisma`:
 
 ```prisma
 generator client {
@@ -87,22 +88,27 @@ datasource db {
   url        = env("DATABASE_URL")
   extensions = [citext, unaccent, pg_trgm]
 }
-// models abaixo: gerados por `prisma db pull`
+// models abaixo: escritos à mão; `prisma migrate dev` gera o SQL a partir deles
 ```
 
 ```json
 {
   "scripts": {
-    "db:pull": "prisma db pull && prisma generate",
-    "db:check": "prisma db pull --print > /tmp/db.prisma && diff -q prisma/schema.prisma /tmp/db.prisma",
+    "start": "prisma migrate deploy && node dist/server.js",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:status": "prisma migrate status",
     "postinstall": "prisma generate"
   }
 }
 ```
 
-`db:check` roda no CI e quebra o build se o banco divergir do schema — é assim que se descobre mudança do DBA.
+`npm start` roda `prisma migrate deploy` antes de subir o servidor: toda publicação
+no Coolify aplica as migrations pendentes no schema da `DATABASE_URL`. Use
+`npm run db:status` para ver o que está pendente sem aplicar.
 
-O usuário em `DATABASE_URL` deve ter só DML (`SELECT/INSERT/UPDATE/DELETE`), sem DDL. Confirmar com o DBA.
+O usuário em `DATABASE_URL` precisa de **DDL** no banco (`CREATE` no database para
+criar o schema na primeira execução, e DDL dentro do schema depois).
 
 ---
 
@@ -305,7 +311,7 @@ Todo `CHECK` e `NOT NULL` do schema precisa de um `if` equivalente no controller
 ## 10. Ordem de execução
 
 1. Ler o SQL → escrever `ENTITIES.md` → **parar e reportar**.
-2. Subir `api/`: tsconfig, env, prisma introspectado, `db:check` no CI.
+2. Subir `api/`: tsconfig, env, `schema.prisma` + `prisma migrate deploy` no boot.
 3. Base: `app.ts`, `prisma.ts`, `utils/`, `middlewares/`.
 4. Auth completo + testes. Não avançar enquanto 401/403 não passarem.
 5. Recursos, um por vez: `usuarios` → `equipes` → `etapas-funil` → `tarefas` → `links-entrega` → `convites` → `notificacoes`.
@@ -316,7 +322,7 @@ Por recurso: model → controller → rota → testes (200, 400, 401, 403, 404).
 
 ## 11. Definition of Done
 
-- [ ] `db:check` passa, sem drift
+- [ ] `npm run db:status` verde (nenhuma migration pendente ou falha)
 - [ ] `prisma/migrations/` não existe
 - [ ] Nenhum DDL no repositório
 - [ ] `tsc --noEmit` limpo, sem `any`

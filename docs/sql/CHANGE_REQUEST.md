@@ -1,14 +1,14 @@
 # CHANGE_REQUEST — mudanças de schema pendentes de DBA
 
-> O backend **nunca** roda DDL (regra #1–#4 do `plan-backend.md`). Toda necessidade
-> de coluna/tabela/valor novo é registrada aqui e aguarda o DBA aplicar na base
-> gerenciada. Ao aplicar, o DBA também atualiza `docs/sql/infohub_schema.sql`.
+> **Histórico.** Desde 2026-09-17 o banco é versionado por `prisma migrate`
+> (`backend/prisma/migrations/`) e o backend aplica o próprio DDL — não há mais
+> fila de CR para o DBA. Mudança de schema agora é model + migration no PR.
 
 ---
 
 ## CR-001 — Novo valor de enum `emails.tipo`: `convite_conta`
 
-- **Status:** ⏳ aguardando DBA
+- **Status:** ✅ aplicada em `20260917120100_constraints_triggers_indices`
 - **Solicitado por:** time backend — 2026-09-10
 - **Motivo / RF:** RF-03 (admin cria contas de admin/mentor). A criação de conta
   não define senha: gera um **convite de uso único** enviado por e-mail, onde a
@@ -36,10 +36,7 @@ ALTER TABLE emails ADD CONSTRAINT emails_tipo_check CHECK (tipo IN (
 ));
 ```
 
-### Nota de desenvolvimento local
+### Nota
 
-Enquanto a CR está pendente, o DDL acima foi aplicado **apenas ao Postgres de
-dev local** (`docker infohub-dev-db`, ver `backend/README.md`) para permitir
-construir e testar o fluxo. Isso **não** toca em nenhuma base gerenciada e não
-altera `docs/sql/infohub_schema.sql` — quem faz isso é o DBA ao aprovar a CR.
-Como o Prisma não modela `CHECK`, o `db:check` continua verde.
+O valor `convite_conta` já nasce na constraint criada pela migration
+`20260917120100_constraints_triggers_indices`, em qualquer ambiente.

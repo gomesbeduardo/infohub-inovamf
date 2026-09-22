@@ -1,0 +1,14 @@
+{
+  "name": "infohub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Raiz do monorepo — builda e sobe backend + frontend num único resource do Coolify.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "start": "node scripts/start-all.mjs"
+  }
+}

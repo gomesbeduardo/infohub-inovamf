@@ -47,6 +47,8 @@ Já existem `.md`s no repo — consulte antes de duplicar decisão:
   tipos de domínio e tarefas em TDD.
 - [`docs/Infohub_InovAMF_Requisitos.md`](docs/Infohub_InovAMF_Requisitos.md) —
   requisitos v1.0 (RF-01…RF-24, RNF-01…RNF-07, regras de negócio, Q1–Q7).
-- [`docs/sql/infohub_schema.sql`](docs/sql/infohub_schema.sql) — schema
-  PostgreSQL (DDL) derivado dos requisitos.
+- [`docs/sql/infohub_schema.sql`](docs/sql/infohub_schema.sql) — DDL de
+  referência histórica. O banco **vivo** é versionado por
+  [`backend/prisma/migrations/`](backend/prisma/migrations/) (`prisma migrate`);
+  o schema-alvo vem do `?schema=` da `DATABASE_URL`.
 - [`docs/superpowers/specs/`](docs/superpowers/specs/) — specs de design/feature.
