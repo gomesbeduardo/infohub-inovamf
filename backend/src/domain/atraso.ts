@@ -27,3 +27,10 @@ export function statusEfetivo(status: string, dataEntrega: Date, hoje: string): 
   const semEntrega = (STATUS_SEM_ENTREGA as readonly string[]).includes(status);
   return semEntrega && dataISO(dataEntrega) < hoje ? "atrasada" : status;
 }
+
+// Dia `iso` + n dias, como o Date 00:00Z que a coluna DATE usa.
+export function somarDias(iso: string, n: number): Date {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d;
+}
