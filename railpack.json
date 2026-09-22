@@ -5,7 +5,6 @@
     "node": "22"
   },
   "buildAptPackages": ["openssl"],
-  "deployAptPackages": ["openssl"],
   "caches": {
     "npm": {
       "directory": "/root/.npm",
@@ -28,6 +27,19 @@
   },
   "deploy": {
     "startCommand": "npm start",
-    "inputs": [{ "step": "build", "include": ["."] }]
+    "aptPackages": ["...", "curl"],
+    "inputs": [
+      {
+        "step": "packages:mise",
+        "include": [
+          "/mise/shims",
+          "/mise/installs",
+          "/usr/local/bin/mise",
+          "/etc/mise/config.toml",
+          "/root/.local/state/mise"
+        ]
+      },
+      { "step": "build", "include": ["."] }
+    ]
   }
 }
