@@ -160,7 +160,7 @@ export function MinhaEquipe() {
             </ul>
             {ehLider && (
               <div className="mt-3">
-                <AdicionarMembroDialog equipeId={equipe.id} />
+                <AdicionarMembroDialog equipeSlug={equipe.slug} />
               </div>
             )}
           </Card.Body>

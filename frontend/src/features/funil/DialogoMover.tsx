@@ -10,9 +10,12 @@ import { Textarea } from '@/design-system/components/Textarea';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
 
 /** Posição no funil: etapas 1..6 e "pronta" (7). Só para comparar origem × destino. */
-const POSICAO_PRONTA = 7;
+export const POSICAO_PRONTA = 7;
 
-export function posicaoDe(equipe: EquipeResumo): number {
+/** O mínimo de uma equipe para movê-la — serve tanto o resumo (funil) quanto o detalhe. */
+export type EquipeMovel = Pick<EquipeResumo, 'slug' | 'nomeIdeia' | 'status' | 'etapa'>;
+
+export function posicaoDe(equipe: Pick<EquipeResumo, 'status' | 'etapa'>): number {
   return equipe.status === 'pronta_inovamf' || equipe.status === 'encaminhada_inovamf'
     ? POSICAO_PRONTA
     : equipe.etapa.numero;
@@ -25,7 +28,7 @@ const MOTIVO: Record<Extract<Pendencia, { tipo: 'integrante' }>['motivo'], strin
   dados_incompletos: 'dados incompletos',
 };
 
-function textoPendencia(p: Pendencia): string {
+export function textoPendencia(p: Pendencia): string {
   return p.tipo === 'tarefa' ? `tarefa: ${p.titulo}` : `integrante: ${p.nome} — ${MOTIVO[p.motivo]}`;
 }
 
@@ -48,7 +51,7 @@ export function DialogoMover({
   destinoLabel,
   onClose,
 }: {
-  equipe: EquipeResumo;
+  equipe: EquipeMovel;
   destino: Posicao;
   origemLabel: string;
   destinoLabel: string;
