@@ -38,6 +38,7 @@ export function CadastroForm() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [telefone, setTelefone] = useState('');
   const [curso, setCurso] = useState('');
   const [semestre, setSemestre] = useState('');
@@ -66,6 +67,8 @@ export function CadastroForm() {
 
     if (vazio(senha)) e.senha = 'Crie uma senha.';
     else if (senha.length < 8) e.senha = 'A senha deve ter ao menos 8 caracteres.';
+
+    if (vazio(confirmarSenha) || confirmarSenha !== senha) e.confirmarSenha = 'As senhas não coincidem.';
 
     if (vazio(telefone)) e.telefone = 'Informe um telefone.';
     if (vazio(curso)) e.curso = 'Informe seu curso.';
@@ -145,7 +148,16 @@ export function CadastroForm() {
                 <Input id="email" type="email" autoComplete="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} />
               </FormField>
               <FormField label="Senha" htmlFor="senha" error={erros.senha}>
-                <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+                <Input id="senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+              </FormField>
+              <FormField label="Confirmar senha" htmlFor="confirmarSenha" error={erros.confirmarSenha}>
+                <Input
+                  id="confirmarSenha"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                />
               </FormField>
               <FormField label="Telefone" htmlFor="telefone" error={erros.telefone}>
                 <Input id="telefone" type="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />

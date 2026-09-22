@@ -37,6 +37,7 @@ async function preencherDadosBasicos(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Nome'), 'Novo Aluno');
   await user.type(screen.getByLabelText('E-mail'), 'novo@teste.dev');
   await user.type(screen.getByLabelText('Senha'), '12345678');
+  await user.type(screen.getByLabelText('Confirmar senha'), '12345678');
   await user.type(screen.getByLabelText('Telefone'), '(55) 90000-1111');
   await user.selectOptions(screen.getByLabelText('Curso'), 'Sistemas de Informação');
   await user.selectOptions(screen.getByLabelText(/Semestre\/Módulo/), '4');
@@ -95,6 +96,21 @@ describe('CadastroForm (API real)', () => {
       },
       colegas: [{ nome: 'Colega Um', email: 'colega@teste.dev' }],
     });
+    expect(mutate.mock.calls[0][0].lider).not.toHaveProperty('confirmarSenha');
+  });
+
+  it('senha e confirmação diferentes mostram erro e não chamam a API', async () => {
+    const user = userEvent.setup();
+    render(<CadastroForm />);
+
+    await preencherDadosBasicos(user);
+    await user.clear(screen.getByLabelText('Confirmar senha'));
+    await user.type(screen.getByLabelText('Confirmar senha'), '87654321');
+
+    await user.click(screen.getByRole('button', { name: /cadastrar/i }));
+
+    expect(screen.getByText('As senhas não coincidem.')).toBeInTheDocument();
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it('colega sem e-mail bloqueia o envio com erro no campo', async () => {
