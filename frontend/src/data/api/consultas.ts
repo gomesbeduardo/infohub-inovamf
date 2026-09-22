@@ -26,6 +26,7 @@ export const chaves = {
   anotacoes: (equipeSlug: string) => ['anotacoes', equipeSlug] as const,
   dashboard: ['dashboard'] as const,
   usuarios: (tipo?: string) => ['usuarios', tipo ?? 'todos'] as const,
+  convite: (token: string) => ['convite', token] as const,
   me: ['me'] as const,
 };
 
@@ -83,7 +84,10 @@ export function useAdicionarMembro(equipeSlug: string) {
   return useMutation({
     mutationFn: (b: { nome: string; email: string }) =>
       api<ColegaCriado & { pendente: boolean }>(`/equipes/${equipeSlug}/membros`, { method: 'POST', body: b }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) });
+      void qc.invalidateQueries({ queryKey: ['equipes'] });
+    },
   });
 }
 
@@ -108,7 +112,7 @@ export async function baixarCSV(filtros: FiltrosEquipes): Promise<void> {
 // ── Convite ───────────────────────────────────────────────────────────────────
 export const useConvite = (token: string) =>
   useQuery({
-    queryKey: ['convite', token],
+    queryKey: chaves.convite(token),
     queryFn: () =>
       api<{ nome: string; email: string; telefone: string; role: string }>(
         `/auth/invite?token=${encodeURIComponent(token)}`,
@@ -226,7 +230,7 @@ export function useCriarUsuario() {
 export function useEditarUsuario() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ slug, ...b }: { slug: string; nome?: string; telefone?: string; tipo?: string; ativo?: boolean }) =>
+    mutationFn: ({ slug, ...b }: { slug: string; nome?: string; telefone?: string; tipo?: 'admin' | 'mentor'; ativo?: boolean }) =>
       api<UsuarioAdmin>(`/usuarios/${slug}`, { method: 'PATCH', body: b }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['usuarios'] }),
   });
