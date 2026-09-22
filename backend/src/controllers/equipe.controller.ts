@@ -122,6 +122,8 @@ export async function show(req: Request, res: Response, next: NextFunction) {
       throw httpError(403, "NOT_TEAM_MEMBER", "Você não participa desta equipe");
     }
 
+    const pendencias = await equipeModel.pendenciasParaAvancar(equipe.id);
+
     res.json({
       slug: equipe.slug,
       nomeIdeia: equipe.nome_ideia,
@@ -143,7 +145,10 @@ export async function show(req: Request, res: Response, next: NextFunction) {
         papel: m.papel,
         tipo: m.usuarios.tipo_usuario,
         pendente: m.usuarios.convite_aceito_em === null,
+        curso: m.usuarios.alunos?.curso ?? null,
+        semestre: m.usuarios.alunos?.semestre ?? null,
       })),
+      pendenciasParaAvancar: pendencias,
       historico: equipe.historico_etapas.map((h) => ({
         de:
           h.status_origem === "pronta_inovamf"
