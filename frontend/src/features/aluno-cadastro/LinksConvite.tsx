@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ColegaCriado } from '@/data/api/tipos';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
-import { CheckIcon } from '@/design-system/icons';
+import { CopiarLink } from '@/design-system/components/CopiarLink';
 
 export interface LinksConviteProps {
   nomeIdeia: string;
@@ -19,17 +18,6 @@ export interface LinksConviteProps {
  */
 export function LinksConvite({ nomeIdeia, colegas }: LinksConviteProps) {
   const router = useRouter();
-  const [copiadoSlug, setCopiadoSlug] = useState<string | null>(null);
-
-  async function copiar(slug: string, url: string) {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiadoSlug(slug);
-      setTimeout(() => setCopiadoSlug((s) => (s === slug ? null : s)), 2000);
-    } catch {
-      /* clipboard indisponível (ex.: contexto inseguro) — segue sem feedback */
-    }
-  }
 
   return (
     <Card className="w-full overflow-hidden shadow-md">
@@ -46,34 +34,15 @@ export function LinksConvite({ nomeIdeia, colegas }: LinksConviteProps) {
             </p>
             <ul className="flex flex-col gap-3">
               {colegas.map((c) => (
-                <li
-                  key={c.slug}
-                  className="flex flex-col gap-2 rounded-[0.625rem] border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
+                <li key={c.slug} className="flex flex-col gap-2 rounded-[0.625rem] border border-border p-3">
                   <div>
                     <p className="text-sm font-medium text-text">{c.nome}</p>
                     <p className="text-xs text-text-muted">{c.email}</p>
                   </div>
                   {c.conviteUrl ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => copiar(c.slug, c.conviteUrl!)}
-                    >
-                      {copiadoSlug === c.slug ? (
-                        <>
-                          <CheckIcon size={16} className="shrink-0" />
-                          Copiado
-                        </>
-                      ) : (
-                        'Copiar link'
-                      )}
-                    </Button>
+                    <CopiarLink url={c.conviteUrl} rotulo={`Link de convite de ${c.nome}`} />
                   ) : (
-                    <span className="text-xs text-text-muted">
-                      já tem conta — entrou na equipe
-                    </span>
+                    <span className="text-xs text-text-muted">já tem conta — entrou na equipe</span>
                   )}
                 </li>
               ))}

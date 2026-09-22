@@ -1,102 +1,81 @@
 'use client';
 
 import { useState } from 'react';
-import type { Equipe } from '@/domain/types';
-import { useStore, useActions } from '@/data/store';
-import { tarefasObrigatoriasPendentes } from '@/data/repository';
-import { getUsuarioAtual } from '@/data/session';
+import type { EquipeDetalhe, Posicao } from '@/data/api/tipos';
+import { useEtapas } from '@/data/api/consultas';
 import { Button } from '@/design-system/components/Button';
-import { Textarea } from '@/design-system/components/Textarea';
+import { DialogoMover, POSICAO_PRONTA, posicaoDe, textoPendencia } from '@/features/funil/DialogoMover';
 
-export function AvancarEtapa({ equipe }: { equipe: Equipe }) {
-  const { state } = useStore();
-  const { avancar, retroceder } = useActions();
-  const [aberto, setAberto] = useState(false);
-  const [forcar, setForcar] = useState(false);
-  const [obs, setObs] = useState('');
+const TITULO_PRONTA = 'Pronta p/ InovAMF';
 
-  const pendentes = tarefasObrigatoriasPendentes(
-    state,
-    equipe.id,
-    equipe.etapaAtualId,
-  );
-  const bloqueado = pendentes.length > 0;
-  const autorId = getUsuarioAtual(state)?.id ?? 'u-admin';
+/**
+ * Avançar / retroceder / marcar como pronta pelo detalhe — o caminho acessível
+ * por teclado do funil. Mostra as pendências que a API aponta
+ * (`pendenciasParaAvancar`); com pendências o avanço vira "forçar" e exige
+ * observação. A confirmação (e o 409 RN01_*) é o mesmo `DialogoMover` do funil.
+ */
+export function AvancarEtapa({ equipe }: { equipe: EquipeDetalhe }) {
+  const etapas = useEtapas();
+  const [destino, setDestino] = useState<Posicao | null>(null);
 
-  function fechar() {
-    setAberto(false);
-    setForcar(false);
-    setObs('');
+  const atual = posicaoDe(equipe);
+  const pendencias = equipe.pendenciasParaAvancar;
+  const comPendencias = pendencias.length > 0;
+  const proxima: Posicao | null = atual >= POSICAO_PRONTA ? null : atual === 6 ? 'pronta' : atual + 1;
+  const anterior: Posicao | null = atual > 1 ? atual - 1 : null;
+
+  function rotulo(p: Posicao): string {
+    if (p === 'pronta' || p === POSICAO_PRONTA) return TITULO_PRONTA;
+    const nome = etapas.data?.find((e) => e.numero === p)?.nome ?? (p === equipe.etapa.numero ? equipe.etapa.nome : null);
+    return nome ? `${p}. ${nome}` : `Etapa ${p}`;
   }
 
-  function confirmar() {
-    if (bloqueado && !forcar) return;
-    avancar(equipe.id, {
-      forcar: bloqueado ? forcar : false,
-      autorId,
-      observacao: obs || undefined,
-    });
-    fechar();
-  }
-
-  function onRetroceder() {
-    retroceder(equipe.id, { autorId });
-  }
+  const rotuloAvanco =
+    proxima === 'pronta'
+      ? comPendencias
+        ? 'Forçar: marcar como pronta'
+        : 'Marcar como pronta'
+      : comPendencias
+        ? 'Forçar avanço'
+        : 'Avançar etapa';
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setAberto(true)}>Avançar etapa</Button>
-        <Button
-          variant="secondary"
-          onClick={onRetroceder}
-          disabled={equipe.etapaAtualId <= 1}
+      {proxima !== null && comPendencias && (
+        <div
+          className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface-sunken p-3"
+          data-testid="pendencias-avancar"
         >
-          Retroceder
-        </Button>
+          <p className="text-sm font-medium text-text">Pendências para avançar</p>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-text-muted">
+            {pendencias.map((p) => (
+              <li key={`${p.tipo}-${p.slug}`}>{textoPendencia(p)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {proxima !== null && (
+          <Button variant={comPendencias ? 'danger' : 'primary'} onClick={() => setDestino(proxima)}>
+            {rotuloAvanco}
+          </Button>
+        )}
+        {anterior !== null && (
+          <Button variant="secondary" onClick={() => setDestino(anterior)}>
+            Retroceder
+          </Button>
+        )}
       </div>
 
-      {aberto && (
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-sunken p-4">
-          {bloqueado ? (
-            <p className="text-sm text-primary-text">
-              Há {pendentes.length} tarefa(s) obrigatória(s) ainda não aprovada(s)
-              nesta etapa (RN-01). Marque “Forçar” para avançar mesmo assim.
-            </p>
-          ) : (
-            <p className="text-sm text-text-muted">
-              Confirmar avanço para a próxima etapa da jornada.
-            </p>
-          )}
-
-          {bloqueado && (
-            <label className="flex items-center gap-2 text-sm text-text">
-              <input
-                type="checkbox"
-                checked={forcar}
-                onChange={(e) => setForcar(e.target.checked)}
-              />
-              Forçar avanço
-            </label>
-          )}
-
-          <Textarea
-            aria-label="Observação"
-            placeholder="Observação (opcional)"
-            rows={2}
-            value={obs}
-            onChange={(e) => setObs(e.target.value)}
-          />
-
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={fechar}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmar} disabled={bloqueado && !forcar}>
-              Confirmar
-            </Button>
-          </div>
-        </div>
+      {destino !== null && (
+        <DialogoMover
+          equipe={equipe}
+          destino={destino}
+          origemLabel={rotulo(atual)}
+          destinoLabel={rotulo(destino)}
+          onClose={() => setDestino(null)}
+        />
       )}
     </div>
   );

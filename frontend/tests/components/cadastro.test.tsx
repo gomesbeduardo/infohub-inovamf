@@ -177,7 +177,7 @@ describe('CadastroForm (API real)', () => {
     expect(screen.getByText('Ideia Teste')).toBeInTheDocument();
     expect(screen.getByText(/já tem conta — entrou na equipe/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /copiar link/i }));
+    await user.click(screen.getByRole('button', { name: /^copiar$/i }));
     expect(escrever).toHaveBeenCalledWith('https://app/convite?token=abc');
 
     await user.click(screen.getByRole('button', { name: /ir para minha equipe/i }));
