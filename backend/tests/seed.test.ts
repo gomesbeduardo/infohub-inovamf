@@ -37,4 +37,13 @@ describe("seedBase", () => {
       "Value Proposition Design final",
     ]);
   });
+
+  it("execuções simultâneas não duplicam modelos", async () => {
+    await Promise.all([seedBase(prisma), seedBase(prisma), seedBase(prisma)]);
+    for (const m of MODELOS_TAREFA) {
+      expect(
+        await prisma.modelos_tarefa.count({ where: { etapa_id: m.etapa, titulo: m.titulo } }),
+      ).toBe(1);
+    }
+  });
 });

@@ -30,6 +30,9 @@ export const MODELOS_TAREFA: ReadonlyArray<{
 
 const dia = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
+// Chave arbitrária (fixa) do advisory lock do seed de modelos.
+const SEED_LOCK_MODELOS = 4_224_101;
+
 export async function seedBase(db: PrismaClient): Promise<void> {
   await db.ciclos.upsert({
     where: { nome: CICLO_ATUAL.nome },
@@ -41,24 +44,30 @@ export async function seedBase(db: PrismaClient): Promise<void> {
     },
   });
 
-  for (const m of MODELOS_TAREFA) {
-    const existe = await db.modelos_tarefa.findFirst({
-      where: { etapa_id: m.etapa, titulo: m.titulo },
-      select: { id: true },
-    });
-    if (!existe) {
-      await db.modelos_tarefa.create({
-        data: {
-          etapa_id: m.etapa,
-          titulo: m.titulo,
-          descricao: m.descricao,
-          obrigatoria: true,
-          prazo_padrao_dias: m.prazoDias,
-          ordem: m.ordem,
-        },
+  // Duas execuções simultâneas (boots paralelos, arquivos de teste em paralelo)
+  // entram em fila aqui: sem UNIQUE(etapa_id, titulo), o "busca e cria" só é
+  // seguro serializado. O lock é da transação e se solta sozinho no fim.
+  await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${BigInt(SEED_LOCK_MODELOS)})`;
+    for (const m of MODELOS_TAREFA) {
+      const existe = await tx.modelos_tarefa.findFirst({
+        where: { etapa_id: m.etapa, titulo: m.titulo },
+        select: { id: true },
       });
+      if (!existe) {
+        await tx.modelos_tarefa.create({
+          data: {
+            etapa_id: m.etapa,
+            titulo: m.titulo,
+            descricao: m.descricao,
+            obrigatoria: true,
+            prazo_padrao_dias: m.prazoDias,
+            ordem: m.ordem,
+          },
+        });
+      }
     }
-  }
+  });
 
   const admin = await db.usuarios.findUnique({ where: { email: ADMIN_EMAIL }, select: { id: true } });
   if (!admin) {
