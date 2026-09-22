@@ -8,6 +8,7 @@ import {
   verificarSenha,
 } from "../utils/hash.js";
 import { isUuid } from "../utils/slug.js";
+import { idDoChamador } from "../utils/acesso.js";
 import { emitirSessao } from "../utils/sessao.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
@@ -207,6 +208,50 @@ export async function me(req: Request, res: Response, next: NextFunction) {
       criadoEm: perfil.criado_em,
       ultimoLoginEm: perfil.ultimo_login_em,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /auth/me — a pessoa edita o próprio nome/telefone (e-mail e papel não).
+export async function atualizarMe(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { nome, telefone } = req.body ?? {};
+    const data: { nome?: string; telefone?: string } = {};
+    if (nome !== undefined) {
+      if (typeof nome !== "string" || nome.trim().length < 3) {
+        throw httpError(400, "INVALID_NOME", "Nome deve ter ao menos 3 caracteres");
+      }
+      data.nome = nome.trim();
+    }
+    if (telefone !== undefined) {
+      if (typeof telefone !== "string") throw httpError(400, "INVALID_TELEFONE", "Telefone inválido");
+      data.telefone = telefone.trim();
+    }
+    if (Object.keys(data).length === 0) throw httpError(400, "EMPTY_UPDATE", "Nada para atualizar");
+    await usuarioModel.atualizarPerfil(idDoChamador(req), data);
+    await me(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /auth/senha — troca exige a senha ATUAL; revoga todas as sessões e
+// devolve uma nova para quem trocou (as outras abas/dispositivos caem).
+export async function trocarSenha(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { atual, nova } = req.body ?? {};
+    if (typeof atual !== "string" || typeof nova !== "string") {
+      throw httpError(400, "INVALID_BODY", "Informe a senha atual e a nova");
+    }
+    if (nova.length < 8) throw httpError(400, "WEAK_PASSWORD", "Senha deve ter ao menos 8 caracteres");
+    const usuario = await usuarioModel.findSenhaById(idDoChamador(req));
+    if (!usuario || !(await verificarSenha(atual, usuario.senha))) {
+      throw httpError(401, "SENHA_ATUAL_INVALIDA", "Senha atual incorreta");
+    }
+    await usuarioModel.definirSenha(usuario.id, await hashSenha(nova));
+    await tokenModel.revogarTodosVivosDoUsuario(usuario.id, "troca_senha");
+    res.json(await emitirSessao(usuario, null, req));
   } catch (err) {
     next(err);
   }
