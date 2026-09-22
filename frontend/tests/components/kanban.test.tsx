@@ -63,6 +63,13 @@ const EQUIPES: EquipeResumo[] = [
   equipe({ slug: 'agrosmart', nomeIdeia: 'AgroSmart', tarefasAtrasadas: 2 }),
   equipe({ slug: 'ecoaula', nomeIdeia: 'EcoAula', etapa: { numero: 3, nome: 'Etapa 3' }, area: 'Educação' }),
   equipe({
+    slug: 'etapa6-ativa',
+    nomeIdeia: 'Projeto X',
+    etapa: { numero: 6, nome: 'Etapa 6' },
+    status: 'ativa',
+    area: 'Tecnologia',
+  }),
+  equipe({
     slug: 'medlink',
     nomeIdeia: 'MedLink',
     etapa: { numero: 6, nome: 'Etapa 6' },
@@ -257,7 +264,7 @@ describe('FunilBoard — mover (DialogoMover)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('mover para "Pronta" envia etapa "pronta"; retroceder não pede observação', async () => {
+  it('retroceder de Pronta para etapa anterior não pede observação', async () => {
     const user = userEvent.setup();
     render(<FunilBoard modo="admin" />);
     arrastar('MedLink', 4); // pronta → etapa 5 (retrocesso)
@@ -265,6 +272,20 @@ describe('FunilBoard — mover (DialogoMover)', () => {
     expect(screen.queryByLabelText('Observação')).not.toBeInTheDocument();
     await user.click(screen.getByTestId('confirmar-movimento'));
     expect(mutate).toHaveBeenLastCalledWith({ etapa: 5 }, expect.anything());
+  });
+
+  it('mover para "Pronta p/ InovAMF" envia etapa "pronta" sem forçar quando sem pendências', async () => {
+    const user = userEvent.setup();
+    render(<FunilBoard modo="admin" />);
+    arrastar('Projeto X', 6); // etapa 6 → Pronta p/ InovAMF
+    await waitFor(() => expect(screen.getByTestId('confirmar-movimento')).toBeInTheDocument());
+    expect(screen.getByRole('dialog')).toHaveTextContent('de 6. Etapa 6 para Pronta p/ InovAMF');
+    expect(useEquipe).toHaveBeenCalledWith('etapa6-ativa');
+    expect(useMoverEtapa).toHaveBeenCalledWith('etapa6-ativa');
+    expect(screen.queryByLabelText('Observação')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('confirmar-movimento'));
+    expect(mutate).toHaveBeenCalledWith({ etapa: 'pronta' }, expect.anything());
   });
 
   it('com pendências no preview, lista-as e exige observação antes de forçar', async () => {
