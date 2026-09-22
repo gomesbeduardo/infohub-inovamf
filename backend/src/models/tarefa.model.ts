@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import { STATUS_SEM_ENTREGA } from "../domain/atraso.js";
 
 // Traz também dados da equipe (mentor + membros) para o controle de acesso.
 const DETALHE_SELECT = {
@@ -49,12 +50,33 @@ export function findById(id: string) {
   return prisma.tarefas.findUnique({ where: { id }, select: DETALHE_SELECT });
 }
 
+// Tradução de statusEfetivo para WHERE: mesma regra, do lado do banco.
+export function whereStatusEfetivo(
+  status: string,
+  hoje: string,
+): Prisma.tarefasWhereInput {
+  const limite = new Date(`${hoje}T00:00:00.000Z`);
+  const semEntrega = [...STATUS_SEM_ENTREGA];
+  if (status === "atrasada") {
+    return {
+      OR: [
+        { status: "atrasada" }, // legado: valor aceito pelo CHECK, nunca gravado por nós
+        { status: { in: semEntrega }, data_entrega: { lt: limite } },
+      ],
+    };
+  }
+  if ((semEntrega as string[]).includes(status)) {
+    return { status, data_entrega: { gte: limite } };
+  }
+  return { status };
+}
+
 export function listarPorEquipe(
   equipeId: string,
-  filtros: { status?: string },
+  filtros: { status?: string; hoje: string },
 ) {
   const where: Prisma.tarefasWhereInput = { equipe_id: equipeId };
-  if (filtros.status) where.status = filtros.status;
+  if (filtros.status) Object.assign(where, whereStatusEfetivo(filtros.status, filtros.hoje));
   return prisma.tarefas.findMany({
     where,
     orderBy: { data_entrega: "asc" },

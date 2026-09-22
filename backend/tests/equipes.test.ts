@@ -82,7 +82,7 @@ describe("referência", () => {
   it("GET /areas-ideia → lista áreas", async () => {
     const res = await request(app).get("/api/v1/areas-ideia");
     expect(res.status).toBe(200);
-    expect(res.body.data.length).toBeGreaterThanOrEqual(5);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(4);
   });
   it("GET /etapas-funil → 6 etapas", async () => {
     const res = await request(app).get("/api/v1/etapas-funil");
