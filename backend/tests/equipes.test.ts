@@ -237,13 +237,13 @@ describe("admin cria equipe com mentor + mover etapa (RF-09)", () => {
     expect(det.body.historico[0].para).toBe(2);
   });
 
-  it("admin marca pronta_inovamf", async () => {
+  it("PATCH não marca pronta_inovamf (RN-02 exige a transição)", async () => {
     const res = await request(app)
       .patch(`/api/v1/equipes/${storeSlug}`)
       .set(bearer(adminAccess))
       .send({ status: "pronta_inovamf" });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe("pronta_inovamf");
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("USE_TRANSICAO");
   });
 
   it("404 mover etapa de equipe inexistente", async () => {

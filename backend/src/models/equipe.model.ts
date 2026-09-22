@@ -1,5 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import {
+  POSICAO_PRONTA,
+  avaliarTransicao,
+  pendenciasDeIntegrantes,
+  type Decisao,
+  type Pendencia,
+} from "../domain/transicao.js";
+import { toSlug } from "../utils/slug.js";
 
 // --- Escopo por papel (RNF-03) ------------------------------------------------
 export type Escopo =
@@ -84,7 +92,14 @@ export function findDetalheBySlug(slug: string) {
         where: { ativo: true },
         select: {
           papel: true,
-          usuarios: { select: { slug: true, nome: true, tipo_usuario: true } },
+          usuarios: {
+            select: {
+              slug: true,
+              nome: true,
+              tipo_usuario: true,
+              convite_aceito_em: true,
+            },
+          },
         },
       },
       historico_etapas: {
@@ -92,6 +107,8 @@ export function findDetalheBySlug(slug: string) {
         select: {
           forcado: true,
           observacao: true,
+          status_origem: true,
+          status_destino: true,
           criado_em: true,
           etapas_historico_etapas_etapa_origem_idToetapas: {
             select: { numero: true, nome: true },
@@ -116,7 +133,7 @@ export function findControleBySlug(slug: string) {
       etapa_atual_id: true,
       equipe_membros: {
         where: { ativo: true },
-        select: { usuario_id: true },
+        select: { usuario_id: true, papel: true },
       },
     },
   });
@@ -170,37 +187,138 @@ export function atualizarPorSlug(slug: string, data: Prisma.equipesUpdateInput) 
   });
 }
 
-// Move a equipe para outra etapa e registra em historico_etapas (RF-09, RNF-05).
-export async function moverEtapa(params: {
+// Pendências que impedem SAIR da posição atual para frente (RN-01/RN-02).
+async function pendenciasDaPosicao(
+  tx: Prisma.TransactionClient,
+  equipeId: string,
+  posicao: number,
+): Promise<Pendencia[]> {
+  if (posicao >= POSICAO_PRONTA) return [];
+  const tarefas = await tx.tarefas.findMany({
+    where: {
+      equipe_id: equipeId,
+      obrigatoria: true,
+      status: { not: "aprovada" },
+      etapas: { numero: posicao },
+    },
+    orderBy: { data_entrega: "asc" },
+    select: { id: true, titulo: true },
+  });
+  const pendencias: Pendencia[] = tarefas.map((t) => ({
+    tipo: "tarefa",
+    slug: toSlug(t.id),
+    titulo: t.titulo,
+  }));
+  if (posicao === 6) {
+    const membros = await tx.equipe_membros.findMany({
+      where: { equipe_id: equipeId, ativo: true },
+      select: {
+        usuarios: {
+          select: {
+            slug: true,
+            nome: true,
+            convite_aceito_em: true,
+            alunos: { select: { curso: true, semestre: true } },
+          },
+        },
+      },
+    });
+    pendencias.push(
+      ...pendenciasDeIntegrantes(
+        membros.map((m) => ({
+          slug: m.usuarios.slug,
+          nome: m.usuarios.nome,
+          conviteAceitoEm: m.usuarios.convite_aceito_em,
+          curso: m.usuarios.alunos?.curso ?? null,
+          semestre: m.usuarios.alunos?.semestre ?? null,
+        })),
+      ),
+    );
+  }
+  return pendencias;
+}
+
+// RN-01 como UMA transação ACID: trava a equipe, lê a posição, busca pendências,
+// decide (regra pura) e grava equipe + histórico. Duas transições simultâneas
+// na mesma equipe ficam em fila no FOR UPDATE — nenhuma lê estado velho.
+export async function transicionar(p: {
   equipeId: string;
-  etapaOrigemId: number;
-  etapaDestinoId: number;
+  destino: number;
   movidoPor: string;
   forcado: boolean;
-  observacao?: string | null;
-}) {
-  const [atualizada] = await prisma.$transaction([
-    prisma.equipes.update({
-      where: { id: params.equipeId },
-      data: { etapa_atual_id: params.etapaDestinoId },
-      select: {
-        slug: true,
-        status: true,
-        etapas: { select: { numero: true, nome: true } },
-      },
-    }),
-    prisma.historico_etapas.create({
+  observacao: string | null;
+}): Promise<
+  | {
+      tipo: "ok";
+      equipe: {
+        slug: string;
+        status: string;
+        etapa: { numero: number; nome: string };
+        forcado: boolean;
+      };
+    }
+  | { tipo: "rejeitada"; decisao: Exclude<Decisao, { tipo: "permitida" }> }
+> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM equipes WHERE id = ${p.equipeId}::uuid FOR UPDATE`;
+    const eq = await tx.equipes.findUniqueOrThrow({
+      where: { id: p.equipeId },
+      select: { status: true, etapa_atual_id: true, etapas: { select: { numero: true } } },
+    });
+    const origem = eq.status === "pronta_inovamf" ? POSICAO_PRONTA : eq.etapas.numero;
+    const pendencias =
+      p.destino > origem ? await pendenciasDaPosicao(tx, p.equipeId, origem) : [];
+
+    const decisao = avaliarTransicao({
+      origem,
+      destino: p.destino,
+      pendencias,
+      forcado: p.forcado,
+      observacao: p.observacao,
+    });
+    if (decisao.tipo !== "permitida") return { tipo: "rejeitada" as const, decisao };
+
+    const etapaDestino = await tx.etapas.findUniqueOrThrow({
+      where: { numero: Math.min(p.destino, 6) },
+      select: { id: true },
+    });
+    const data: Prisma.equipesUncheckedUpdateInput = { etapa_atual_id: etapaDestino.id };
+    if (p.destino === POSICAO_PRONTA) {
+      data.status = "pronta_inovamf";
+      data.pronta_inovamf_em = new Date();
+    } else if (origem === POSICAO_PRONTA) {
+      data.status = "ativa";
+      data.pronta_inovamf_em = null;
+    }
+
+    const atualizada = await tx.equipes.update({
+      where: { id: p.equipeId },
+      data,
+      select: { slug: true, status: true, etapas: { select: { numero: true, nome: true } } },
+    });
+    await tx.historico_etapas.create({
       data: {
-        equipe_id: params.equipeId,
-        etapa_origem_id: params.etapaOrigemId,
-        etapa_destino_id: params.etapaDestinoId,
-        movido_por: params.movidoPor,
-        forcado: params.forcado,
-        observacao: params.observacao ?? null,
+        equipe_id: p.equipeId,
+        etapa_origem_id: eq.etapa_atual_id,
+        etapa_destino_id: etapaDestino.id,
+        status_origem: eq.status,
+        status_destino: atualizada.status,
+        movido_por: p.movidoPor,
+        forcado: decisao.forcado,
+        observacao: p.observacao,
       },
-    }),
-  ]);
-  return atualizada;
+    });
+
+    return {
+      tipo: "ok" as const,
+      equipe: {
+        slug: atualizada.slug,
+        status: atualizada.status,
+        etapa: { numero: atualizada.etapas.numero, nome: atualizada.etapas.nome },
+        forcado: decisao.forcado,
+      },
+    };
+  });
 }
 
 // --- Inscrição do aluno (RF-02/05) --------------------------------------------

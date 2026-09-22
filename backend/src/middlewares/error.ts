@@ -12,7 +12,13 @@ export function errorHandler(
 ): void {
   // 1) erro de domínio com status próprio
   if (ehHttpError(err)) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    res.status(err.status).json({
+      error: {
+        code: err.code,
+        message: err.message,
+        ...(err.details !== undefined ? { details: err.details } : {}),
+      },
+    });
     return;
   }
 

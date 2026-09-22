@@ -5,7 +5,7 @@ import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
-import { idDoChamador } from "../utils/acesso.js";
+import { idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
@@ -13,9 +13,9 @@ import {
   type EstagioIdeia,
   type StatusEquipe,
 } from "../domain/enums.js";
+import { POSICAO_PRONTA } from "../domain/transicao.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as areaModel from "../models/area.model.js";
-import * as etapaModel from "../models/etapa.model.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as emailModel from "../models/email.model.js";
 
@@ -124,12 +124,17 @@ export async function show(req: Request, res: Response, next: NextFunction) {
         nome: m.usuarios.nome,
         papel: m.papel,
         tipo: m.usuarios.tipo_usuario,
+        pendente: m.usuarios.convite_aceito_em === null,
       })),
       historico: equipe.historico_etapas.map((h) => ({
-        de: h.etapas_historico_etapas_etapa_origem_idToetapas
-          ? h.etapas_historico_etapas_etapa_origem_idToetapas.numero
-          : null,
-        para: h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+        de:
+          h.status_origem === "pronta_inovamf"
+            ? "pronta"
+            : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+        para:
+          h.status_destino === "pronta_inovamf"
+            ? "pronta"
+            : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
         forcado: h.forcado,
         observacao: h.observacao,
         por: h.usuarios ? { slug: h.usuarios.slug, nome: h.usuarios.nome } : null,
@@ -219,10 +224,14 @@ export async function update(req: Request, res: Response, next: NextFunction) {
       if (typeof status !== "string" || !(STATUS_EQUIPE as string[]).includes(status)) {
         throw httpError(400, "INVALID_STATUS", "Status inválido");
       }
-      data.status = status;
       if ((status as StatusEquipe) === "pronta_inovamf") {
-        data.pronta_inovamf_em = new Date();
+        throw httpError(
+          400,
+          "USE_TRANSICAO",
+          "Use POST /equipes/:slug/etapa com etapa 'pronta' (RN-02)",
+        );
       }
+      data.status = status;
     }
     if (origem !== undefined) {
       data.origem_divulgacao = typeof origem === "string" ? origem.trim() : null;
@@ -271,42 +280,52 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// POST /equipes/:slug/etapa — avançar/retroceder (RF-09). Admin ou mentor da equipe.
+const MENSAGEM_INVALIDA: Record<string, string> = {
+  MESMA_POSICAO: "A equipe já está nessa etapa",
+  OBSERVACAO_OBRIGATORIA: "Para forçar, explique o motivo na observação",
+  POSICAO_INVALIDA: "Etapa deve ser um número de 1 a 6 ou 'pronta'",
+};
+
+// POST /equipes/:slug/etapa — avançar/retroceder (RF-09, RN-01, RN-02).
 export async function moverEtapa(req: Request, res: Response, next: NextFunction) {
   try {
     const { etapa, observacao, forcado } = req.body ?? {};
-    const numero = Number(etapa);
-    if (!Number.isInteger(numero) || numero < 1 || numero > 6) {
-      throw httpError(400, "INVALID_ETAPA", "Etapa deve ser um número de 1 a 6");
+    const destino = etapa === "pronta" ? POSICAO_PRONTA : Number(etapa);
+    if (!Number.isInteger(destino) || destino < 1 || destino > POSICAO_PRONTA) {
+      throw httpError(400, "INVALID_ETAPA", MENSAGEM_INVALIDA.POSICAO_INVALIDA ?? "");
+    }
+    if (forcado !== undefined && typeof forcado !== "boolean") {
+      throw httpError(400, "INVALID_FORCADO", "forcado deve ser booleano");
     }
 
     const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
     if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
-
-    if (req.auth.role === "mentor" && controle.mentor_id !== idDoChamador(req)) {
+    if (!podeGerirEquipe(req, controle.mentor_id)) {
       throw httpError(403, "NOT_TEAM_MENTOR", "Equipe fora do seu escopo");
     }
-    if (req.auth.role === "aluno") {
-      throw httpError(403, "FORBIDDEN", "Aluno não move etapas");
-    }
 
-    const destino = await etapaModel.findByNumero(numero);
-    if (!destino) throw httpError(400, "INVALID_ETAPA", "Etapa inexistente");
-
-    const atualizada = await equipeModel.moverEtapa({
+    const r = await equipeModel.transicionar({
       equipeId: controle.id,
-      etapaOrigemId: controle.etapa_atual_id,
-      etapaDestinoId: destino.id,
+      destino,
       movidoPor: idDoChamador(req),
       forcado: forcado === true,
-      observacao: typeof observacao === "string" ? observacao.trim() : null,
+      observacao: typeof observacao === "string" && observacao.trim() ? observacao.trim() : null,
     });
 
-    res.json({
-      slug: atualizada.slug,
-      status: atualizada.status,
-      etapa: { numero: atualizada.etapas.numero, nome: atualizada.etapas.nome },
-    });
+    if (r.tipo === "rejeitada") {
+      if (r.decisao.tipo === "invalida") {
+        throw httpError(400, r.decisao.codigo, MENSAGEM_INVALIDA[r.decisao.codigo] ?? "");
+      }
+      throw httpError(
+        409,
+        r.decisao.motivo === "salto" ? "RN01_SALTO" : "RN01_PENDENCIAS",
+        r.decisao.motivo === "salto"
+          ? "Pular etapas exige forçar com observação"
+          : "Há pendências obrigatórias nesta etapa",
+        { pendencias: r.decisao.pendencias },
+      );
+    }
+    res.json(r.equipe);
   } catch (err) {
     next(err);
   }
