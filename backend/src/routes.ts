@@ -50,6 +50,7 @@ routes.get("/ciclos", referenciaCtrl.ciclos);
 // Inscrição do aluno é pública (formulário de ideia).
 routes.post("/equipes/inscricao", authLimiter, equipeCtrl.inscricao);
 routes.get("/equipes", auth, equipeCtrl.index);
+routes.get("/equipes/export.csv", auth, role("admin", "mentor"), equipeCtrl.exportarCSV);
 routes.get("/equipes/:slug", auth, equipeCtrl.show);
 routes.post("/equipes", auth, role("admin"), equipeCtrl.store);
 routes.patch("/equipes/:slug", auth, role("admin"), equipeCtrl.update);
