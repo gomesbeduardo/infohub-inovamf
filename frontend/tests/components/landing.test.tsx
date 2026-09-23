@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '@/design-system/theme';
 
 // next/font é transformado pelo compilador do Next; no Vitest basta a classe.
-vi.mock('next/font/google', () => ({ Caveat: () => ({ className: 'fonte-rascunho' }) }));
+vi.mock('next/font/local', () => ({ default: () => ({ className: 'fonte', variable: '--fonte' }) }));
 
 vi.mock('@/data/api/consultas', () => ({
   useNumerosPublicos: vi.fn(),
