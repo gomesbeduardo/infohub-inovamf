@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/design-system/components/ThemeToggle';
 import { LogoutIcon, ArrowLeftIcon, UserIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
 import { navFor, homeFor, type NavItem } from '@/features/shell/nav';
+import { SinoNotificacoes } from '@/features/shell/SinoNotificacoes';
 
 type Largura = 'estreita' | 'media' | 'ampla';
 
@@ -64,7 +65,7 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <div className="sticky top-0 z-30">
-        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
+        <header className="relative z-10 flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
           <Link
             href={usuario ? homeFor(usuario.role) : '/login'}
             aria-label="InfoHub — início"
@@ -73,6 +74,7 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
             <Logo />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
+            {usuario && <SinoNotificacoes usuario={usuario} />}
             {usuario && (
               <Link
                 href="/conta"

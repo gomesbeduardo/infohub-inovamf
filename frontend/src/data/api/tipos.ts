@@ -82,3 +82,8 @@ export interface FiltrosEquipes {
   q?: string; curso?: string; area?: string; mentor?: string; statusTarefa?: StatusTarefa; ciclo?: string;
   etapa?: number; status?: StatusEquipe;
 }
+
+/** GET /notificacoes (RF-18) — a fila de e-mails endereçada à pessoa; o sino (B1) lê daqui. */
+export interface Notificacao {
+  tipo: string; assunto: string; status: string; dados: Record<string, unknown> | null; criadoEm: string;
+}
