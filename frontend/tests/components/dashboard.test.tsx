@@ -120,13 +120,23 @@ describe('DashboardIndicadores', () => {
 });
 
 describe('PainelOrientador', () => {
-  it('a mesa do mentor aparece no topo da visão geral', () => {
+  it('ordem da visão geral: indicadores, gráfico e só depois a mesa do mentor', () => {
     mockDashboard({});
-    render(<PainelOrientador />);
+    const { container } = render(<PainelOrientador />);
     const mesa = screen.getByRole('region', { name: 'Mesa do mentor' });
     expect(within(mesa).getByText('Para avaliar')).toBeInTheDocument();
     expect(within(mesa).getByText('Prazos')).toBeInTheDocument();
     expect(within(mesa).getByText('Minhas equipes')).toBeInTheDocument();
+
+    const grafico = within(container).getByRole('img', { name: /gráfico de linha/i });
+    const indicador = screen.getByText('Equipes mentoradas');
+    // DOM em ordem de documento: cards de indicador → gráfico → mesa do mentor.
+    expect(
+      indicador.compareDocumentPosition(grafico) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      grafico.compareDocumentPosition(mesa) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('mostra os cards com totalEquipes/aAvaliar/tarefasAtrasadas/prontasInovamf da API', () => {

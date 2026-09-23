@@ -13,8 +13,8 @@ export default function AdminPage() {
           title="Painel"
           subtitle="Visão consolidada e funil das equipes."
         />
-        <AgendaAdmin />
         <DashboardIndicadores />
+        <AgendaAdmin />
         {/* Funil usa useSearchParams (presets do dashboard) → precisa de Suspense */}
         <Suspense fallback={null}>
           <Funil />

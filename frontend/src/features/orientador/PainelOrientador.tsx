@@ -57,7 +57,6 @@ export function PainelOrientador() {
 
   const visaoGeral = (
     <div className="flex flex-col gap-5">
-      <MesaDoMentor />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Equipes mentoradas" value={totalEquipes} Icon={UsersIcon} onClick={irParaFunil} />
         <StatCard label="Entregas a avaliar" value={aAvaliar} Icon={ListChecksIcon} onClick={irParaFunil} />
@@ -108,6 +107,8 @@ export function PainelOrientador() {
           )}
         </Card.Body>
       </Card>
+
+      <MesaDoMentor />
     </div>
   );
 
