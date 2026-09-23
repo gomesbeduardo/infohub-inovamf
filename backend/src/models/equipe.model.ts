@@ -405,6 +405,60 @@ export interface DadosInscricao {
   }>;
 }
 
+export type ColegaPreparado = DadosInscricao["colegas"][number];
+
+// Operações que ligam UMA pessoa a uma equipe como integrante: cria a conta se
+// for nova, o vínculo, e o convite (invalidando o anterior se ela já existia).
+function opsVinculoColega(equipeId: string, c: ColegaPreparado): Prisma.PrismaPromise<unknown>[] {
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  if (c.criar) {
+    ops.push(
+      prisma.usuarios.create({
+        data: {
+          id: c.usuarioId,
+          slug: c.criar.slug,
+          nome: c.criar.nome,
+          email: c.criar.email,
+          telefone: c.criar.telefone,
+          senha: c.criar.senhaHash,
+          tipo_usuario: "aluno",
+        },
+      }),
+    );
+  }
+  ops.push(
+    prisma.equipe_membros.create({
+      data: { equipe_id: equipeId, usuario_id: c.usuarioId, papel: "integrante" },
+    }),
+  );
+  if (c.convite) {
+    if (!c.criar) {
+      ops.push(
+        prisma.tokens_senha.updateMany({
+          where: { usuario_id: c.usuarioId, finalidade: "convite", usado_em: null },
+          data: { usado_em: new Date() },
+        }),
+      );
+    }
+    ops.push(
+      prisma.tokens_senha.create({
+        data: {
+          id: c.convite.id,
+          usuario_id: c.usuarioId,
+          token_hash: c.convite.hash,
+          finalidade: "convite",
+          expira_em: c.convite.expiraEm,
+        },
+      }),
+    );
+  }
+  return ops;
+}
+
+export function adicionarMembro(equipeId: string, c: ColegaPreparado) {
+  return prisma.$transaction(opsVinculoColega(equipeId, c));
+}
+
 export function inscrever(p: DadosInscricao) {
   const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.usuarios.create({
@@ -444,49 +498,7 @@ export function inscrever(p: DadosInscricao) {
     }),
   ];
 
-  for (const c of p.colegas) {
-    if (c.criar) {
-      ops.push(
-        prisma.usuarios.create({
-          data: {
-            id: c.usuarioId,
-            slug: c.criar.slug,
-            nome: c.criar.nome,
-            email: c.criar.email,
-            telefone: c.criar.telefone,
-            senha: c.criar.senhaHash,
-            tipo_usuario: "aluno",
-          },
-        }),
-      );
-    }
-    ops.push(
-      prisma.equipe_membros.create({
-        data: { equipe_id: p.equipe.id, usuario_id: c.usuarioId, papel: "integrante" },
-      }),
-    );
-    if (c.convite) {
-      if (!c.criar) {
-        ops.push(
-          prisma.tokens_senha.updateMany({
-            where: { usuario_id: c.usuarioId, finalidade: "convite", usado_em: null },
-            data: { usado_em: new Date() },
-          }),
-        );
-      }
-      ops.push(
-        prisma.tokens_senha.create({
-          data: {
-            id: c.convite.id,
-            usuario_id: c.usuarioId,
-            token_hash: c.convite.hash,
-            finalidade: "convite",
-            expira_em: c.convite.expiraEm,
-          },
-        }),
-      );
-    }
-  }
+  for (const c of p.colegas) ops.push(...opsVinculoColega(p.equipe.id, c));
 
   return prisma.$transaction(ops);
 }

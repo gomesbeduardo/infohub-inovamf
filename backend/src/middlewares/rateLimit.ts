@@ -10,10 +10,9 @@ export const authLimiter = rateLimit({
   validate: false, // não usamos req.ip cru como chave sozinho; combinamos com e-mail
   skip: () => process.env.NODE_ENV === "test",
   keyGenerator: (req) => {
-    const email =
-      typeof req.body?.email === "string"
-        ? req.body.email.toLowerCase()
-        : "sem-email";
+    // Inscrição manda o e-mail em lider.email; login/register em email.
+    const bruto = req.body?.email ?? req.body?.lider?.email;
+    const email = typeof bruto === "string" ? bruto.toLowerCase() : "sem-email";
     return `${req.ip ?? "sem-ip"}:${email}`;
   },
   handler: (_req, res) => {
