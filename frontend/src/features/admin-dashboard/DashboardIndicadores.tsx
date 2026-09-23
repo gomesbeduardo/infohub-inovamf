@@ -1,8 +1,8 @@
 'use client';
 
-import { useStore } from '@/data/store';
-import { calcularIndicadores } from '@/data/repository';
+import { useDashboard } from '@/data/api/consultas';
 import { StatCard } from '@/design-system/components/StatCard';
+import { Button } from '@/design-system/components/Button';
 import { DistribuicaoPorEtapa } from '@/features/admin-dashboard/DistribuicaoPorEtapa';
 import {
   UsersIcon,
@@ -11,42 +11,78 @@ import {
   LightbulbIcon,
 } from '@/design-system/icons';
 
+function CarregandoOuErro({
+  isPending,
+  error,
+  refetch,
+}: {
+  isPending: boolean;
+  error: Error | null;
+  refetch: () => void;
+}) {
+  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p
+        role="alert"
+        className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+      >
+        {error?.message}
+      </p>
+      <Button variant="secondary" onClick={() => refetch()}>
+        Tentar de novo
+      </Button>
+    </div>
+  );
+}
+
 export function DashboardIndicadores() {
-  const { state } = useStore();
-  const ind = calcularIndicadores(state);
+  const dashboard = useDashboard();
+
+  if (dashboard.isPending || dashboard.isError) {
+    return (
+      <CarregandoOuErro
+        isPending={dashboard.isPending}
+        error={dashboard.error}
+        refetch={() => void dashboard.refetch()}
+      />
+    );
+  }
+
+  const { equipesAtivas, prontasInovamf, tarefasAtrasadas, totalEquipes, porEtapa } = dashboard.data;
 
   return (
     <section className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Equipes ativas"
-          value={ind.equipesAtivas}
+          value={equipesAtivas}
           Icon={UsersIcon}
           href="/admin/equipes"
         />
         <StatCard
           label="Prontas p/ InovAMF"
-          value={ind.prontasInovamf}
+          value={prontasInovamf}
           Icon={CheckIcon}
           tone="success"
           href="/admin#col-pronta"
         />
         <StatCard
           label="Tarefas atrasadas"
-          value={ind.tarefasAtrasadas}
+          value={tarefasAtrasadas}
           Icon={AlertIcon}
-          tone={ind.tarefasAtrasadas > 0 ? 'danger' : 'neutral'}
+          tone={tarefasAtrasadas > 0 ? 'danger' : 'neutral'}
           href="/admin?status=atrasada"
         />
         <StatCard
           label="Total de equipes"
-          value={ind.totalEquipes}
+          value={totalEquipes}
           Icon={LightbulbIcon}
           href="/admin/equipes"
         />
       </div>
 
-      <DistribuicaoPorEtapa pontos={ind.porEtapa} />
+      <DistribuicaoPorEtapa pontos={porEtapa} />
     </section>
   );
 }
