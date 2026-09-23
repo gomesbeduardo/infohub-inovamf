@@ -29,7 +29,7 @@ export function LandingHeader() {
       className={cn(
         'sticky top-0 z-40 border-b transition-colors duration-300',
         rolou
-          ? 'border-border bg-[color:var(--bg)]/85 backdrop-blur'
+          ? 'border-border bg-[color:var(--bg)]/95 backdrop-blur'
           : 'border-transparent bg-transparent',
       )}
     >

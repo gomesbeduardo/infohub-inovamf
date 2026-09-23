@@ -297,7 +297,7 @@ export function Landing() {
         className="border-t border-border bg-surface-sunken pb-10 md:pb-0"
       >
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <div className="jornada-borda pt-16 sm:pt-24">
+          <div className="pt-16 sm:pt-24">
             <TituloSecao
               id="titulo-como-funciona"
               titulo="Seis etapas, um entregável em cada uma"
@@ -311,7 +311,7 @@ export function Landing() {
       </section>
 
       {/* ── Quem participa ───────────────────────────────────────────────── */}
-      <SpotlightField id="equipes" className="jornada-borda border-t border-border py-16 sm:py-24">
+      <SpotlightField id="equipes" className="border-t border-border py-16 sm:py-24">
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
             id="titulo-equipes"

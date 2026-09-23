@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { CheckIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
 import type { EtapaVitrine } from '@/features/landing/conteudo';
 import { ProximaSecao } from '@/features/landing/ProximaSecao';
 
-/** Altura do cabeçalho fixo da landing (h-16): o topo "útil" da tela. */
-const TOPO = 64;
 const TELA_MEDIA = '(min-width: 768px)';
 const COM_MOVIMENTO = '(prefers-reduced-motion: no-preference)';
 
@@ -49,12 +47,11 @@ function desenhar(largura: number, alturaTela: number, n: number, medidor: SVGPa
  * "Como funciona" (opção 3): uma tela por etapa, com a linha em onda
  * desenhando-se até o ápice da etapa atual.
  *
- * - Em tela média ou maior, o scroll para em cada etapa (snap obrigatório,
- *   ligado no `<html>` só enquanto uma etapa ocupa a tela, para não prender o
- *   resto da página). "Pular para os casos" sai a qualquer momento.
+ * - Em tela média ou maior, cada etapa ocupa uma faixa alta com um brilho na
+ *   cor dela; o scroll é livre e "Pular para os casos" sai a qualquer momento.
  * - O texto da etapa sobe quando você desce e desce quando você sobe
  *   (`data-estado` + CSS em globals.css).
- * - Celular ou `prefers-reduced-motion`: lista comum, sem snap e sem animação.
+ * - Celular ou `prefers-reduced-motion`: lista comum, sem animação.
  * - Sem JS, tudo aparece: os estados só são aplicados depois de montar.
  */
 export function JornadaOnda({ etapas, hrefDepois }: { etapas: EtapaVitrine[]; hrefDepois: string }) {
@@ -97,33 +94,10 @@ export function JornadaOnda({ etapas, hrefDepois }: { etapas: EtapaVitrine[]; hr
     return () => observador.disconnect();
   }, [etapas.length]);
 
-  // Snap obrigatório só enquanto a lista de etapas cobre a tela inteira.
-  useEffect(() => {
-    const el = lista.current;
-    if (!el || !window.matchMedia) return;
-    const html = document.documentElement;
-    const pode = window.matchMedia(`${TELA_MEDIA} and ${COM_MOVIMENTO}`);
-    const atualizar = () => {
-      const r = el.getBoundingClientRect();
-      const dentro = pode.matches && r.top <= TOPO + 2 && r.bottom >= window.innerHeight - 2;
-      html.classList.toggle('jornada-snap', dentro);
-    };
-    atualizar();
-    window.addEventListener('scroll', atualizar, { passive: true });
-    window.addEventListener('resize', atualizar);
-    return () => {
-      window.removeEventListener('scroll', atualizar);
-      window.removeEventListener('resize', atualizar);
-      html.classList.remove('jornada-snap');
-    };
-  }, []);
-
-  // Sair da jornada pelo botão: solta o snap antes de pular.
-  const soltar = () => document.documentElement.classList.remove('jornada-snap');
   const ultima = etapas.length - 1;
 
   return (
-    <ol ref={lista} className="relative">
+    <ol ref={lista} className="relative isolate">
       <svg aria-hidden className="absolute h-0 w-0 overflow-hidden">
         <path ref={medidor} />
       </svg>
@@ -180,6 +154,13 @@ export function JornadaOnda({ etapas, hrefDepois }: { etapas: EtapaVitrine[]; hr
           key={etapa.numero}
           data-indice={i}
           data-estado={animar ? (i === ativo ? 'visivel' : i < ativo ? 'acima' : 'abaixo') : undefined}
+          data-ativo={i === ativo}
+          style={
+            {
+              '--cor-etapa': `var(--stage-${etapa.numero})`,
+              '--apice-x': i % 2 === 0 ? '38%' : '62%',
+            } as CSSProperties
+          }
           className="jornada-tela relative flex flex-col items-start gap-4 py-6 md:py-0"
         >
           <div
@@ -205,11 +186,11 @@ export function JornadaOnda({ etapas, hrefDepois }: { etapas: EtapaVitrine[]; hr
             </h3>
             <p className="max-w-[42ch] text-[0.95rem] leading-relaxed text-text-muted md:text-base">{etapa.descricao}</p>
             {i === ultima ? (
-              <ProximaSecao href={hrefDepois} destaque onClick={soltar} className="mt-1">
+              <ProximaSecao href={hrefDepois} destaque className="mt-1">
                 Veja quem já chegou lá
               </ProximaSecao>
             ) : (
-              <ProximaSecao href={hrefDepois} onClick={soltar} className="mt-1 hidden md:inline-flex">
+              <ProximaSecao href={hrefDepois} className="mt-1 hidden md:inline-flex">
                 Pular para os casos
               </ProximaSecao>
             )}

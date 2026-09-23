@@ -81,7 +81,7 @@ export function CarrosselCasos({
       }}
       className="flex flex-col gap-5"
     >
-      <div className="relative h-[17rem] overflow-x-clip sm:h-56">
+      <div className="relative isolate h-[17rem] overflow-x-clip sm:h-56">
         <div aria-live={rodando ? 'off' : 'polite'} className="absolute inset-0">
           {itens.map((item, i) => {
             const pos = posicao(i);
