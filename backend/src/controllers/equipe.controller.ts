@@ -21,7 +21,7 @@ import {
   type StatusEquipe,
 } from "../domain/enums.js";
 import { POSICAO_PRONTA, codigoBloqueio } from "../domain/transicao.js";
-import { LIMITE_LINHA_DO_TEMPO, montarLinhaDoTempo } from "../domain/linhaDoTempo.js";
+import { LIMITE_LINHA_DO_TEMPO } from "../domain/linhaDoTempo.js";
 import { classificarColega } from "../domain/membros.js";
 import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
@@ -735,34 +735,9 @@ export async function linhaDoTempo(req: Request, res: Response, next: NextFuncti
     if (!podeVerEquipe(req, controle.mentor_id, membros)) {
       throw httpError(403, "FORBIDDEN", "Equipe fora do seu escopo");
     }
-
-    const { historico, auditoria } = await equipeModel.eventosLinhaDoTempo(
-      controle.id,
-      LIMITE_LINHA_DO_TEMPO,
-    );
-    const data = montarLinhaDoTempo({
+    const data = await equipeModel.linhaDoTempo(controle.id, {
       paraAluno: req.auth.role === "aluno",
-      movimentos: historico.map((h) => ({
-        de:
-          h.status_origem === "pronta_inovamf"
-            ? "pronta"
-            : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
-        para:
-          h.status_destino === "pronta_inovamf"
-            ? "pronta"
-            : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
-        forcado: h.forcado,
-        observacao: h.observacao,
-        autor: h.usuarios?.nome ?? null,
-        em: h.criado_em,
-      })),
-      auditoria: auditoria.map((a) => ({
-        acao: a.acao,
-        antes: a.dados_anteriores,
-        depois: a.dados_novos,
-        autor: a.usuarios?.nome ?? null,
-        em: a.criado_em,
-      })),
+      limite: LIMITE_LINHA_DO_TEMPO,
     });
     res.json({ data });
   } catch (err) {

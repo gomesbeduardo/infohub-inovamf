@@ -93,3 +93,4 @@ routes.post("/equipes/:slug/lembrete", auth, role("admin", "mentor"), notificaca
 
 // --- Dashboard (RF-22) ---------------------------------------------------------
 routes.get("/dashboard", auth, role("admin", "mentor"), dashboardCtrl.show);
+routes.get("/dashboard/agenda", auth, role("admin", "mentor"), dashboardCtrl.agenda);
