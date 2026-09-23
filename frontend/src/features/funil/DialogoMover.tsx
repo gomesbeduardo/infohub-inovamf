@@ -8,6 +8,7 @@ import { Button } from '@/design-system/components/Button';
 import { FormField } from '@/design-system/components/FormField';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
+import { useToast } from '@/design-system/components/Toast';
 
 /** Posição no funil: etapas 1..6 e "pronta" (7). Só para comparar origem × destino. */
 export const POSICAO_PRONTA = 7;
@@ -69,6 +70,7 @@ export function DialogoMover({
 }) {
   const detalhe = useEquipe(equipe.slug);
   const mover = useMoverEtapa(equipe.slug);
+  const toast = useToast();
   const [observacao, setObservacao] = useState('');
   const [erroObs, setErroObs] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -94,7 +96,10 @@ export function DialogoMover({
       ? { etapa: destino, forcado: true, observacao: observacao.trim() }
       : { etapa: destino };
     mover.mutate(body, {
-      onSuccess: () => onClose(),
+      onSuccess: () => {
+        toast.sucesso(`${equipe.nomeIdeia} movida para ${destinoLabel}.`);
+        onClose();
+      },
       onError: (e) => {
         if (e instanceof ApiError && CODIGOS_FORCAR.includes(e.code)) {
           setRecusa(pendenciasDoErro(e));

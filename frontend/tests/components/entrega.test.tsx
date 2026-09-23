@@ -29,6 +29,7 @@ import {
 } from '@/data/api/consultas';
 import type { EquipeDetalhe, Entrega, ModeloTarefa, Tarefa } from '@/data/api/tipos';
 import { TarefaList } from '@/features/admin-tarefas/TarefaList';
+import { ToastProvider } from '@/design-system/components/Toast';
 
 type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
 
@@ -216,6 +217,18 @@ describe('AvaliarEntrega', () => {
       { entregaSlug: 'e-2', resultado: 'ajustar', comentario: 'Refazer o áudio do vídeo' },
       expect.anything(),
     );
+  });
+
+  it('aprovar confirma com toast', async () => {
+    avaliarMutate.mockImplementationOnce((_b: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.());
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <TarefaList equipe={EQUIPE} />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: /^aprovar$/i }));
+    expect(screen.getByRole('status')).toHaveTextContent('Entrega aprovada.');
   });
 });
 

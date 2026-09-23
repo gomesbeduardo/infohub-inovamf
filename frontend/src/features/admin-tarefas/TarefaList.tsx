@@ -9,6 +9,7 @@ import { Button } from '@/design-system/components/Button';
 import { PrazoChip } from '@/design-system/components/PrazoChip';
 import { AvaliarEntrega } from '@/features/admin-tarefas/AvaliarEntrega';
 import { NovaTarefaDialog } from '@/features/admin-tarefas/NovaTarefaDialog';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 /** Aba "Tarefas" do detalhe da equipe (admin/mentor): lista, entregas e avaliação. */
 export function TarefaList({ equipe }: { equipe: EquipeDetalhe }) {
@@ -22,7 +23,7 @@ export function TarefaList({ equipe }: { equipe: EquipeDetalhe }) {
       </div>
 
       {consulta.isPending ? (
-        <p className="text-sm text-text-muted">Carregando…</p>
+        <Skeleton linhas={3} />
       ) : consulta.isError ? (
         <div className="flex flex-col items-start gap-2">
           <p

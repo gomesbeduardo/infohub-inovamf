@@ -13,6 +13,7 @@ import { Avatar } from '@/design-system/components/Avatar';
 import { Badge } from '@/design-system/components/Badge';
 import { AlertIcon, CheckIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
+import { useToast } from '@/design-system/components/Toast';
 
 const TIPO_LABEL: Record<TipoUsuario, string> = {
   admin: 'Administração',
@@ -42,6 +43,7 @@ export function ContaPerfil() {
   const consulta = useMe();
   const atualizar = useAtualizarMe();
   const trocarSenha = useTrocarSenha();
+  const toast = useToast();
 
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -88,7 +90,7 @@ export function ContaPerfil() {
     atualizar.mutate(
       { nome: nome.trim(), telefone: telefone.trim() },
       {
-        onSuccess: () => setMsgDados({ ok: true, texto: 'Dados atualizados.' }),
+        onSuccess: () => toast.sucesso('Dados atualizados.'),
         onError: (err) =>
           setMsgDados({ ok: false, texto: err instanceof Error ? err.message : 'Não foi possível salvar.' }),
       },
@@ -117,7 +119,7 @@ export function ContaPerfil() {
           setAtual('');
           setSenha('');
           setConfirma('');
-          setMsgSenha({ ok: true, texto: 'Senha alterada.' });
+          toast.sucesso('Senha alterada.');
         },
         onError: (err) => {
           const texto =

@@ -198,6 +198,7 @@ describe('DetalheEquipe — ideia e membros', () => {
     vi.mocked(useEquipe).mockReturnValue({ isPending: true, isError: false } as unknown as R<typeof useEquipe>);
     render(<DetalheEquipe slug="agrosmart" />);
     expect(screen.getByText('Carregando…')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Carregando…');
   });
 
   it('erro da API mostra a mensagem e "Tentar de novo" chama refetch', async () => {

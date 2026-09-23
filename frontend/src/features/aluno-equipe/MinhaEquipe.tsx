@@ -21,6 +21,7 @@ import { LinhaDoTempo } from '@/features/equipe/LinhaDoTempo';
 import { MembrosLista } from '@/features/equipe/MembrosLista';
 import { ProximoPasso } from '@/features/aluno-equipe/ProximoPasso';
 import { POSICAO_PRONTA } from '@/features/funil/DialogoMover';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
 
@@ -33,7 +34,7 @@ function CarregandoOuErro({
   error: Error | null;
   refetch: () => void;
 }) {
-  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  if (isPending) return <Skeleton linhas={5} />;
   return (
     <div className="flex flex-col items-start gap-3">
       <p

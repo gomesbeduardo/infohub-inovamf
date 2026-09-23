@@ -8,6 +8,7 @@ import { Input } from '@/design-system/components/Input';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
+import { useToast } from '@/design-system/components/Toast';
 
 type Modo = 'modelo' | 'manual';
 
@@ -21,6 +22,7 @@ export function NovaTarefaDialog({
   const modelos = useModelos();
   const etapas = useEtapas();
   const criar = useCriarTarefa(equipeSlug);
+  const toast = useToast();
 
   const [aberto, setAberto] = useState(false);
   const [modo, setModo] = useState<Modo>('modelo');
@@ -73,7 +75,10 @@ export function NovaTarefaDialog({
             obrigatoria,
           };
     criar.mutate(body, {
-      onSuccess: () => fechar(),
+      onSuccess: () => {
+        fechar();
+        toast.sucesso('Tarefa criada.');
+      },
       onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível criar a tarefa.'),
     });
   }

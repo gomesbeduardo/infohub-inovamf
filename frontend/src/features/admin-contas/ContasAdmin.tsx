@@ -20,6 +20,7 @@ import { Badge } from '@/design-system/components/Badge';
 import { CopiarLink } from '@/design-system/components/CopiarLink';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { useToast } from '@/design-system/components/Toast';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 type Papel = Extract<TipoUsuario, 'admin' | 'mentor'>;
 
@@ -106,7 +107,10 @@ export function ContasAdmin() {
     criar.mutate(
       { nome: n, email: em, telefone: telefone.trim() || undefined, tipo: papel },
       {
-        onSuccess: (r) => setConviteCriado({ nome: r.nome, url: r.conviteUrl }),
+        onSuccess: (r) => {
+          setConviteCriado({ nome: r.nome, url: r.conviteUrl });
+          toast.sucesso(`Conta de ${r.nome} criada.`);
+        },
         onError: (err) => setErroForm(err instanceof Error ? err.message : 'Não foi possível criar a conta.'),
       },
     );
@@ -168,7 +172,7 @@ export function ContasAdmin() {
           </Button>
         </div>
       ) : consulta.isPending ? (
-        <p className="px-1 py-10 text-center text-sm text-text-muted">Carregando…</p>
+        <Skeleton linhas={4} className="px-1 py-6" />
       ) : contas.length === 0 ? (
         <EmptyState title="Nenhuma conta encontrada" description="Crie a primeira conta de administrador ou mentor." />
       ) : (
