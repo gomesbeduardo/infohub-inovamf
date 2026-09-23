@@ -3,9 +3,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const push = vi.fn();
+const nav = vi.hoisted(() => ({ busca: 'token=abc123' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams('token=abc123'),
+  useSearchParams: () => new URLSearchParams(nav.busca),
 }));
 
 vi.mock('@/data/api/consultas', () => ({
@@ -49,6 +50,16 @@ describe('AceitarConviteForm (/convite)', () => {
     refetch.mockClear();
     mutate.mockClear();
     mockAceitar();
+    nav.busca = 'token=abc123';
+  });
+
+  it('sem ?token mostra link inválido e o caminho para entrar (não fica em "Carregando…")', () => {
+    nav.busca = '';
+    mockPreview({ isPending: true }); // query desligada sem token fica pending para sempre
+    render(<AceitarConviteForm />);
+    expect(screen.getByText('Link de convite inválido ou incompleto.')).toBeInTheDocument();
+    expect(screen.queryByText(/carregando/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /entrar/i })).toHaveAttribute('href', '/login');
   });
 
   it('carregando mostra "Carregando…"', () => {
