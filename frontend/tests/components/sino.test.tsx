@@ -91,8 +91,12 @@ describe('SinoNotificacoes (B1)', () => {
     const user = userEvent.setup();
     render(<SinoNotificacoes usuario={ALUNO} />);
     await user.click(screen.getByRole('button', { name: /notificações/i }));
+    // Entra no painel com Tab; o Esc tem de devolver o foco ao sino.
+    await user.tab();
+    expect(screen.getByRole('button', { name: /notificações/i })).not.toHaveFocus();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('region', { name: 'Notificações' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /notificações/i })).toHaveFocus();
   });
 
   it('sem notificações mostra o estado vazio', async () => {

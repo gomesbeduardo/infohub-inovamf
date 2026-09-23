@@ -50,6 +50,7 @@ export function SinoNotificacoes({ usuario }: { usuario: UsuarioSessao }) {
   const [aberto, setAberto] = useState(false);
   const [vistoEm, setVistoEm] = useState<string | null>(null);
   const raiz = useRef<HTMLDivElement>(null);
+  const botao = useRef<HTMLButtonElement>(null);
   const painelId = useId();
 
   // localStorage só existe no cliente: lê depois de montar.
@@ -60,7 +61,11 @@ export function SinoNotificacoes({ usuario }: { usuario: UsuarioSessao }) {
   useEffect(() => {
     if (!aberto) return;
     const tecla = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAberto(false);
+      // Fechar pelo teclado devolve o foco ao sino (não some no <body>).
+      if (e.key === 'Escape') {
+        setAberto(false);
+        botao.current?.focus();
+      }
     };
     const clique = (e: MouseEvent) => {
       if (!raiz.current?.contains(e.target as Node)) setAberto(false);
@@ -88,6 +93,7 @@ export function SinoNotificacoes({ usuario }: { usuario: UsuarioSessao }) {
   return (
     <div ref={raiz} className="relative">
       <button
+        ref={botao}
         type="button"
         onClick={alternar}
         aria-expanded={aberto}
