@@ -4,7 +4,7 @@ import { api, requisicao } from './http';
 import { sessao, type RespostaSessao } from './sessao';
 import type {
   Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
-  FiltrosEquipes, Me, ModeloTarefa, NumerosPublicos, Pagina, Posicao, Tarefa, UsuarioAdmin,
+  FiltrosEquipes, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa, UsuarioAdmin,
 } from './tipos';
 
 function qs(f: object): string {
@@ -29,6 +29,7 @@ export const chaves = {
   convite: (token: string) => ['convite', token] as const,
   me: ['me'] as const,
   publicoNumeros: ['publico', 'numeros'] as const,
+  notificacoes: ['notificacoes'] as const,
 };
 
 // ── Referência ────────────────────────────────────────────────────────────────
@@ -261,6 +262,16 @@ export function useTrocarSenha() {
     onSuccess: (r) => sessao.aplicar(r),
   });
 }
+
+// ── Notificações (B1) ────────────────────────────────────────────────────────
+/** Inbox do sino. Consulta a cada 60 s e quando a janela volta a ter foco. */
+export const useNotificacoes = () =>
+  useQuery({
+    queryKey: chaves.notificacoes,
+    queryFn: () => api<Pagina<Notificacao>>('/notificacoes?perPage=20').then((r) => r.data),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
 
 // ── Público (landing) ────────────────────────────────────────────────────────
 export const useNumerosPublicos = () =>

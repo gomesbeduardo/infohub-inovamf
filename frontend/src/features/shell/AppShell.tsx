@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/design-system/components/ThemeToggle';
 import { LogoutIcon, ArrowLeftIcon, UserIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
 import { navFor, homeFor, type NavItem } from '@/features/shell/nav';
+import { SinoNotificacoes } from '@/features/shell/SinoNotificacoes';
 
 type Largura = 'estreita' | 'media' | 'ampla';
 
@@ -73,6 +74,7 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
             <Logo />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
+            {usuario && <SinoNotificacoes usuario={usuario} />}
             {usuario && (
               <Link
                 href="/conta"
