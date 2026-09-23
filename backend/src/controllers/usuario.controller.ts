@@ -197,6 +197,11 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     if (!alvo) {
       throw httpError(404, "USUARIO_NOT_FOUND", "Usuário não encontrado");
     }
+    // Ninguém tira o próprio acesso: desativar a si mesmo ou sair de admin
+    // trancaria a pessoa fora (e, sendo o único admin, o sistema inteiro).
+    if (alvo.id === idDoChamador(req) && (data.ativo === false || (data.tipo_usuario && data.tipo_usuario !== "admin"))) {
+      throw httpError(409, "PROPRIA_CONTA", "Você não pode desativar nem rebaixar a própria conta");
+    }
 
     const atualizado = await usuarioModel.atualizarPorSlug(slug, data);
 
