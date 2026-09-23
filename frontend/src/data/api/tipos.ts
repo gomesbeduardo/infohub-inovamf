@@ -66,6 +66,24 @@ export interface Dashboard {
   serieSemanal: Array<{ semanaInicio: string; rotulo: string; avancos: number; entregas: number }>;
 }
 
+// ── Agenda (adendo 23/09): GET /dashboard/agenda ─────────────────────────────
+/** "Para avaliar": tarefa entregue esperando avaliação (prazo mais antigo primeiro). */
+export interface ItemParaAvaliar {
+  equipe: { slug: string; nomeIdeia: string }; tarefa: { slug: string; titulo: string };
+  versao: number | null; entregueEm: string | null;
+}
+/** "Prazos": atrasadas + as que vencem em até 7 dias; `status` é o efetivo (RN-04). */
+export interface ItemPrazo {
+  equipe: { slug: string; nomeIdeia: string }; tarefa: { slug: string; titulo: string };
+  dataEntrega: string; status: StatusTarefa;
+}
+/** Cartão da "mesa do mentor" (a lista vem vazia para o admin). */
+export interface CartaoEquipeMesa {
+  slug: string; nomeIdeia: string; status: StatusEquipe; etapa: EtapaRef; membrosAtivos: number;
+  faltamParaAvancar: number; ultimoEvento: { titulo: string; em: string } | null;
+}
+export interface Agenda { paraAvaliar: ItemParaAvaliar[]; prazos: ItemPrazo[]; equipes: CartaoEquipeMesa[] }
+
 /** GET /publico/numeros — agregados reais para o hero da landing (issue #157). */
 export interface NumerosPublicos {
   ideias: number; equipesEmAndamento: number; alunos: number; cursos: number;
