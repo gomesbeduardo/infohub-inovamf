@@ -194,6 +194,18 @@ export function useCriarTarefa(equipeSlug: string) {
   });
 }
 
+/** A3/RF-12: o aluno marca "Comecei" (pendente → em andamento). */
+export function useIniciarTarefa(equipeSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tarefaSlug: string) => api<Tarefa>(`/tarefas/${tarefaSlug}/iniciar`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: chaves.tarefas(equipeSlug) });
+      void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) });
+    },
+  });
+}
+
 export const useEntregas = (tarefaSlug: string) =>
   useQuery({
     queryKey: chaves.entregas(tarefaSlug),

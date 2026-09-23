@@ -14,6 +14,7 @@ const emails = {
   mentor: `mentor.${sufixo}@teste.local`,
   mentor2: `mentor2.${sufixo}@teste.local`,
   aluno: `aluno.${sufixo}@teste.local`,
+  integrante: `integrante.${sufixo}@teste.local`,
   outsider: `outsider.${sufixo}@teste.local`,
 };
 
@@ -21,6 +22,7 @@ let adminAccess = "";
 let mentorAccess = "";
 let mentor2Access = "";
 let alunoAccess = "";
+let integranteAccess = "";
 let outsiderAccess = "";
 let teamSlug = "";
 let taskSlug = "";
@@ -57,12 +59,14 @@ beforeAll(async () => {
   const mentorSlug = await criarUsuario(emails.mentor, "mentor");
   await criarUsuario(emails.mentor2, "mentor");
   const alunoSlug = await criarUsuario(emails.aluno, "aluno");
+  const integranteSlug = await criarUsuario(emails.integrante, "aluno");
   await criarUsuario(emails.outsider, "aluno");
 
   adminAccess = await login(emails.admin);
   mentorAccess = await login(emails.mentor);
   mentor2Access = await login(emails.mentor2);
   alunoAccess = await login(emails.aluno);
+  integranteAccess = await login(emails.integrante);
   outsiderAccess = await login(emails.outsider);
 
   const eq = await request(app)
@@ -76,11 +80,16 @@ beforeAll(async () => {
     });
   teamSlug = eq.body.slug;
 
+  // `aluno` é o líder (só ele envia entregas); `integrante` só acompanha.
   const teamId = fromSlug(teamSlug);
   const alunoId = fromSlug(alunoSlug);
-  if (teamId && alunoId) {
+  const integranteId = fromSlug(integranteSlug);
+  if (teamId && alunoId && integranteId) {
     await prisma.equipe_membros.create({
-      data: { equipe_id: teamId, usuario_id: alunoId, papel: "integrante" },
+      data: { equipe_id: teamId, usuario_id: alunoId, papel: "lider" },
+    });
+    await prisma.equipe_membros.create({
+      data: { equipe_id: teamId, usuario_id: integranteId, papel: "integrante" },
     });
   }
 
@@ -150,6 +159,40 @@ describe("POST /tarefas/:slug/entregas", () => {
       .set(bearer(outsiderAccess))
       .send({ links: ["https://x.com/y"] });
     expect(res.status).toBe(403);
+  });
+
+  it("403 APENAS_LIDER: integrante não líder não envia, nenhuma entrega criada", async () => {
+    const antes = await request(app)
+      .get(`/api/v1/tarefas/${taskSlug}/entregas`)
+      .set(bearer(alunoAccess));
+    const res = await request(app)
+      .post(`/api/v1/tarefas/${taskSlug}/entregas`)
+      .set(bearer(integranteAccess))
+      .send({ links: ["https://x.com/integrante"] });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("APENAS_LIDER");
+    const depois = await request(app)
+      .get(`/api/v1/tarefas/${taskSlug}/entregas`)
+      .set(bearer(alunoAccess));
+    expect(depois.body.data.length).toBe(antes.body.data.length);
+  });
+
+  it("403 APENAS_LIDER: mentor não envia entrega", async () => {
+    const res = await request(app)
+      .post(`/api/v1/tarefas/${taskSlug}/entregas`)
+      .set(bearer(mentorAccess))
+      .send({ links: ["https://x.com/mentor"] });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("APENAS_LIDER");
+  });
+
+  it("403 APENAS_LIDER: admin não envia entrega", async () => {
+    const res = await request(app)
+      .post(`/api/v1/tarefas/${taskSlug}/entregas`)
+      .set(bearer(adminAccess))
+      .send({ links: ["https://x.com/admin"] });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("APENAS_LIDER");
   });
 
   it("reenvio gera versão 2 (RF-16)", async () => {

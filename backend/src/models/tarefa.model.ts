@@ -18,7 +18,7 @@ const DETALHE_SELECT = {
       slug: true,
       nome_ideia: true,
       mentor_id: true,
-      equipe_membros: { where: { ativo: true }, select: { usuario_id: true } },
+      equipe_membros: { where: { ativo: true }, select: { usuario_id: true, papel: true } },
     },
   },
 } satisfies Prisma.tarefasSelect;

@@ -21,6 +21,15 @@ export function podeVerEquipe(
   return membros.includes(id);
 }
 
+// Enviar entrega / marcar tarefa como iniciada: só o aluno líder ativo da
+// equipe (decisão do dono do produto). `membros` já vem filtrado por ativo.
+export function ehLiderAtivo(
+  membros: Array<{ usuario_id: string; papel: string }>,
+  usuarioId: string,
+): boolean {
+  return membros.some((m) => m.usuario_id === usuarioId && m.papel === "lider");
+}
+
 // Gerir (criar tarefa, avaliar entrega, mover etapa): só admin ou mentor da equipe.
 export function podeGerirEquipe(req: Request, mentorId: string | null): boolean {
   if (req.auth.role === "admin") return true;

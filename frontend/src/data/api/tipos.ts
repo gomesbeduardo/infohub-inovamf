@@ -42,7 +42,7 @@ export interface MovimentoHistorico {
 export interface EquipeDetalhe {
   slug: string; nomeIdeia: string; descricaoIdeia: string; estagio: EstagioIdeia; status: StatusEquipe;
   origemDivulgacao: string | null; prontaInovamfEm: string | null; criadoEm: string; etapa: EtapaRef;
-  area: string | null; ciclo: string | null; mentor: Ref | null; membros: Membro[];
+  area: string | null; ciclo: string | null; mentor: Ref | null; souLider: boolean; membros: Membro[];
   historico: MovimentoHistorico[]; pendenciasParaAvancar: Pendencia[];
 }
 

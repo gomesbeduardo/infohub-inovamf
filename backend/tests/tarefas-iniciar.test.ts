@@ -12,22 +12,29 @@ const email = (n: string) => `${n}.${sufixo}@teste.local`;
 let adminAccess = "";
 let mentorAccess = "";
 let alunoAccess = "";
+let integranteAccess = "";
 let foraAccess = "";
 let tarefaSlug = "";
+let tarefaSlug2 = "";
 
 beforeAll(async () => {
   await criarUsuario(email("admin"), "admin");
   const mentor = await criarUsuario(email("mentor"), "mentor");
   const aluno = await criarUsuario(email("aluno"), "aluno");
+  const integrante = await criarUsuario(email("integrante"), "aluno");
   await criarUsuario(email("fora"), "aluno");
   adminAccess = await login(app, email("admin"));
   mentorAccess = await login(app, email("mentor"));
   alunoAccess = await login(app, email("aluno"));
+  integranteAccess = await login(app, email("integrante"));
   foraAccess = await login(app, email("fora"));
   const equipe = await criarEquipe({
     nome: `Iniciar ${sufixo}`,
     mentorId: mentor.id,
-    membros: [{ id: aluno.id, papel: "lider" }],
+    membros: [
+      { id: aluno.id, papel: "lider" },
+      { id: integrante.id, papel: "integrante" },
+    ],
   });
   const t = await request(app)
     .post(`/api/v1/equipes/${equipe.slug}/tarefas`)
@@ -35,6 +42,13 @@ beforeAll(async () => {
     .send({ titulo: "Tarefa a começar", etapa: 1, dataEntrega: "2099-12-31" });
   expect(t.status).toBe(201);
   tarefaSlug = t.body.slug;
+
+  const t2 = await request(app)
+    .post(`/api/v1/equipes/${equipe.slug}/tarefas`)
+    .set(bearer(adminAccess))
+    .send({ titulo: "Outra tarefa a começar", etapa: 1, dataEntrega: "2099-12-31" });
+  expect(t2.status).toBe(201);
+  tarefaSlug2 = t2.body.slug;
 });
 
 afterAll(async () => {
@@ -57,6 +71,17 @@ describe("POST /tarefas/:slug/iniciar", () => {
       .set(bearer(alunoAccess));
     expect(r.status).toBe(404);
     expect(r.body.error.code).toBe("TAREFA_NOT_FOUND");
+  });
+
+  it("403 APENAS_LIDER: integrante não líder não marca 'Comecei', tarefa continua pendente", async () => {
+    const r = await request(app)
+      .post(`/api/v1/tarefas/${tarefaSlug2}/iniciar`)
+      .set(bearer(integranteAccess));
+    expect(r.status).toBe(403);
+    expect(r.body.error.code).toBe("APENAS_LIDER");
+
+    const det = await request(app).get(`/api/v1/tarefas/${tarefaSlug2}`).set(bearer(alunoAccess));
+    expect(det.body.status).toBe("pendente");
   });
 
   it("aluno da equipe começa a tarefa pendente → em_andamento", async () => {

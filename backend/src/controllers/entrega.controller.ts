@@ -3,6 +3,7 @@ import { httpError } from "../utils/error.js";
 import { fromSlug, toSlug } from "../utils/slug.js";
 import { ehUrlHttps } from "../utils/text.js";
 import {
+  ehLiderAtivo,
   idDoChamador,
   ipDoChamador,
   podeGerirEquipe,
@@ -55,7 +56,8 @@ function mapEntrega(e: EntregaView) {
   };
 }
 
-// POST /tarefas/:slug/entregas — membro da equipe envia entrega (RF-14/16).
+// POST /tarefas/:slug/entregas — só o aluno líder da equipe envia entrega
+// (decisão do dono do produto, 23/09; RF-14/16).
 export async function store(req: Request, res: Response, next: NextFunction) {
   try {
     const tarefaId = fromSlug(req.params.slug ?? "");
@@ -65,6 +67,9 @@ export async function store(req: Request, res: Response, next: NextFunction) {
     const membros = tarefa.equipes.equipe_membros.map((m) => m.usuario_id);
     if (!podeVerEquipe(req, tarefa.equipes.mentor_id, membros)) {
       throw httpError(403, "FORBIDDEN", "Tarefa fora do seu escopo");
+    }
+    if (req.auth.role !== "aluno" || !ehLiderAtivo(tarefa.equipes.equipe_membros, idDoChamador(req))) {
+      throw httpError(403, "APENAS_LIDER", "Só o líder da equipe envia entregas");
     }
 
     const { links, comentario } = req.body ?? {};
