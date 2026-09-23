@@ -81,7 +81,7 @@ export function PainelOrientador() {
           <div className="flex flex-col gap-0.5">
             <h3 className="text-sm font-semibold text-text">Ritmo das últimas semanas</h3>
             <p className="text-sm text-text-muted">
-              Avanços de etapa e entregas concluídas das suas equipes.
+              Avanços de etapa, entregas recebidas e avaliadas, e tarefas concluídas das suas equipes.
             </p>
           </div>
           {totalEquipes === 0 ? (
@@ -90,17 +90,27 @@ export function PainelOrientador() {
             <LineChart
               className="w-full"
               labels={serieSemanal.map((p) => p.rotulo)}
-              ariaLabel="Gráfico de linha com avanços de etapa e entregas concluídas por semana"
+              ariaLabel="Gráfico de linha com avanços de etapa, entregas recebidas, entregas avaliadas e tarefas concluídas por semana"
               series={[
                 {
                   nome: 'Avanços de etapa',
-                  cor: 'var(--primary)',
+                  cor: 'var(--series-1)',
                   valores: serieSemanal.map((p) => p.avancos),
                 },
                 {
-                  nome: 'Entregas concluídas',
-                  cor: 'var(--accent)',
-                  valores: serieSemanal.map((p) => p.entregas),
+                  nome: 'Entregas recebidas',
+                  cor: 'var(--series-2)',
+                  valores: serieSemanal.map((p) => p.entregasRecebidas),
+                },
+                {
+                  nome: 'Entregas avaliadas',
+                  cor: 'var(--series-3)',
+                  valores: serieSemanal.map((p) => p.entregasAvaliadas),
+                },
+                {
+                  nome: 'Tarefas concluídas',
+                  cor: 'var(--series-4)',
+                  valores: serieSemanal.map((p) => p.tarefasConcluidas),
                 },
               ]}
             />

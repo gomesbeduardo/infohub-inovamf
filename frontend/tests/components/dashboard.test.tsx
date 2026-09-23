@@ -44,8 +44,24 @@ const DASHBOARD: Dashboard = {
     { numero: 6, nome: 'Encontro 4', total: 0 },
   ],
   serieSemanal: [
-    { semanaInicio: '2026-08-03', rotulo: '03/08', avancos: 2, entregas: 5 },
-    { semanaInicio: '2026-08-10', rotulo: '10/08', avancos: 1, entregas: 3 },
+    {
+      semanaInicio: '2026-08-03',
+      rotulo: '03/08',
+      avancos: 2,
+      entregasRecebidas: 4,
+      entregasAvaliadas: 3,
+      tarefasConcluidas: 5,
+      entregas: 5,
+    },
+    {
+      semanaInicio: '2026-08-10',
+      rotulo: '10/08',
+      avancos: 1,
+      entregasRecebidas: 2,
+      entregasAvaliadas: 2,
+      tarefasConcluidas: 3,
+      entregas: 3,
+    },
   ],
 };
 
@@ -149,16 +165,22 @@ describe('PainelOrientador', () => {
     expect(screen.getByText('Prontas p/ InovAMF').closest('button')).toHaveTextContent('3');
   });
 
-  it('o gráfico recebe a serieSemanal (rotulo/avancos/entregas) da API', () => {
+  it('o gráfico recebe a serieSemanal (rotulo + as quatro contagens) da API, com as 4 séries na legenda', () => {
     mockDashboard({});
     const { container } = render(<PainelOrientador />);
 
     const grafico = within(container).getByRole('img', {
-      name: /gráfico de linha com avanços de etapa e entregas concluídas por semana/i,
+      name: /gráfico de linha com avanços de etapa, entregas recebidas, entregas avaliadas e tarefas concluídas por semana/i,
     });
     expect(grafico).toBeInTheDocument();
     expect(screen.getByText('03/08')).toBeInTheDocument();
     expect(screen.getByText('10/08')).toBeInTheDocument();
+
+    const legenda = screen.getByRole('group', { name: 'Selecionar séries do gráfico' });
+    expect(within(legenda).getByRole('button', { name: /Avanços de etapa/ })).toBeInTheDocument();
+    expect(within(legenda).getByRole('button', { name: /Entregas recebidas/ })).toBeInTheDocument();
+    expect(within(legenda).getByRole('button', { name: /Entregas avaliadas/ })).toBeInTheDocument();
+    expect(within(legenda).getByRole('button', { name: /Tarefas concluídas/ })).toBeInTheDocument();
   });
 
   it('carregando mostra "Carregando…"', () => {

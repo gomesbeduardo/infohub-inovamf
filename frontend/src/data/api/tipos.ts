@@ -63,7 +63,16 @@ export interface Anotacao { slug: string; conteudo: string; autor: Ref; etapa: n
 export interface Dashboard {
   equipesAtivas: number; prontasInovamf: number; totalEquipes: number; tarefasAtrasadas: number; aAvaliar: number;
   porEtapa: Array<{ numero: number; nome: string; total: number }>;
-  serieSemanal: Array<{ semanaInicio: string; rotulo: string; avancos: number; entregas: number }>;
+  serieSemanal: Array<{
+    semanaInicio: string;
+    rotulo: string;
+    avancos: number;
+    entregasRecebidas: number;
+    entregasAvaliadas: number;
+    tarefasConcluidas: number;
+    /** @deprecated alias de `tarefasConcluidas` — mantido pela API por compatibilidade. */
+    entregas: number;
+  }>;
 }
 
 // ── Agenda (adendo 23/09): GET /dashboard/agenda ─────────────────────────────
