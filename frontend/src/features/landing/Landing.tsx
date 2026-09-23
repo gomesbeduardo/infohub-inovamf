@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Logo } from '@/design-system/Logo';
-import { Button } from '@/design-system/components/Button';
 import { Card } from '@/design-system/components/Card';
 import { Badge } from '@/design-system/components/Badge';
 import { StageTag } from '@/design-system/components/StageTag';
@@ -15,22 +15,27 @@ import {
   MailIcon,
   UploadIcon,
   DashboardIcon,
-  TargetIcon,
   CalendarIcon,
   RocketIcon,
-  CheckIcon,
   ChevronRightIcon,
+  MapPinIcon,
+  PhoneIcon,
   type IconProps,
 } from '@/design-system/icons';
+import { cn } from '@/design-system/cn';
 import { LandingHeader } from '@/features/landing/LandingHeader';
-import { FunilVisual } from '@/features/landing/FunilVisual';
+import { HeroTransformacao } from '@/features/landing/HeroTransformacao';
 import { NumerosVitrine } from '@/features/landing/NumerosVitrine';
-import { TituloRevelado } from '@/features/landing/TituloRevelado';
+import { JornadaOnda } from '@/features/landing/JornadaOnda';
+import { CarrosselCasos } from '@/features/landing/CarrosselCasos';
+import { ProximaSecao } from '@/features/landing/ProximaSecao';
 import {
   AREAS_VITRINE,
   CASOS_VITRINE,
+  CONTATO_AMF,
   EQUIPES_VITRINE,
   ETAPAS_VITRINE,
+  FOTO_AMF,
   type CasoVitrine,
 } from '@/features/landing/conteudo';
 
@@ -94,29 +99,16 @@ const RECURSOS: Bloco[] = [
   },
 ];
 
-function TituloSecao({
-  etiqueta,
-  titulo,
-  texto,
-}: {
-  etiqueta: string;
-  titulo: string;
-  texto?: string;
-}) {
+const BOTAO_PRINCIPAL =
+  'inline-flex h-12 items-center justify-center gap-2 rounded-[0.625rem] bg-primary px-6 text-[0.95rem] font-medium tracking-[-0.01em] text-primary-fg shadow-sm transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+
+function TituloSecao({ id, titulo, texto }: { id: string; titulo: string; texto?: string }) {
   return (
     <div className="max-w-2xl">
-      <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-primary-text">
-        {etiqueta}
-      </p>
-      <TituloRevelado
-        texto={titulo}
-        className="mt-2 font-display text-2xl font-bold tracking-tight text-text sm:text-3xl"
-      />
-      {texto && (
-        <p className="mt-3 text-[0.95rem] leading-relaxed text-text-muted">
-          {texto}
-        </p>
-      )}
+      <h2 id={id} className="font-display text-2xl font-bold tracking-tight text-text sm:text-3xl">
+        {titulo}
+      </h2>
+      {texto && <p className="mt-3 text-[0.95rem] leading-relaxed text-text-muted">{texto}</p>}
     </div>
   );
 }
@@ -163,95 +155,113 @@ function CardEquipe({
   );
 }
 
+/** "Aberto a todos os cursos" (opção 2b): foto da AMF no card inteiro, com véu. */
+function CardCursos() {
+  return (
+    <div
+      className={cn(
+        'relative mt-10 flex items-end overflow-hidden rounded-[var(--radius-lg)] border border-border bg-auth-hero',
+        FOTO_AMF && 'min-h-[24rem]',
+      )}
+    >
+      {FOTO_AMF && (
+        <Image
+          src={FOTO_AMF.src}
+          alt={FOTO_AMF.alt}
+          fill
+          sizes="(min-width: 1152px) 1152px, 100vw"
+          className="object-cover"
+        />
+      )}
+      <div aria-hidden className="veu-foto absolute inset-0" />
+      <div className="relative flex max-w-3xl flex-col gap-3 p-6 sm:p-8">
+        <h3 className="font-display text-2xl font-bold tracking-tight text-white">
+          Aberto a todos os cursos da AMF
+        </h3>
+        <p className="text-[0.95rem] leading-relaxed text-white/80">
+          Não é preciso ser da tecnologia nem ter um protótipo pronto.
+        </p>
+        <ul className="mt-1 flex flex-wrap gap-2">
+          {CURSOS_AMF.map((c) => (
+            <li key={c} className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
+              {c}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Página pública do InfoHub: explica o programa, mostra a jornada de seis
  * etapas, quem está participando e os casos concluídos, e leva às duas portas
- * de entrada — enviar a ideia (cadastro) ou entrar (login).
+ * de entrada — enviar a ideia (cadastro) ou entrar (login). Cada seção termina
+ * num botão para a próxima.
  */
 export function Landing() {
   return (
     <div className="min-h-screen bg-bg">
       <LandingHeader />
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="bg-hero-glow">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-          <div className="motion-fade">
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.08] tracking-tight text-text sm:text-5xl">
-              <span className="revelar-linha">
-                <span style={{ '--i': 0 } as CSSProperties}>Você tem uma ideia.</span>
+      {/* ── Hero: tela cheia, brilho sob o cabeçalho transparente ──────────── */}
+      <section aria-labelledby="titulo-hero" className="landing-brilho relative -mt-16 pt-16">
+        <div className="mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl items-center gap-12 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+          <div>
+            <h1
+              id="titulo-hero"
+              className="font-display text-4xl font-bold leading-[1.06] tracking-tight text-text sm:text-5xl lg:text-[3.5rem]"
+            >
+              <span className="hero-linha block" style={{ '--i': 0 } as CSSProperties}>
+                Você tem uma ideia.
               </span>
-              <br />
-              <span className="revelar-linha">
-                <span style={{ '--i': 1 } as CSSProperties}>Aqui ela vira um negócio.</span>
+              <span className="hero-linha block" style={{ '--i': 1 } as CSSProperties}>
+                Aqui ela vira um negócio.
               </span>
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-text-muted sm:text-lg">
-              O InfoHub é o laboratório de empreendedorismo da AMF: seis etapas
-              de mentoria que levam o seu esboço até um MVP pronto para o centro
-              de inovação InovAMF. Envie a ideia — mesmo que ainda esteja crua.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/cadastro">
-                <Button size="lg" className="w-full sm:w-auto">
+            <div className="hero-apoio">
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-text-muted sm:text-lg">
+                O InfoHub é o laboratório de empreendedorismo da AMF: seis etapas
+                de mentoria que levam o seu esboço até um MVP pronto para o centro
+                de inovação InovAMF. Envie a ideia — mesmo que ainda esteja crua.
+              </p>
+              <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <Link href="/cadastro" className={BOTAO_PRINCIPAL}>
                   Enviar minha ideia
                   <ChevronRightIcon size={18} />
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  className="w-full sm:w-auto"
-                >
-                  Já participo — entrar
-                </Button>
-              </Link>
+                </Link>
+                <ProximaSecao href="#o-que-e">Conheça o InfoHub</ProximaSecao>
+              </div>
+              <p className="mt-4 text-xs text-text-subtle">
+                O envio da ideia já cria a sua conta de acesso. Leva poucos minutos.
+              </p>
+              <NumerosVitrine />
             </div>
-            <p className="mt-4 text-xs text-text-subtle">
-              O envio da ideia já cria a sua conta de acesso. Leva poucos
-              minutos.
-            </p>
-
-            <NumerosVitrine />
           </div>
 
-          <div className="motion-fade lg:pl-4">
-            <FunilVisual />
-          </div>
+          <HeroTransformacao />
         </div>
       </section>
 
       {/* ── O que é ──────────────────────────────────────────────────────── */}
-      <SpotlightField
-        id="o-que-e"
-        className="scroll-mt-20 border-t border-border py-16 sm:py-20"
-      >
+      <SpotlightField id="o-que-e" className="border-t border-border py-16 sm:py-24">
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
-            etiqueta="O que é"
+            id="titulo-o-que-e"
             titulo="Um laboratório para tirar a ideia do papel"
             texto="No InfoHub, alunos de qualquer curso da AMF desenvolvem uma ideia de negócio até o MVP, com apoio de mentores e um roteiro claro do começo ao fim."
           />
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {PILARES.map(({ icone: Icone, titulo, texto }) => (
-              <SpotlightCard key={titulo} className="h-full">
-                <Card.Body>
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-[0.875rem] bg-primary-soft text-primary-text">
-                    <Icone size={22} />
-                  </span>
-                  <h3 className="mt-4 font-display text-base font-bold tracking-tight text-text">
-                    {titulo}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                    {texto}
-                  </p>
-                </Card.Body>
-              </SpotlightCard>
+              <li key={titulo} className="border-t-2 border-border-strong pt-5">
+                <Icone size={22} className="text-primary-text" />
+                <h3 className="mt-3 font-display text-base font-bold tracking-tight text-text">{titulo}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-text-muted">{texto}</p>
+              </li>
             ))}
-          </div>
+          </ul>
 
-          <div className="mt-8 flex flex-wrap items-center gap-2">
+          <div className="mt-10 flex flex-wrap items-center gap-2">
             <span className="text-sm text-text-muted">Áreas das ideias:</span>
             {AREAS_VITRINE.map((a) => (
               <Badge key={a} tone="brand">
@@ -259,82 +269,52 @@ export function Landing() {
               </Badge>
             ))}
           </div>
-        </div>
-      </SpotlightField>
 
-      {/* ── Como funciona ────────────────────────────────────────────────── */}
-      <section
-        id="como-funciona"
-        className="scroll-mt-20 border-t border-border bg-surface-sunken py-16 sm:py-20"
-      >
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <TituloSecao
-            etiqueta="Como funciona"
-            titulo="Seis etapas, um entregável em cada uma"
-            texto="A jornada segue a cartilha do InfoHub. Você sempre sabe em que etapa está, o que precisa entregar e até quando."
-          />
-          <ol className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {ETAPAS_VITRINE.map((etapa) => (
-              <li key={etapa.numero}>
-                <Card className="h-full">
-                  <Card.Body className="flex h-full flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold text-[color:var(--primary-fg)] shadow-sm"
-                        style={{ background: `var(--stage-${etapa.numero})` }}
-                      >
-                        {etapa.numero}
-                      </span>
-                      <h3 className="font-display text-base font-bold tracking-tight text-text">
-                        {etapa.nome}
-                      </h3>
-                    </div>
-                    <p className="flex items-start gap-2 text-sm leading-relaxed text-text-muted">
-                      <CheckIcon
-                        size={16}
-                        className="mt-0.5 shrink-0 text-success-text"
-                      />
-                      <span>
-                        <span className="font-medium text-text">
-                          Entregável:{' '}
-                        </span>
-                        {etapa.entregavel}
-                      </span>
-                    </p>
-                  </Card.Body>
-                </Card>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid gap-5 rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-sm sm:grid-cols-2 sm:p-8 lg:grid-cols-4">
             {RECURSOS.map(({ icone: Icone, titulo, texto }) => (
               <div key={titulo} className="flex gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.75rem] border border-border bg-surface text-primary-text">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-primary-soft text-primary-text">
                   <Icone size={20} />
                 </span>
                 <div>
-                  <h3 className="font-display text-sm font-bold tracking-tight text-text">
-                    {titulo}
-                  </h3>
-                  <p className="mt-1 text-sm leading-relaxed text-text-muted">
-                    {texto}
-                  </p>
+                  <h3 className="font-display text-sm font-bold tracking-tight text-text">{titulo}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-text-muted">{texto}</p>
                 </div>
               </div>
             ))}
+          </div>
+
+          <ProximaSecao href="#como-funciona" className="mt-10">
+            Como funciona
+          </ProximaSecao>
+        </div>
+      </SpotlightField>
+
+      {/* ── Como funciona: uma tela por etapa ───────────────────────────── */}
+      <section
+        id="como-funciona"
+        aria-labelledby="titulo-como-funciona"
+        className="border-t border-border bg-surface-sunken pb-10 md:pb-0"
+      >
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+          <div className="jornada-borda pt-16 sm:pt-24">
+            <TituloSecao
+              id="titulo-como-funciona"
+              titulo="Seis etapas, um entregável em cada uma"
+              texto="A jornada segue a cartilha do InfoHub. Você sempre sabe em que etapa está, o que precisa entregar e até quando."
+            />
+          </div>
+          <div className="mt-8 md:mt-0">
+            <JornadaOnda etapas={ETAPAS_VITRINE} hrefDepois="#casos" />
           </div>
         </div>
       </section>
 
       {/* ── Quem participa ───────────────────────────────────────────────── */}
-      <SpotlightField
-        id="equipes"
-        className="scroll-mt-20 border-t border-border py-16 sm:py-20"
-      >
+      <SpotlightField id="equipes" className="jornada-borda border-t border-border py-16 sm:py-24">
         <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
-            etiqueta="Equipes"
+            id="titulo-equipes"
             titulo="Quem está no InfoHub agora"
             texto="Equipes de cursos diferentes desenvolvendo ideias em paralelo — a mistura entre áreas é parte do método."
           />
@@ -344,81 +324,65 @@ export function Landing() {
             ))}
           </div>
 
-          <div className="mt-10 rounded-[1.25rem] border border-border bg-surface p-6 shadow-sm sm:p-8">
-            <div className="flex items-start gap-3">
-              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.75rem] bg-primary-soft text-primary-text">
-                <TargetIcon size={20} />
-              </span>
-              <div>
-                <h3 className="font-display text-base font-bold tracking-tight text-text">
-                  Aberto a todos os cursos da AMF
-                </h3>
-                <p className="mt-1 text-sm leading-relaxed text-text-muted">
-                  Não é preciso ser da tecnologia nem ter um protótipo pronto.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {CURSOS_AMF.map((c) => (
-                    <Badge key={c}>{c}</Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <CardCursos />
+
+          <ProximaSecao href="#casos" className="mt-10">
+            Veja os casos
+          </ProximaSecao>
         </div>
       </SpotlightField>
 
       {/* ── Casos ────────────────────────────────────────────────────────── */}
       <section
         id="casos"
-        className="scroll-mt-20 border-t border-border bg-surface-sunken py-16 sm:py-20"
+        aria-labelledby="titulo-casos"
+        className="border-t border-border bg-surface-sunken py-16 sm:py-24"
       >
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           <TituloSecao
-            etiqueta="Casos"
+            id="titulo-casos"
             titulo="Ideias que completaram a jornada"
             texto="Equipes que concluíram as seis etapas e seguiram com Canvas, Value Proposition Design e Pitch Vídeo prontos para o InovAMF."
           />
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {CASOS_VITRINE.map((c) => (
-              <CardEquipe key={c.id} caso={c} destaque reativo={false} />
-            ))}
+          <div className="mt-10">
+            <CarrosselCasos
+              rotulo="Casos em destaque"
+              itens={CASOS_VITRINE.map((c) => ({
+                chave: c.id,
+                conteudo: <CardEquipe caso={c} destaque reativo={false} />,
+              }))}
+            />
+          </div>
+          <div className="mt-8 flex justify-center">
+            <ProximaSecao href="#enviar">Quero ser o próximo</ProximaSecao>
           </div>
         </div>
       </section>
 
-      {/* ── Chamada final ────────────────────────────────────────────────── */}
-      <section className="border-t border-border bg-auth-hero py-16 sm:py-20">
-        <div className="mx-auto w-full max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
+      {/* ── Chamada final: segue o tema, um botão só ────────────────────── */}
+      <section
+        id="enviar"
+        aria-labelledby="titulo-enviar"
+        className="border-t border-border bg-hero-glow py-20 sm:py-28"
+      >
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 text-center sm:px-6">
+          <h2 id="titulo-enviar" className="font-display text-3xl font-bold tracking-tight text-text sm:text-4xl">
             Comece pela ideia crua
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-white/80">
+          <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-text-muted">
             Preencha o formulário inicial contando o que você imaginou. A equipe
             InfoHub analisa e chama a sua equipe para o primeiro encontro.
           </p>
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/cadastro">
-              <Button size="lg" className="w-full sm:w-auto">
-                Enviar minha ideia
-                <ChevronRightIcon size={18} />
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button
-                size="lg"
-                variant="secondary"
-                className="w-full border-white/25 bg-white/10 text-white hover:border-white/40 hover:bg-white/20 sm:w-auto"
-              >
-                Entrar na minha área
-              </Button>
-            </Link>
-          </div>
+          <Link href="/cadastro" className={cn(BOTAO_PRINCIPAL, 'mt-8')}>
+            Enviar minha ideia
+            <ChevronRightIcon size={18} />
+          </Link>
         </div>
       </section>
 
       {/* ── Rodapé ───────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border bg-bg py-10">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+      <footer className="border-t border-border bg-bg py-12">
+        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 sm:px-6 md:grid-cols-[1.3fr_1fr_auto]">
           <div>
             <Logo withTagline />
             <p className="mt-3 max-w-md text-sm leading-relaxed text-text-muted">
@@ -426,15 +390,42 @@ export function Landing() {
               acompanhamento da jornada do empreendedor até o InovAMF.
             </p>
           </div>
-          <nav
-            aria-label="Rodapé"
-            className="flex flex-wrap gap-x-6 gap-y-2 text-sm"
-          >
-            <a href="#o-que-e" className="text-text-muted hover:text-text">
+
+          <div>
+            <h2 className="font-display text-sm font-bold tracking-tight text-text">Onde estamos</h2>
+            <address className="mt-3 flex gap-2 text-sm not-italic leading-relaxed text-text-muted">
+              <MapPinIcon size={16} className="mt-1 shrink-0 text-primary-text" />
+              <span>
+                {CONTATO_AMF.instituicao}
+                {CONTATO_AMF.linhas.map((l) => (
+                  <span key={l} className="block">
+                    {l}
+                  </span>
+                ))}
+              </span>
+            </address>
+            <p className="mt-3 flex gap-2 text-sm text-text-muted">
+              <PhoneIcon size={16} className="mt-0.5 shrink-0 text-primary-text" />
+              <span className="flex flex-wrap gap-x-3 gap-y-1">
+                {CONTATO_AMF.telefones.map((t) => (
+                  <a key={t} href={`tel:+55${t.replace(/\D/g, '')}`} className="tabular-nums hover:text-text">
+                    {t}
+                  </a>
+                ))}
+              </span>
+            </p>
+          </div>
+
+          <nav aria-label="Rodapé" className="flex flex-col gap-2 text-sm">
+            <h2 className="font-display text-sm font-bold tracking-tight text-text">Navegue</h2>
+            <a href="#o-que-e" className="mt-1 text-text-muted hover:text-text">
               O que é
             </a>
             <a href="#como-funciona" className="text-text-muted hover:text-text">
               Como funciona
+            </a>
+            <a href="#casos" className="text-text-muted hover:text-text">
+              Casos
             </a>
             <Link href="/cadastro" className="text-text-muted hover:text-text">
               Enviar ideia
