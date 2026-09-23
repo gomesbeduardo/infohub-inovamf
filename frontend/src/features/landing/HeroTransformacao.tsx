@@ -1,7 +1,4 @@
-import { Caveat } from 'next/font/google';
-
-// Letra de mão só para o esboço: é o rabisco de quem ainda está pensando.
-const rascunho = Caveat({ subsets: ['latin'], weight: ['500'], display: 'swap' });
+import { fonteRascunho as rascunho } from '@/app/fontes/fontes';
 
 type Ponto = [number, number];
 

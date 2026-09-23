@@ -1,27 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
-import { Space_Grotesk, Inter } from 'next/font/google';
 import './globals.css';
+import { fonteCorpo as body, fonteDisplay as display } from './fontes/fontes';
 import {
   ThemeProvider,
   type Theme,
   type ThemePreference,
 } from '@/design-system/theme';
 import { Providers } from '@/data/api/Providers';
-
-const display = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['500', '700'],
-  variable: '--font-display',
-  display: 'swap',
-});
-
-const body = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-body',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'InfoHub',
