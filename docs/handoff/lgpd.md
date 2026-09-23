@@ -1,5 +1,7 @@
 # Plano LGPD (RNF-02): consentimento, política, exclusão e retenção
 
+> **Como trabalhar (obrigatório, ver `AGENTS.md`):** leia este documento inteiro, **explique ao dev** o que foi decidido e por quê (seção "Decisões e porquês"), **escreva um plano** em `docs/superpowers/plans/` e **só programe depois do OK**.
+>
 > **Handoff.** Este documento é para quem vai assumir a LGPD. Antes de começar:
 > - leia `AGENTS.md`, com as convenções do projeto. Regra crítica: **todo PR mira `staging`**, nunca `main`;
 > - suba o ambiente local pelo `README.md`;
@@ -29,6 +31,38 @@
 - **Política:** não existe `/privacidade`.
 - **Exclusão:** não há exclusão nem anonimização; `excluido_em` nunca é gravado.
 - **Retenção:** não há prazo definido para logs com IP, tokens e e-mails.
+
+## Decisões e porquês
+
+Estas decisões foram tomadas com o dono do produto. Antes de mudar alguma, converse com ele (veja `AGENTS.md`).
+
+1. **Anonimizar, não apagar.**
+   - A conta é referenciada por entregas, avaliações, histórico de etapas e auditoria. As FKs `NO ACTION`/`RESTRICT` impedem o `DELETE`, e apagar em cascata destruiria o trabalho da **equipe**, não só da pessoa.
+   - A auditoria (RNF-05) exige saber que "alguém" fez aquela ação.
+   - Para a LGPD, dado anonimizado deixa de ser dado pessoal (art. 12). Trocar os dados identificáveis cumpre a exclusão sem quebrar o sistema.
+   - Isso também responde à pergunta da aula 03.
+2. **Consentimento registrado com versão, data, IP e navegador.**
+   - Pela LGPD, quem precisa provar o consentimento é o controlador (art. 8º, §2º). Um checkbox só no front não prova nada.
+   - A versão (`2026-09`) permite pedir novo aceite se a política mudar.
+3. **Cada colega consente no próprio aceite do convite, não na inscrição.**
+   - O líder digita nome e e-mail dos colegas, mas não pode consentir por eles. Até o aceite existem só esses dois dados, e a política diz isso.
+4. **Nenhuma migration.**
+   - `consentimentos_lgpd`, `usuarios.excluido_em` e as colunas de IP já existem no schema do banco do professor.
+   - Evitar migration na véspera da apresentação reduz o risco no banco compartilhado e mantém o seed estável.
+5. **A anonimização é feita pelo admin, a pedido, e não pelo próprio aluno.**
+   - É o mínimo que cumpre o RNF-02.
+   - Deixa uma pessoa conferir os casos que exigem decisão humana: líder de equipe ativa, último admin.
+   - O autosserviço (o aluno pedir na própria conta) fica para depois.
+6. **Retenção primeiro como política escrita. O script de limpeza é opcional.**
+   - O RNF-02 pede uma política de retenção. Para o G1 basta que ela exista e seja pública (`/privacidade`).
+   - Um job agendado adicionaria infraestrutura sem ganho para a avaliação: sem over-engineering.
+7. **O que ficou fora, e por quê.**
+   - HTTPS depende de domínio próprio, que só vem se o projeto for aprovado.
+   - O cookie `httpOnly` para o refresh token mexe na sessão inteira: risco alto na véspera.
+   - Exportar os próprios dados é desejável, mas não está no RNF-02.
+
+   Todos entram na defesa como "próximos passos".
+8. **Contexto:** LGPD **não** é critério de nota do G1 (os slides pedem Coolify, o banco do professor e o seed). Mas é requisito do produto, e a banca pergunta.
 
 ## Task 1: Backend (consentimento + anonimização)
 

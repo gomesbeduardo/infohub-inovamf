@@ -1,5 +1,7 @@
 # Handoff: envio real de e-mail com Resend (worker isolado)
 
+> **Como trabalhar (obrigatório, ver `AGENTS.md`):** leia este documento inteiro, **explique ao dev** o que foi decidido e por quê (seção "Decisões e porquês"), **escreva um plano** em `docs/superpowers/plans/` e **só programe depois do OK**.
+>
 > **Para quem vai assumir.** Antes de começar:
 > - leia `AGENTS.md`, com as convenções do projeto. Regra crítica: **todo PR mira `staging`**, nunca `main`;
 > - suba o ambiente local pelo `README.md`.
@@ -9,6 +11,34 @@
 ## Objetivo
 
 Os e-mails que o sistema já enfileira devem ser enviados de verdade (RF-18/19). O envio roda num **processo separado da API** (RNF-06, o "Problema 3" das aulas): se o Resend cair ou o worker morrer, login e entregas continuam no ar.
+
+## Decisões e porquês
+
+Estas decisões foram tomadas com o dono do produto. Antes de mudar alguma, converse com ele (veja `AGENTS.md`).
+
+1. **O worker é um processo separado da API, mas no mesmo resource do Coolify.**
+   - É a resposta ao "Problema 3" das aulas (falha isolada): se o Resend ou o worker cair, login, entregas e sino continuam no ar.
+   - O "mesmo resource" é exigência da avaliação (um resource com front e back). Por isso ele sobe como terceiro processo no `scripts/start-all.mjs`, e não como outro serviço.
+2. **A fila é a tabela `emails`, sem Redis nem serviço de fila.**
+   - A tabela já existe, é persistente (sobrevive a restart e a deploy) e é a mesma que o sino lê.
+   - Uma fila externa seria infraestrutura nova para um volume minúsculo: over-engineering.
+3. **`FOR UPDATE SKIP LOCKED` + lease + `Idempotency-Key`.**
+   - Dois workers (por exemplo, durante um deploy) nunca pegam o mesmo e-mail.
+   - Se o processo morrer no meio, o lease devolve o e-mail à fila.
+   - A chave de idempotência impede que o Resend envie duas vezes numa nova tentativa.
+4. **Resend via `fetch`, sem SDK.** Uma dependência a menos, e nos testes basta injetar um provedor falso (`ProvedorEmail`).
+5. **Sem chave, o worker fica ocioso, não falha.**
+   - O ambiente local, a CI e um deploy sem a variável continuam funcionando.
+   - Convites e redefinições seguem por link copiável, que é o fluxo de hoje.
+6. **Nunca enviar para `@demo.infohub.dev` nem para `admin@infohub.dev`.**
+   - São endereços fictícios do seed. Enviar gera bounce, e bounces derrubam a reputação da conta Resend.
+   - Nas contas de teste isso ainda tem limite de envio.
+7. **Os links saem relativos da API e o worker monta a URL com `APP_URL`.**
+   - Ainda não há domínio próprio, e a origem muda entre local e produção.
+   - No app, quem copia o link completa com a origem do navegador; no e-mail, a origem vem do `APP_URL`.
+8. **Convite e recuperação ignoram a preferência de e-mail.** Sem eles a pessoa não consegue entrar na conta. Os demais tipos respeitam o RF-21.
+9. **A chave vive só no Coolify.** É um segredo da conta do dono do produto.
+10. **Modo de teste do Resend no G1**, sem bloquear a entrega por falta de domínio verificado. Um envio controlado para o e-mail do dono basta para demonstrar.
 
 ## Estado atual
 
