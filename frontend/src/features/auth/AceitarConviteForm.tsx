@@ -45,6 +45,26 @@ export function AceitarConviteForm() {
   const [matricula, setMatricula] = useState('');
   const [erros, setErros] = useState<Record<string, string>>({});
 
+  // Sem ?token a query fica desligada (pending para sempre): avisa em vez de "Carregando…".
+  if (!token) {
+    return (
+      <Card className="w-full overflow-hidden shadow-md">
+        <Card.Body className="flex flex-col gap-4 p-7">
+          <p
+            role="alert"
+            className="flex items-center gap-2 rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+          >
+            <AlertIcon size={16} className="shrink-0" />
+            Link de convite inválido ou incompleto.
+          </p>
+          <a href="/login" className="text-center text-sm text-primary-text hover:underline">
+            Entrar
+          </a>
+        </Card.Body>
+      </Card>
+    );
+  }
+
   if (preview.isPending) {
     return (
       <Card className="w-full overflow-hidden shadow-md">

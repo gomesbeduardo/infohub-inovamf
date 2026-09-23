@@ -42,9 +42,10 @@ describe("POST /equipes/:slug/membros", () => {
     expect(r.body.conviteUrl).toContain("/convite?token=");
   });
   it("mentor adiciona aluno já ativado e livre → sem convite", async () => {
-    const r = await adicionar(mentorAccess, { nome: "Livre Silva", email: email("livre") });
+    const r = await adicionar(mentorAccess, { nome: "Nome Digitado", email: email("livre") });
     expect(r.status).toBe(201);
-    expect(r.body).toMatchObject({ conviteUrl: null, pendente: false });
+    // Devolve o nome digitado, nunca o cadastrado ("Livre Silva").
+    expect(r.body).toMatchObject({ nome: "Nome Digitado", conviteUrl: null, pendente: false });
   });
   it("RN-03: quem está em outra equipe ativa → 409", async () => {
     const r = await adicionar(liderAccess, { nome: "Ocupado", email: email("ocupado") });

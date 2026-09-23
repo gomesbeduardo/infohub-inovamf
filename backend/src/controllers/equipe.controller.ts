@@ -71,7 +71,7 @@ async function prepararColega(
   return {
     usuarioId: existente!.id,
     slug: existente!.slug,
-    nome: existente!.nome,
+    nome: c.nome, // o digitado: nunca expor o nome cadastrado de quem já tem conta
     email: c.email,
     criar: null,
     convite,

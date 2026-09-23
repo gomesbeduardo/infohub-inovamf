@@ -10,8 +10,11 @@ export const STATUS_EQUIPE_LABEL: Record<string, string> = {
 
 const CABECALHO = ["Ideia", "Área", "Etapa", "Status", "Mentor", "Curso do líder", "Tarefas atrasadas"];
 
+// CSV injection (OWASP): célula que começa com = + - @ tab ou CR vira texto
+// com um ' na frente, senão o Excel/Sheets executa como fórmula.
 export function celulaCSV(v: string): string {
-  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const s = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function equipesCSV(

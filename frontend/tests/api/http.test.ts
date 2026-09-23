@@ -41,6 +41,28 @@ describe('api()', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(resposta(401, { error: { code: 'INVALID_TOKEN', message: 'expirou' } }));
     await expect(api('/x')).rejects.toMatchObject({ status: 401 });
     expect(sessao.estado().status).toBe('anonimo');
+    expect(localStorage.getItem('infohub-refresh')).toBeNull();
+  });
+
+  it.each([
+    ['5xx', () => resposta(502)],
+    ['erro de rede', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ])('refresh com %s não apaga a sessão; a próxima tentativa renova', async (_nome, falha) => {
+    let backendFora = true;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (url === '/api/v1/auth/refresh') {
+        return backendFora ? falha() : resposta(200, { ...SESSAO, access: 'A2', refresh: 'R2' });
+      }
+      const auth = (init?.headers as Record<string, string>).Authorization;
+      return auth === 'Bearer A2' ? resposta(200, { ok: 2 }) : resposta(401, { error: { code: 'INVALID_TOKEN', message: 'x' } });
+    });
+    await expect(api('/x')).rejects.toMatchObject({ status: 401 });
+    expect(localStorage.getItem('infohub-refresh')).toBe('R1');
+    expect(sessao.estado().status).toBe('autenticado');
+
+    backendFora = false;
+    await expect(api('/x')).resolves.toEqual({ ok: 2 });
+    expect(localStorage.getItem('infohub-refresh')).toBe('R2');
   });
 
   it('erro de domínio vira ApiError com code, message e details', async () => {
