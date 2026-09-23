@@ -16,6 +16,7 @@ vi.mock('@/data/api/consultas', () => ({
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
   useLinhaDoTempo: vi.fn(),
+  useIniciarTarefa: vi.fn(),
 }));
 vi.mock('@/data/api/useSessao', () => ({ useUsuario: vi.fn() }));
 
@@ -27,11 +28,13 @@ import {
   useEquipes,
   useEtapas,
   useGerarConvite,
+  useIniciarTarefa,
   useLinhaDoTempo,
   useTarefas,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import type { Entrega, Etapa, EquipeDetalhe, EquipeResumo, Tarefa } from '@/data/api/tipos';
+import { ApiError } from '@/data/api/erro';
 import { MinhaEquipe } from '@/features/aluno-equipe/MinhaEquipe';
 import { MinhasTarefas } from '@/features/aluno-tarefas/MinhasTarefas';
 import { EnviarEntregaDialog } from '@/features/aluno-tarefas/EnviarEntregaDialog';
@@ -105,6 +108,7 @@ function tarefa(p: Partial<Tarefa> = {}): Tarefa {
 const enviarMutate = vi.fn();
 const gerarMutate = vi.fn();
 const adicionarMutate = vi.fn();
+const iniciarMutate = vi.fn();
 
 function mockEquipes(data: EquipeResumo[]) {
   vi.mocked(useEquipes).mockReturnValue({
@@ -170,6 +174,9 @@ function mockPadrao() {
     error: null,
     refetch: vi.fn(),
   } as unknown as R<typeof useLinhaDoTempo>);
+  vi.mocked(useIniciarTarefa).mockReturnValue({ mutate: iniciarMutate, isPending: false } as unknown as R<
+    typeof useIniciarTarefa
+  >);
 }
 
 function comoLider() {
@@ -284,6 +291,36 @@ describe('MinhasTarefas', () => {
   it('cada tarefa tem a âncora que o "Próximo passo" usa', () => {
     render(<MinhasTarefas />);
     expect(document.getElementById('tarefa-t-1')).not.toBeNull();
+  });
+
+  it('"Comecei" só aparece na tarefa pendente e chama useIniciarTarefa().mutate(slug)', async () => {
+    mockTarefas([
+      tarefa({ slug: 't-1', status: 'pendente' }),
+      tarefa({ slug: 't-2', titulo: 'Outra tarefa', status: 'em_andamento' }),
+    ]);
+    const user = userEvent.setup();
+    render(<MinhasTarefas />);
+    const botoes = screen.getAllByRole('button', { name: 'Comecei' });
+    expect(botoes).toHaveLength(1);
+    await user.click(botoes[0]!);
+    expect(useIniciarTarefa).toHaveBeenCalledWith('agrosmart');
+    expect(iniciarMutate).toHaveBeenCalledWith('t-1', expect.anything());
+  });
+
+  it('erro ao começar aparece inline com a mensagem da API', async () => {
+    iniciarMutate.mockImplementationOnce((_s: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(new ApiError(409, 'TAREFA_NAO_PENDENTE', 'Só dá para começar uma tarefa pendente')),
+    );
+    const user = userEvent.setup();
+    render(<MinhasTarefas />);
+    await user.click(screen.getByRole('button', { name: 'Comecei' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Só dá para começar uma tarefa pendente');
+  });
+
+  it('tarefa atrasada mostra o chip "atrasada há N dias"', () => {
+    mockTarefas([tarefa({ status: 'atrasada', dataEntrega: '2026-09-01T00:00:00.000Z' })]);
+    render(<MinhasTarefas />);
+    expect(screen.getByText(/^atrasada há \d+ dias$/)).toBeInTheDocument();
   });
 });
 
