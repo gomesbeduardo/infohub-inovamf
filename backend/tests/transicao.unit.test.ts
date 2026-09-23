@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  ENTREGAVEIS_FINAIS,
   POSICAO_PRONTA,
   avaliarTransicao,
+  codigoBloqueio,
+  juntarPendencias,
+  mudancaDeStatusValida,
   pendenciasDeIntegrantes,
+  pendenciasEntregaveisFinais,
   type Pendencia,
 } from "../src/domain/transicao.js";
+import { MODELOS_TAREFA } from "../src/seed/base.js";
 
 const tarefa: Pendencia = { tipo: "tarefa", slug: "s", titulo: "BMC" };
 const base = { pendencias: [] as Pendencia[], forcado: false, observacao: null };
@@ -72,5 +78,60 @@ describe("pendenciasDeIntegrantes (RN-02: dados de todos os integrantes)", () =>
       { tipo: "integrante", slug: "b", nome: "Bia", motivo: "convite_pendente" },
       { tipo: "integrante", slug: "c", nome: "Caio", motivo: "dados_incompletos" },
     ]);
+  });
+});
+
+describe("mudancaDeStatusValida (A1)", () => {
+  it("encaminhar ao InovAMF só a partir de pronta", () => {
+    expect(mudancaDeStatusValida("pronta_inovamf", "encaminhada_inovamf")).toBe(true);
+    expect(mudancaDeStatusValida("encaminhada_inovamf", "encaminhada_inovamf")).toBe(true);
+    expect(mudancaDeStatusValida("ativa", "encaminhada_inovamf")).toBe(false);
+    expect(mudancaDeStatusValida("pausada", "encaminhada_inovamf")).toBe(false);
+  });
+  it("ativa, pausada e desistente são livres", () => {
+    expect(mudancaDeStatusValida("ativa", "pausada")).toBe(true);
+    expect(mudancaDeStatusValida("pausada", "ativa")).toBe(true);
+    expect(mudancaDeStatusValida("pronta_inovamf", "desistente")).toBe(true);
+  });
+});
+
+describe("RN-02 — entregáveis finais da Etapa 6", () => {
+  const t = (slug: string, modelo: string, status: string) => ({ slug, titulo: modelo, status, modelo });
+
+  it("são exatamente os modelos da Etapa 6 do seed", () => {
+    expect([...ENTREGAVEIS_FINAIS]).toEqual(MODELOS_TAREFA.filter((m) => m.etapa === 6).map((m) => m.titulo));
+  });
+
+  it("sem nenhuma tarefa: os três viram pendência 'entregavel'", () => {
+    expect(pendenciasEntregaveisFinais([])).toEqual([
+      { tipo: "entregavel", titulo: "Pitch vídeo" },
+      { tipo: "entregavel", titulo: "Business Model Canvas final" },
+      { tipo: "entregavel", titulo: "Value Proposition Design final" },
+    ]);
+  });
+
+  it("uma aprovada basta; a não aprovada vira pendência 'tarefa'", () => {
+    expect(
+      pendenciasEntregaveisFinais([
+        t("p1", "Pitch vídeo", "ajustar"),
+        t("p2", "Pitch vídeo", "aprovada"),
+        t("b1", "Business Model Canvas final", "entregue"),
+      ]),
+    ).toEqual([
+      { tipo: "tarefa", slug: "b1", titulo: "Business Model Canvas final" },
+      { tipo: "entregavel", titulo: "Value Proposition Design final" },
+    ]);
+  });
+
+  it("juntarPendencias não repete a mesma tarefa", () => {
+    const a: Pendencia = { tipo: "tarefa", slug: "x", titulo: "BMC" };
+    const e: Pendencia = { tipo: "entregavel", titulo: "Pitch vídeo" };
+    expect(juntarPendencias([a], [a, e], [e])).toEqual([a, e]);
+  });
+
+  it("codigoBloqueio: salto é RN-01; sair da Etapa 6 é RN-02", () => {
+    expect(codigoBloqueio(3, "salto")).toBe("RN01_SALTO");
+    expect(codigoBloqueio(3, "pendencias")).toBe("RN01_PENDENCIAS");
+    expect(codigoBloqueio(POSICAO_PRONTA - 1, "pendencias")).toBe("RN02_PENDENCIAS");
   });
 });

@@ -1,14 +1,20 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import {
+  ENTREGAVEIS_FINAIS,
   POSICAO_PRONTA,
   avaliarTransicao,
+  juntarPendencias,
+  mudancaDeStatusValida,
   pendenciasDeIntegrantes,
+  pendenciasEntregaveisFinais,
   type Decisao,
   type Pendencia,
 } from "../domain/transicao.js";
 import { toSlug } from "../utils/slug.js";
 import { whereStatusEfetivo } from "./tarefa.model.js";
+import { registrarAuditoria } from "./auditoria.model.js";
+import { montarLinhaDoTempo } from "../domain/linhaDoTempo.js";
 
 // --- Escopo por papel (RNF-03) ------------------------------------------------
 export type Escopo =
@@ -215,16 +221,69 @@ export function criar(data: {
   });
 }
 
-export function atualizarPorSlug(slug: string, data: Prisma.equipesUpdateInput) {
-  return prisma.equipes.update({
-    where: { slug },
-    data,
-    select: {
-      slug: true,
-      nome_ideia: true,
-      status: true,
-      estagio_ideia: true,
-    },
+// A1 (gestão pelo admin) como UMA transação: trava a equipe, confere a regra
+// de status (pura), grava e audita mentor/status (RNF-05). `campos` são as
+// colunas simples já validadas no controller (nome, descrição, estágio, área, origem).
+export async function atualizarGestao(p: {
+  slug: string;
+  campos: Record<string, unknown>;
+  status?: string;
+  mentor?: { id: string; nome: string } | null; // undefined = não mexe; null = sem mentor
+  por: string;
+  ip: string | null;
+}): Promise<
+  | {
+      tipo: "ok";
+      equipe: { slug: string; nome_ideia: string; status: string; estagio_ideia: string };
+    }
+  | { tipo: "nao_encontrada" }
+  | { tipo: "transicao_invalida" }
+> {
+  return prisma.$transaction(async (tx) => {
+    const [trava] = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM equipes WHERE slug = ${p.slug} FOR UPDATE`;
+    if (!trava) return { tipo: "nao_encontrada" as const };
+
+    const atual = await tx.equipes.findUniqueOrThrow({
+      where: { id: trava.id },
+      select: { status: true, mentor_id: true, usuarios: { select: { nome: true } } },
+    });
+    if (p.status !== undefined && !mudancaDeStatusValida(atual.status, p.status)) {
+      return { tipo: "transicao_invalida" as const };
+    }
+
+    const data = { ...p.campos } as Prisma.equipesUncheckedUpdateInput;
+    if (p.status !== undefined) data.status = p.status;
+    if (p.mentor !== undefined) data.mentor_id = p.mentor?.id ?? null;
+    const equipe = await tx.equipes.update({
+      where: { id: trava.id },
+      data,
+      select: { slug: true, nome_ideia: true, status: true, estagio_ideia: true },
+    });
+
+    if (p.status !== undefined && p.status !== atual.status) {
+      await registrarAuditoria(tx, {
+        usuarioId: p.por,
+        entidade: "equipe",
+        entidadeId: trava.id,
+        acao: "status_alterado",
+        antes: { status: atual.status },
+        depois: { status: p.status },
+        ip: p.ip,
+      });
+    }
+    if (p.mentor !== undefined && (p.mentor?.id ?? null) !== atual.mentor_id) {
+      await registrarAuditoria(tx, {
+        usuarioId: p.por,
+        entidade: "equipe",
+        entidadeId: trava.id,
+        acao: "mentor_atribuido",
+        antes: { mentor: atual.usuarios?.nome ?? null },
+        depois: { mentor: p.mentor?.nome ?? null },
+        ip: p.ip,
+      });
+    }
+    return { tipo: "ok" as const, equipe };
   });
 }
 
@@ -250,33 +309,51 @@ async function pendenciasDaPosicao(
     slug: toSlug(t.id),
     titulo: t.titulo,
   }));
-  if (posicao === 6) {
-    const membros = await tx.equipe_membros.findMany({
-      where: { equipe_id: equipeId, ativo: true },
-      select: {
-        usuarios: {
-          select: {
-            slug: true,
-            nome: true,
-            convite_aceito_em: true,
-            alunos: { select: { curso: true, semestre: true } },
-          },
+  if (posicao !== 6) return pendencias;
+
+  // RN-02: os três entregáveis finais (tarefas nascidas dos modelos da Etapa 6)
+  // + os dados de todos os integrantes ativos.
+  const finais = await tx.tarefas.findMany({
+    where: {
+      equipe_id: equipeId,
+      modelos_tarefa: { etapas: { numero: 6 }, titulo: { in: [...ENTREGAVEIS_FINAIS] } },
+    },
+    orderBy: { criado_em: "asc" },
+    select: { id: true, titulo: true, status: true, modelos_tarefa: { select: { titulo: true } } },
+  });
+  const membros = await tx.equipe_membros.findMany({
+    where: { equipe_id: equipeId, ativo: true },
+    select: {
+      usuarios: {
+        select: {
+          slug: true,
+          nome: true,
+          convite_aceito_em: true,
+          alunos: { select: { curso: true, semestre: true } },
         },
       },
-    });
-    pendencias.push(
-      ...pendenciasDeIntegrantes(
-        membros.map((m) => ({
-          slug: m.usuarios.slug,
-          nome: m.usuarios.nome,
-          conviteAceitoEm: m.usuarios.convite_aceito_em,
-          curso: m.usuarios.alunos?.curso ?? null,
-          semestre: m.usuarios.alunos?.semestre ?? null,
-        })),
-      ),
-    );
-  }
-  return pendencias;
+    },
+  });
+  return juntarPendencias(
+    pendencias,
+    pendenciasEntregaveisFinais(
+      finais.map((t) => ({
+        slug: toSlug(t.id),
+        titulo: t.titulo,
+        status: t.status,
+        modelo: t.modelos_tarefa?.titulo ?? "",
+      })),
+    ),
+    pendenciasDeIntegrantes(
+      membros.map((m) => ({
+        slug: m.usuarios.slug,
+        nome: m.usuarios.nome,
+        conviteAceitoEm: m.usuarios.convite_aceito_em,
+        curso: m.usuarios.alunos?.curso ?? null,
+        semestre: m.usuarios.alunos?.semestre ?? null,
+      })),
+    ),
+  );
 }
 
 // Pendências que hoje impedem a equipe de avançar (preview do drag no kanban).
@@ -299,6 +376,7 @@ export async function transicionar(p: {
   movidoPor: string;
   forcado: boolean;
   observacao: string | null;
+  ip: string | null;
 }): Promise<
   | {
       tipo: "ok";
@@ -309,7 +387,7 @@ export async function transicionar(p: {
         forcado: boolean;
       };
     }
-  | { tipo: "rejeitada"; decisao: Exclude<Decisao, { tipo: "permitida" }> }
+  | { tipo: "rejeitada"; decisao: Exclude<Decisao, { tipo: "permitida" }>; origem: number }
 > {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM equipes WHERE id = ${p.equipeId}::uuid FOR UPDATE`;
@@ -328,7 +406,7 @@ export async function transicionar(p: {
       forcado: p.forcado,
       observacao: p.observacao,
     });
-    if (decisao.tipo !== "permitida") return { tipo: "rejeitada" as const, decisao };
+    if (decisao.tipo !== "permitida") return { tipo: "rejeitada" as const, decisao, origem };
 
     const etapaDestino = await tx.etapas.findUniqueOrThrow({
       where: { numero: Math.min(p.destino, 6) },
@@ -359,6 +437,20 @@ export async function transicionar(p: {
         forcado: decisao.forcado,
         observacao: p.observacao,
       },
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: p.movidoPor,
+      entidade: "equipe",
+      entidadeId: p.equipeId,
+      acao: "etapa_movida",
+      antes: { posicao: origem, status: eq.status },
+      depois: {
+        posicao: p.destino,
+        status: atualizada.status,
+        forcado: decisao.forcado,
+        observacao: p.observacao,
+      },
+      ip: p.ip,
     });
 
     return {
@@ -501,4 +593,83 @@ export function inscrever(p: DadosInscricao) {
   for (const c of p.colegas) ops.push(...opsVinculoColega(p.equipe.id, c));
 
   return prisma.$transaction(ops);
+}
+
+// A5: o que a linha do tempo junta — histórico de etapas e auditoria da
+// equipe, das tarefas dela e das entregas dessas tarefas. Só leitura.
+export async function eventosLinhaDoTempo(equipeId: string, limite: number) {
+  const tarefas = await prisma.tarefas.findMany({
+    where: { equipe_id: equipeId },
+    select: { id: true, entregas: { select: { id: true } } },
+  });
+  const tarefaIds = tarefas.map((t) => t.id);
+  const entregaIds = tarefas.flatMap((t) => t.entregas.map((e) => e.id));
+  const [historico, auditoria] = await Promise.all([
+    prisma.historico_etapas.findMany({
+      where: { equipe_id: equipeId },
+      orderBy: { criado_em: "desc" },
+      take: limite,
+      select: {
+        forcado: true,
+        observacao: true,
+        status_origem: true,
+        status_destino: true,
+        criado_em: true,
+        etapas_historico_etapas_etapa_origem_idToetapas: { select: { numero: true } },
+        etapas_historico_etapas_etapa_destino_idToetapas: { select: { numero: true } },
+        usuarios: { select: { nome: true } },
+      },
+    }),
+    prisma.log_auditoria.findMany({
+      where: {
+        acao: { not: "etapa_movida" },
+        OR: [
+          { entidade: "equipe", entidade_id: equipeId },
+          { entidade: "tarefa", entidade_id: { in: tarefaIds } },
+          { entidade: "entrega", entidade_id: { in: entregaIds } },
+        ],
+      },
+      orderBy: { criado_em: "desc" },
+      take: limite,
+      select: {
+        acao: true,
+        dados_anteriores: true,
+        dados_novos: true,
+        criado_em: true,
+        usuarios: { select: { nome: true } },
+      },
+    }),
+  ]);
+  return { historico, auditoria };
+}
+
+// A5: a linha do tempo pronta (busca + regra pura). Uma função só para o
+// endpoint da linha do tempo e para o "último evento" da mesa do mentor.
+export async function linhaDoTempo(equipeId: string, o: { paraAluno: boolean; limite: number }) {
+  const { historico, auditoria } = await eventosLinhaDoTempo(equipeId, o.limite);
+  return montarLinhaDoTempo({
+    paraAluno: o.paraAluno,
+    limite: o.limite,
+    movimentos: historico.map((h) => ({
+      de:
+        h.status_origem === "pronta_inovamf"
+          ? "pronta"
+          : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+      para:
+        h.status_destino === "pronta_inovamf"
+          ? "pronta"
+          : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+      forcado: h.forcado,
+      observacao: h.observacao,
+      autor: h.usuarios?.nome ?? null,
+      em: h.criado_em,
+    })),
+    auditoria: auditoria.map((a) => ({
+      acao: a.acao,
+      antes: a.dados_anteriores,
+      depois: a.dados_novos,
+      autor: a.usuarios?.nome ?? null,
+      em: a.criado_em,
+    })),
+  });
 }

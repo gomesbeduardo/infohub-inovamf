@@ -6,8 +6,10 @@ import { formatarData } from '@/domain/labels';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { Button } from '@/design-system/components/Button';
+import { PrazoChip } from '@/design-system/components/PrazoChip';
 import { AvaliarEntrega } from '@/features/admin-tarefas/AvaliarEntrega';
 import { NovaTarefaDialog } from '@/features/admin-tarefas/NovaTarefaDialog';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 /** Aba "Tarefas" do detalhe da equipe (admin/mentor): lista, entregas e avaliação. */
 export function TarefaList({ equipe }: { equipe: EquipeDetalhe }) {
@@ -21,7 +23,7 @@ export function TarefaList({ equipe }: { equipe: EquipeDetalhe }) {
       </div>
 
       {consulta.isPending ? (
-        <p className="text-sm text-text-muted">Carregando…</p>
+        <Skeleton linhas={3} />
       ) : consulta.isError ? (
         <div className="flex flex-col items-start gap-2">
           <p
@@ -65,8 +67,9 @@ function TarefaItem({ tarefa, equipeSlug }: { tarefa: Tarefa; equipeSlug: string
               <span className="ml-2 text-xs text-primary-text">obrigatória</span>
             )}
           </span>
-          <span className="text-xs text-text-muted">
+          <span className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
             Entrega até {formatarData(tarefa.dataEntrega.slice(0, 10))}
+            <PrazoChip dataEntrega={tarefa.dataEntrega} status={tarefa.status} />
           </span>
         </div>
         <StatusBadge status={tarefa.status} />

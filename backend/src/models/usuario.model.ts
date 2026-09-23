@@ -35,13 +35,26 @@ const PERFIL_ADMIN_SELECT = {
   criado_em: true,
 } satisfies Prisma.usuariosSelect;
 
+// Task 17: a lista de contas também traz alunos, com curso/semestre (tabela
+// `alunos`) e a equipe ATIVA do aluno (equipe_membros.ativo com status em
+// STATUS_EQUIPE_ATIVA). Para admin/mentor essas relações vêm vazias → null.
+const PERFIL_LISTA_SELECT = {
+  ...PERFIL_ADMIN_SELECT,
+  alunos: { select: { curso: true, semestre: true } },
+  equipe_membros: {
+    where: { ativo: true, equipes: { status: { in: [...STATUS_EQUIPE_ATIVA] } } },
+    take: 1,
+    select: { equipes: { select: { slug: true, nome_ideia: true } } },
+  },
+} satisfies Prisma.usuariosSelect;
+
 export function listar(params: { skip: number; take: number } & FiltrosUsuario) {
   return prisma.usuarios.findMany({
     where: montarWhere(params),
     skip: params.skip,
     take: params.take,
     orderBy: { criado_em: "desc" },
-    select: PERFIL_ADMIN_SELECT,
+    select: PERFIL_LISTA_SELECT,
   });
 }
 
@@ -80,6 +93,15 @@ export function findAtivoByEmail(email: string) {
   });
 }
 
+// Pedido de redefinição (adendo 23/09): só conta ativa, não excluída e com
+// convite aceito — quem nunca definiu senha usa o convite, não a redefinição.
+export function findParaPedidoRedefinicao(email: string) {
+  return prisma.usuarios.findFirst({
+    where: { email, ativo: true, excluido_em: null, convite_aceito_em: { not: null } },
+    select: { id: true, slug: true, nome: true, email: true },
+  });
+}
+
 export function findPerfilBySlug(slug: string) {
   return prisma.usuarios.findFirst({
     where: { slug, ativo: true, excluido_em: null },
@@ -101,7 +123,7 @@ export function findPerfilBySlug(slug: string) {
 export function findParaConviteBySlug(slug: string) {
   return prisma.usuarios.findFirst({
     where: { slug, excluido_em: null },
-    select: { id: true, nome: true, email: true, convite_aceito_em: true },
+    select: { id: true, nome: true, email: true, ativo: true, convite_aceito_em: true },
   });
 }
 
@@ -234,7 +256,7 @@ export function findDadosConvite(id: string) {
 export function findIdBySlug(slug: string) {
   return prisma.usuarios.findFirst({
     where: { slug, excluido_em: null },
-    select: { id: true },
+    select: { id: true, tipo_usuario: true },
   });
 }
 

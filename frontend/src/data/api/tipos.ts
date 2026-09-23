@@ -27,7 +27,9 @@ export interface EquipeResumo {
 
 export type Pendencia =
   | { tipo: 'tarefa'; slug: string; titulo: string }
-  | { tipo: 'integrante'; slug: string; nome: string; motivo: 'convite_pendente' | 'dados_incompletos' };
+  | { tipo: 'integrante'; slug: string; nome: string; motivo: 'convite_pendente' | 'dados_incompletos' }
+  // RN-02: entregável final que o mentor ainda nem criou como tarefa.
+  | { tipo: 'entregavel'; titulo: string };
 
 export interface Membro {
   slug: string; nome: string; papel: PapelMembro; tipo: TipoUsuario; pendente: boolean;
@@ -40,7 +42,7 @@ export interface MovimentoHistorico {
 export interface EquipeDetalhe {
   slug: string; nomeIdeia: string; descricaoIdeia: string; estagio: EstagioIdeia; status: StatusEquipe;
   origemDivulgacao: string | null; prontaInovamfEm: string | null; criadoEm: string; etapa: EtapaRef;
-  area: string | null; ciclo: string | null; mentor: Ref | null; membros: Membro[];
+  area: string | null; ciclo: string | null; mentor: Ref | null; souLider: boolean; membros: Membro[];
   historico: MovimentoHistorico[]; pendenciasParaAvancar: Pendencia[];
 }
 
@@ -61,8 +63,35 @@ export interface Anotacao { slug: string; conteudo: string; autor: Ref; etapa: n
 export interface Dashboard {
   equipesAtivas: number; prontasInovamf: number; totalEquipes: number; tarefasAtrasadas: number; aAvaliar: number;
   porEtapa: Array<{ numero: number; nome: string; total: number }>;
-  serieSemanal: Array<{ semanaInicio: string; rotulo: string; avancos: number; entregas: number }>;
+  serieSemanal: Array<{
+    semanaInicio: string;
+    rotulo: string;
+    avancos: number;
+    entregasRecebidas: number;
+    entregasAvaliadas: number;
+    tarefasConcluidas: number;
+    /** @deprecated alias de `tarefasConcluidas` — mantido pela API por compatibilidade. */
+    entregas: number;
+  }>;
 }
+
+// ── Agenda (adendo 23/09): GET /dashboard/agenda ─────────────────────────────
+/** "Para avaliar": tarefa entregue esperando avaliação (prazo mais antigo primeiro). */
+export interface ItemParaAvaliar {
+  equipe: { slug: string; nomeIdeia: string }; tarefa: { slug: string; titulo: string };
+  versao: number | null; entregueEm: string | null;
+}
+/** "Prazos": atrasadas + as que vencem em até 7 dias; `status` é o efetivo (RN-04). */
+export interface ItemPrazo {
+  equipe: { slug: string; nomeIdeia: string }; tarefa: { slug: string; titulo: string };
+  dataEntrega: string; status: StatusTarefa;
+}
+/** Cartão da "mesa do mentor" (a lista vem vazia para o admin). */
+export interface CartaoEquipeMesa {
+  slug: string; nomeIdeia: string; status: StatusEquipe; etapa: EtapaRef; membrosAtivos: number;
+  faltamParaAvancar: number; ultimoEvento: { titulo: string; em: string } | null;
+}
+export interface Agenda { paraAvaliar: ItemParaAvaliar[]; prazos: ItemPrazo[]; equipes: CartaoEquipeMesa[] }
 
 /** GET /publico/numeros — agregados reais para o hero da landing (issue #157). */
 export interface NumerosPublicos {
@@ -72,6 +101,9 @@ export interface NumerosPublicos {
 export interface UsuarioAdmin {
   slug: string; nome: string; email: string; telefone: string; role: TipoUsuario; ativo: boolean;
   conviteAceito: boolean; ultimoLoginEm?: string | null; criadoEm?: string;
+  // Task 17: só para aluno — curso/semestre (tabela `alunos`) e a equipe ativa.
+  // admin e mentor vêm com os três `null`.
+  curso?: string | null; semestre?: string | null; equipe?: { slug: string; nomeIdeia: string } | null;
 }
 export interface Me {
   slug: string; nome: string; email: string; telefone: string; role: TipoUsuario; criadoEm: string; ultimoLoginEm: string | null;
@@ -81,4 +113,15 @@ export interface ColegaCriado { slug: string; nome: string; email: string; convi
 export interface FiltrosEquipes {
   q?: string; curso?: string; area?: string; mentor?: string; statusTarefa?: StatusTarefa; ciclo?: string;
   etapa?: number; status?: StatusEquipe;
+}
+
+/** GET /notificacoes (RF-18) — a fila de e-mails endereçada à pessoa; o sino (B1) lê daqui. */
+export interface Notificacao {
+  tipo: string; assunto: string; status: string; dados: Record<string, unknown> | null; criadoEm: string;
+}
+
+/** GET /equipes/:slug/linha-do-tempo (A5) — sem UUID; `detalhe` e `autor` só quando existem. */
+export type TipoItemLinhaDoTempo = 'etapa' | 'status' | 'mentor' | 'entrega' | 'avaliacao' | 'lembrete';
+export interface ItemLinhaDoTempo {
+  tipo: TipoItemLinhaDoTempo; titulo: string; detalhe?: string; autor?: string; em: string;
 }

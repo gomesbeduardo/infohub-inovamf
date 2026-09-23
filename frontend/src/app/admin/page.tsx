@@ -3,6 +3,7 @@ import { AppShell } from '@/features/shell/AppShell';
 import { PageHeader } from '@/design-system/components/PageHeader';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
 import { Funil } from '@/features/admin-funil/Funil';
+import { AgendaAdmin } from '@/features/agenda/Agenda';
 
 export default function AdminPage() {
   return (
@@ -13,6 +14,7 @@ export default function AdminPage() {
           subtitle="Visão consolidada e funil das equipes."
         />
         <DashboardIndicadores />
+        <AgendaAdmin />
         {/* Funil usa useSearchParams (presets do dashboard) → precisa de Suspense */}
         <Suspense fallback={null}>
           <Funil />

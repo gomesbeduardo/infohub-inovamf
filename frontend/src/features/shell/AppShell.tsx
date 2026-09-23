@@ -7,11 +7,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUsuario } from '@/data/api/useSessao';
 import { sessao } from '@/data/api/sessao';
 import { Logo } from '@/design-system/Logo';
-import { Button } from '@/design-system/components/Button';
 import { ThemeToggle } from '@/design-system/components/ThemeToggle';
-import { LogoutIcon, ArrowLeftIcon, UserIcon } from '@/design-system/icons';
+import { ArrowLeftIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
 import { navFor, homeFor, type NavItem } from '@/features/shell/nav';
+import { SinoNotificacoes } from '@/features/shell/SinoNotificacoes';
+import { PerfilMenu } from '@/features/shell/PerfilMenu';
+import { BuscaRapida } from '@/features/shell/BuscaRapida';
 
 type Largura = 'estreita' | 'media' | 'ampla';
 
@@ -64,7 +66,7 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <div className="sticky top-0 z-30">
-        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
+        <header className="relative z-10 flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
           <Link
             href={usuario ? homeFor(usuario.role) : '/login'}
             aria-label="InfoHub — início"
@@ -73,22 +75,12 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
             <Logo />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            {usuario && (
-              <Link
-                href="/conta"
-                aria-label="Minha conta"
-                aria-current={pathname === '/conta' ? 'page' : undefined}
-                className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]"
-              >
-                <UserIcon size={18} />
-                <span className="hidden sm:inline">{usuario.nome}</span>
-              </Link>
+            {usuario && (usuario.role === 'admin' || usuario.role === 'mentor') && (
+              <BuscaRapida papel={usuario.role} />
             )}
+            {usuario && <SinoNotificacoes usuario={usuario} />}
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={sair} className="gap-1.5">
-              <LogoutIcon size={16} />
-              <span className="hidden sm:inline">Sair</span>
-            </Button>
+            {usuario && <PerfilMenu usuario={usuario} onSair={sair} />}
           </div>
         </header>
 

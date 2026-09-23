@@ -8,10 +8,13 @@ import {
   verificarSenha,
 } from "../utils/hash.js";
 import { isUuid } from "../utils/slug.js";
-import { idDoChamador } from "../utils/acesso.js";
+import { idDoChamador, ipDoChamador } from "../utils/acesso.js";
+import { ehEmail } from "../utils/text.js";
 import { emitirSessao } from "../utils/sessao.js";
+import type { FinalidadeToken } from "../domain/enums.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
+import * as emailModel from "../models/email.model.js";
 
 // POST /auth/login — pública (rate-limited)
 export async function login(req: Request, res: Response, next: NextFunction) {
@@ -35,36 +38,46 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// Valida um token de convite "<id>.<segredo>" e devolve a linha, ou lança
-// httpError. Usado pelo preview e pelo register.
-async function abrirConvite(
-  token: unknown,
-): Promise<{ id: string; usuario_id: string }> {
-  if (typeof token !== "string" || token.length === 0) {
-    throw httpError(400, "INVALID_INVITE", "Convite inválido");
-  }
-  const ponto = token.indexOf(".");
-  const conviteId = ponto > 0 ? token.slice(0, ponto) : "";
-  const segredo = ponto > 0 ? token.slice(ponto + 1) : "";
-  if (!conviteId || !segredo || !isUuid(conviteId)) {
-    throw httpError(400, "INVALID_INVITE", "Convite inválido");
-  }
+// Mensagens por finalidade: o mesmo formato "<id>.<segredo>" serve ao convite
+// (RF-03) e ao link de redefinição gerado pelo admin (RF-01).
+const ERROS_TOKEN: Record<
+  FinalidadeToken,
+  Record<"invalido" | "usado" | "expirado", [string, string]>
+> = {
+  convite: {
+    invalido: ["INVALID_INVITE", "Convite inválido"],
+    usado: ["INVITE_USED", "Convite já utilizado"],
+    expirado: ["INVITE_EXPIRED", "Convite expirado"],
+  },
+  recuperacao: {
+    invalido: ["INVALID_RESET", "Link de redefinição inválido"],
+    usado: ["RESET_USED", "Este link já foi usado"],
+    expirado: ["RESET_EXPIRED", "Link expirado: peça um novo à coordenação"],
+  },
+};
 
-  const convite = await tokenModel.findConviteById(conviteId);
-  if (!convite || convite.finalidade !== "convite") {
-    throw httpError(400, "INVALID_INVITE", "Convite inválido");
-  }
-  if (convite.usado_em) {
-    throw httpError(400, "INVITE_USED", "Convite já utilizado");
-  }
-  if (convite.expira_em <= new Date()) {
-    throw httpError(400, "INVITE_EXPIRED", "Convite expirado");
-  }
-  const ok = await compararTokenSenha(segredo, convite.token_hash);
-  if (!ok) {
-    throw httpError(400, "INVALID_INVITE", "Convite inválido");
-  }
-  return { id: convite.id, usuario_id: convite.usuario_id };
+// Valida um token "<id>.<segredo>" de tokens_senha da finalidade pedida e
+// devolve a linha, ou lança httpError 400 com o código daquela finalidade.
+async function abrirTokenSenha(
+  token: unknown,
+  finalidade: FinalidadeToken,
+): Promise<{ id: string; usuario_id: string }> {
+  const erro = (k: "invalido" | "usado" | "expirado") => {
+    const [codigo, mensagem] = ERROS_TOKEN[finalidade][k];
+    return httpError(400, codigo, mensagem);
+  };
+  if (typeof token !== "string" || token.length === 0) throw erro("invalido");
+  const ponto = token.indexOf(".");
+  const tokenId = ponto > 0 ? token.slice(0, ponto) : "";
+  const segredo = ponto > 0 ? token.slice(ponto + 1) : "";
+  if (!tokenId || !segredo || !isUuid(tokenId)) throw erro("invalido");
+
+  const linha = await tokenModel.findConviteById(tokenId);
+  if (!linha || linha.finalidade !== finalidade) throw erro("invalido");
+  if (linha.usado_em) throw erro("usado");
+  if (linha.expira_em <= new Date()) throw erro("expirado");
+  if (!(await compararTokenSenha(segredo, linha.token_hash))) throw erro("invalido");
+  return { id: linha.id, usuario_id: linha.usuario_id };
 }
 
 // GET /auth/invite?token=... — pública. Mostra os dados pré-preenchidos para a
@@ -75,7 +88,7 @@ export async function invitePreview(
   next: NextFunction,
 ) {
   try {
-    const convite = await abrirConvite(req.query.token);
+    const convite = await abrirTokenSenha(req.query.token, "convite");
     const dados = await usuarioModel.findDadosConvite(convite.usuario_id);
     if (!dados) {
       throw httpError(400, "INVALID_INVITE", "Convite inválido");
@@ -109,7 +122,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
       throw httpError(400, "INVALID_TELEFONE", "Telefone inválido");
     }
 
-    const convite = await abrirConvite(token);
+    const convite = await abrirTokenSenha(token, "convite");
 
     const dados = await usuarioModel.findDadosConvite(convite.usuario_id);
     let aluno: { curso: string; semestre: string; matricula: string | null } | undefined;
@@ -252,6 +265,52 @@ export async function trocarSenha(req: Request, res: Response, next: NextFunctio
     await usuarioModel.definirSenha(usuario.id, await hashSenha(nova));
     await tokenModel.revogarTodosVivosDoUsuario(usuario.id, "troca_senha");
     res.json(await emitirSessao(usuario, null, req));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /auth/redefinir-senha — pública (rate-limited). Consome o link gerado
+// pelo admin (RF-01): troca a senha e derruba as sessões vivas.
+export async function redefinirSenha(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { token, senha } = req.body ?? {};
+    if (typeof senha !== "string" || senha.length < 8) {
+      throw httpError(400, "WEAK_PASSWORD", "Senha deve ter ao menos 8 caracteres");
+    }
+    const linha = await abrirTokenSenha(token, "recuperacao");
+    const ok = await tokenModel.consumirRecuperacao({
+      tokenId: linha.id,
+      usuarioId: linha.usuario_id,
+      senhaHash: await hashSenha(senha),
+    });
+    if (!ok) throw httpError(400, "RESET_USED", "Este link já foi usado");
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Resposta ÚNICA do pedido de redefinição — igual exista ou não a conta, esteja
+// ela ativa ou não (sem enumeração de e-mails).
+export const MENSAGEM_PEDIDO_REDEFINICAO =
+  "Pedido recebido. Se houver uma conta ativa com esse e-mail, a coordenação já foi avisada.";
+
+// POST /auth/pedido-redefinicao — pública (pedidoRedefinicaoLimiter). A pessoa
+// pede à coordenação um link de redefinição (RF-01). Nenhum e-mail sai daqui:
+// cada admin ativo vê o pedido no sino e gera o link na tela Contas. Falha ao
+// registrar também responde 202 — a resposta não pode depender de a conta existir.
+export async function pedidoRedefinicao(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body ?? {};
+    if (!ehEmail(email)) throw httpError(400, "INVALID_EMAIL", "Informe um e-mail válido");
+    const conta = await usuarioModel.findParaPedidoRedefinicao(email.trim().toLowerCase());
+    if (conta) {
+      await emailModel
+        .registrarPedidoRedefinicao({ usuario: conta, ip: ipDoChamador(req) })
+        .catch((e) => console.error("[pedidoRedefinicao] falha ao registrar o pedido", e));
+    }
+    res.status(202).json({ mensagem: MENSAGEM_PEDIDO_REDEFINICAO });
   } catch (err) {
     next(err);
   }

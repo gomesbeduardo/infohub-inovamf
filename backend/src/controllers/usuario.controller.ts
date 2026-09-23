@@ -5,13 +5,17 @@ import { hashSenha, tokenAleatorio } from "../utils/hash.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
 import { env } from "../env.js";
-import { linkConvite } from "../utils/convite.js";
+import { linkConvite, linkRedefinicao } from "../utils/convite.js";
+import { idDoChamador, ipDoChamador } from "../utils/acesso.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
 import * as emailModel from "../models/email.model.js";
 
 // Convite de conta cria só admin/mentor (RF-03). Aluno entra pelo formulário de ideia.
 const TIPOS_CONVIDAVEIS = ["admin", "mentor"];
+// Task 17: o filtro de listagem (?tipo=) aceita também "aluno" — a Contas
+// admin passou a listar todo mundo, não só quem é convidável.
+const TIPOS_LISTAVEIS = ["admin", "mentor", "aluno"];
 
 // POST /usuarios — admin cria conta (sem senha) e dispara convite por e-mail.
 export async function store(req: Request, res: Response, next: NextFunction) {
@@ -90,7 +94,7 @@ export async function index(req: Request, res: Response, next: NextFunction) {
   try {
     const { page, perPage, skip } = paginacao(req);
     const tipo =
-      typeof req.query.tipo === "string" && TIPOS_CONVIDAVEIS.includes(req.query.tipo)
+      typeof req.query.tipo === "string" && TIPOS_LISTAVEIS.includes(req.query.tipo)
         ? req.query.tipo
         : undefined;
     const ativo =
@@ -118,6 +122,11 @@ export async function index(req: Request, res: Response, next: NextFunction) {
         conviteAceito: u.convite_aceito_em !== null,
         ultimoLoginEm: u.ultimo_login_em,
         criadoEm: u.criado_em,
+        curso: u.alunos?.curso ?? null,
+        semestre: u.alunos?.semestre ?? null,
+        equipe: u.equipe_membros[0]
+          ? { slug: u.equipe_membros[0].equipes.slug, nomeIdeia: u.equipe_membros[0].equipes.nome_ideia }
+          : null,
       })),
       page,
       perPage,
@@ -196,6 +205,15 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     if (!alvo) {
       throw httpError(404, "USUARIO_NOT_FOUND", "Usuário não encontrado");
     }
+    // Aluno não vira admin/mentor pelo PATCH: o tipo de uma conta de aluno é fixo.
+    if (data.tipo_usuario !== undefined && alvo.tipo_usuario === "aluno") {
+      throw httpError(400, "TIPO_ALUNO_IMUTAVEL", "Não é possível mudar o perfil de uma conta de aluno");
+    }
+    // Ninguém tira o próprio acesso: desativar a si mesmo ou sair de admin
+    // trancaria a pessoa fora (e, sendo o único admin, o sistema inteiro).
+    if (alvo.id === idDoChamador(req) && (data.ativo === false || (data.tipo_usuario && data.tipo_usuario !== "admin"))) {
+      throw httpError(409, "PROPRIA_CONTA", "Você não pode desativar nem rebaixar a própria conta");
+    }
 
     const atualizado = await usuarioModel.atualizarPorSlug(slug, data);
 
@@ -213,6 +231,34 @@ export async function update(req: Request, res: Response, next: NextFunction) {
       ativo: atualizado.ativo,
       conviteAceito: atualizado.convite_aceito_em !== null,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /usuarios/:slug/redefinir-senha — admin gera o link de uso único (24 h)
+// para a pessoa definir outra senha (RF-01). Sem e-mail configurado, o admin
+// copia o link. Só para conta ativa que já aceitou o convite.
+export async function gerarRedefinicaoSenha(req: Request, res: Response, next: NextFunction) {
+  try {
+    const alvo = await usuarioModel.findParaConviteBySlug(req.params.slug ?? "");
+    if (!alvo) throw httpError(404, "USUARIO_NOT_FOUND", "Usuário não encontrado");
+    if (!alvo.ativo) {
+      throw httpError(409, "CONTA_INATIVA", "Conta inativa: ative a conta antes de redefinir a senha");
+    }
+    if (!alvo.convite_aceito_em) {
+      throw httpError(
+        409,
+        "CONVITE_PENDENTE",
+        "A pessoa ainda não aceitou o convite: gere um novo link de convite",
+      );
+    }
+    const r = await tokenModel.emitirRecuperacao({
+      usuarioId: alvo.id,
+      adminId: idDoChamador(req),
+      ip: ipDoChamador(req),
+    });
+    res.status(201).json({ link: linkRedefinicao(r.tokenBruto), expiraEm: r.expiraEm.toISOString() });
   } catch (err) {
     next(err);
   }

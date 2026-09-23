@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from '@/design-system/components/Toast';
 import { ApiError } from './erro';
 import { sessao } from './sessao';
 
@@ -20,5 +21,9 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     void sessao.restaurar();
   }, []);
-  return <QueryClientProvider client={cliente}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={cliente}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }

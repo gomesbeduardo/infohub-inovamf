@@ -9,6 +9,7 @@ import { Input } from '@/design-system/components/Input';
 import { FormField } from '@/design-system/components/FormField';
 import { CopiarLink } from '@/design-system/components/CopiarLink';
 import { PlusIcon } from '@/design-system/icons';
+import { useToast } from '@/design-system/components/Toast';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -19,6 +20,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 export function AdicionarMembroDialog({ equipeSlug }: { equipeSlug: string }) {
   const adicionar = useAdicionarMembro(equipeSlug);
+  const toast = useToast();
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -48,7 +50,10 @@ export function AdicionarMembroDialog({ equipeSlug }: { equipeSlug: string }) {
     adicionar.mutate(
       { nome: n, email: em },
       {
-        onSuccess: (r) => setCriado(r),
+        onSuccess: (r) => {
+          setCriado(r);
+          toast.sucesso(`${r.nome} adicionado(a) à equipe.`);
+        },
         onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível adicionar o integrante.'),
       },
     );

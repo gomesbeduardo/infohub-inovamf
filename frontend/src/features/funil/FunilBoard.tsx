@@ -14,9 +14,19 @@ import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
 import { DialogoMover, posicaoDe } from '@/features/funil/DialogoMover';
 import { limparFiltros, useAdiado } from '@/features/funil/filtros';
+import { Skeleton } from '@/design-system/components/Skeleton';
 import { cn } from '@/design-system/cn';
 
 const TITULO_PRONTA = 'Pronta p/ InovAMF';
+
+/**
+ * Classes do card de item do kanban — reusadas pela agenda (Task 18) para o
+ * mesmo visual (borda, sombra, hover). `motion-safe:` nas classes de
+ * transform/transição, então o funil também passa a respeitar
+ * `prefers-reduced-motion`.
+ */
+export const CARTAO_KANBAN =
+  'rounded-lg border border-border bg-surface p-3 shadow-sm motion-safe:transition-all motion-safe:hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md';
 
 export interface FunilBoardProps {
   /** `admin` vê todas as equipes (com export e âncoras de coluna); `mentor` vê só as suas. */
@@ -143,7 +153,7 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
           </Button>
         </div>
       ) : carregando ? (
-        <p className="px-1 py-10 text-center text-sm text-text-muted">Carregando…</p>
+        <Skeleton linhas={5} className="px-1 py-6" />
       ) : (
         <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
           {colunas.map((col) => (
@@ -244,7 +254,8 @@ function CardArrastavel({
       data-testid="equipe-card"
       title="Arraste para mover de etapa"
       className={cn(
-        'flex cursor-grab flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md active:cursor-grabbing active:translate-y-0',
+        CARTAO_KANBAN,
+        'flex cursor-grab flex-col gap-2 active:cursor-grabbing active:translate-y-0',
         arrastando && 'opacity-50',
       )}
     >

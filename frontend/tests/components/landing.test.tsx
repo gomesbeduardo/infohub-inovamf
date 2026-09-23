@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '@/design-system/theme';
+
+// next/font é transformado pelo compilador do Next; no Vitest basta a classe.
+vi.mock('next/font/google', () => ({ Caveat: () => ({ className: 'fonte-rascunho' }) }));
 
 vi.mock('@/data/api/consultas', () => ({
   useNumerosPublicos: vi.fn(),
@@ -9,7 +13,7 @@ vi.mock('@/data/api/consultas', () => ({
 import { useNumerosPublicos } from '@/data/api/consultas';
 import type { NumerosPublicos } from '@/data/api/tipos';
 import { Landing } from '@/features/landing/Landing';
-import { ETAPAS_VITRINE } from '@/features/landing/conteudo';
+import { CASOS_VITRINE, CONTATO_AMF, ETAPAS_VITRINE } from '@/features/landing/conteudo';
 
 type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
 
@@ -60,12 +64,55 @@ describe('Landing', () => {
     });
   });
 
-  it('tem as seções âncora do menu', () => {
+  it('tem as seções âncora, cada uma com o botão para a próxima', () => {
     const { container } = renderLanding();
 
-    for (const id of ['o-que-e', 'como-funciona', 'equipes', 'casos']) {
+    for (const id of ['o-que-e', 'como-funciona', 'equipes', 'casos', 'enviar']) {
       expect(container.querySelector(`#${id}`)).not.toBeNull();
     }
+    expect(screen.getByRole('link', { name: 'Conheça o InfoHub' })).toHaveAttribute('href', '#o-que-e');
+    expect(within(document.getElementById('o-que-e')!).getByRole('link', { name: 'Como funciona' })).toHaveAttribute('href', '#como-funciona');
+    expect(screen.getByRole('link', { name: 'Veja quem já chegou lá' })).toHaveAttribute('href', '#casos');
+    expect(screen.getByRole('link', { name: 'Quero ser o próximo' })).toHaveAttribute('href', '#enviar');
+  });
+
+  it('cabeçalho só com a marca, Entrar e Enviar minha ideia (sem tema nem menu de seções)', () => {
+    renderLanding();
+    const cabecalho = screen.getAllByRole('banner')[0]!;
+    const topo = within(cabecalho);
+    expect(topo.getByRole('link', { name: 'Entrar' })).toHaveAttribute('href', '/login');
+    expect(topo.getByRole('link', { name: 'Enviar minha ideia' })).toHaveAttribute('href', '/cadastro');
+    expect(topo.queryByRole('navigation')).toBeNull();
+    expect(topo.queryByRole('button')).toBeNull();
+  });
+
+  it('chamada final tem um botão só: enviar a ideia', () => {
+    renderLanding();
+    const cta = within(document.getElementById('enviar')!);
+    const links = cta.getAllByRole('link');
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('href', '/cadastro');
+  });
+
+  it('rodapé mostra o endereço e os telefones da AMF', () => {
+    renderLanding();
+    const rodape = within(screen.getByRole('contentinfo'));
+    CONTATO_AMF.linhas.forEach((l) => expect(rodape.getByText(l)).toBeInTheDocument());
+    expect(rodape.getByRole('link', { name: '(55) 3289-1139' })).toHaveAttribute('href', 'tel:+555532891139');
+  });
+
+  it('carrossel de casos: setas trocam o card em foco e há botão de pausa', async () => {
+    const user = userEvent.setup();
+    renderLanding();
+    const carrossel = within(screen.getByRole('region', { name: 'Casos em destaque' }));
+    const visivel = () => carrossel.getAllByRole('group', { hidden: false }).map((g) => g.textContent);
+    expect(visivel()[0]).toContain(CASOS_VITRINE[0]!.nomeIdeia);
+    await user.click(carrossel.getAllByRole('button', { name: 'Próximo caso' })[0]!);
+    expect(visivel()[0]).toContain(CASOS_VITRINE[1]!.nomeIdeia);
+    await user.click(carrossel.getAllByRole('button', { name: 'Caso anterior' })[0]!);
+    expect(visivel()[0]).toContain(CASOS_VITRINE[0]!.nomeIdeia);
+    await user.click(carrossel.getByRole('button', { name: 'Pausar a troca automática' }));
+    expect(carrossel.getByRole('button', { name: 'Retomar a troca automática' })).toBeInTheDocument();
   });
 });
 

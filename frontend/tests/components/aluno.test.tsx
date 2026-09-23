@@ -15,6 +15,8 @@ vi.mock('@/data/api/consultas', () => ({
   useEtapas: vi.fn(),
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
+  useLinhaDoTempo: vi.fn(),
+  useIniciarTarefa: vi.fn(),
 }));
 vi.mock('@/data/api/useSessao', () => ({ useUsuario: vi.fn() }));
 
@@ -26,10 +28,13 @@ import {
   useEquipes,
   useEtapas,
   useGerarConvite,
+  useIniciarTarefa,
+  useLinhaDoTempo,
   useTarefas,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import type { Entrega, Etapa, EquipeDetalhe, EquipeResumo, Tarefa } from '@/data/api/tipos';
+import { ApiError } from '@/data/api/erro';
 import { MinhaEquipe } from '@/features/aluno-equipe/MinhaEquipe';
 import { MinhasTarefas } from '@/features/aluno-tarefas/MinhasTarefas';
 import { EnviarEntregaDialog } from '@/features/aluno-tarefas/EnviarEntregaDialog';
@@ -73,6 +78,7 @@ function detalhe(p: Partial<EquipeDetalhe> = {}): EquipeDetalhe {
     area: 'Agronegócio',
     ciclo: '2026/2',
     mentor: { slug: 'mentor-ana', nome: 'Ana Mentora' },
+    souLider: true,
     membros: [
       { slug: 'lia', nome: 'Lia Líder', papel: 'lider', tipo: 'aluno', pendente: false, curso: 'Direito', semestre: '3' },
       { slug: 'caio', nome: 'Caio Integrante', papel: 'integrante', tipo: 'aluno', pendente: false, curso: 'Agronomia', semestre: '5º' },
@@ -103,6 +109,7 @@ function tarefa(p: Partial<Tarefa> = {}): Tarefa {
 const enviarMutate = vi.fn();
 const gerarMutate = vi.fn();
 const adicionarMutate = vi.fn();
+const iniciarMutate = vi.fn();
 
 function mockEquipes(data: EquipeResumo[]) {
   vi.mocked(useEquipes).mockReturnValue({
@@ -161,6 +168,16 @@ function mockPadrao() {
   vi.mocked(useAdicionarMembro).mockReturnValue({ mutate: adicionarMutate, isPending: false } as unknown as R<
     typeof useAdicionarMembro
   >);
+  vi.mocked(useLinhaDoTempo).mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useLinhaDoTempo>);
+  vi.mocked(useIniciarTarefa).mockReturnValue({ mutate: iniciarMutate, isPending: false } as unknown as R<
+    typeof useIniciarTarefa
+  >);
 }
 
 function comoLider() {
@@ -215,6 +232,13 @@ describe('MinhaEquipe', () => {
     expect(screen.queryByRole('button', { name: /adicionar integrante/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /gerar link/i })).not.toBeInTheDocument();
   });
+
+  it('mostra o "Próximo passo" e a linha do tempo resumida da equipe', () => {
+    render(<MinhaEquipe />);
+    expect(screen.getByText('Próximo passo')).toBeInTheDocument();
+    expect(screen.getByText('Tudo entregue — aguardando a avaliação do mentor')).toBeInTheDocument();
+    expect(useLinhaDoTempo).toHaveBeenCalledWith('agrosmart');
+  });
 });
 
 describe('MinhasTarefas', () => {
@@ -263,6 +287,57 @@ describe('MinhasTarefas', () => {
     render(<MinhasTarefas />);
 
     expect(screen.getByText(/Revisar o público-alvo/)).toBeInTheDocument();
+  });
+
+  it('cada tarefa tem a âncora que o "Próximo passo" usa', () => {
+    render(<MinhasTarefas />);
+    expect(document.getElementById('tarefa-t-1')).not.toBeNull();
+  });
+
+  it('"Comecei" só aparece na tarefa pendente e chama useIniciarTarefa().mutate(slug)', async () => {
+    mockTarefas([
+      tarefa({ slug: 't-1', status: 'pendente' }),
+      tarefa({ slug: 't-2', titulo: 'Outra tarefa', status: 'em_andamento' }),
+    ]);
+    const user = userEvent.setup();
+    render(<MinhasTarefas />);
+    const botoes = screen.getAllByRole('button', { name: 'Comecei' });
+    expect(botoes).toHaveLength(1);
+    await user.click(botoes[0]!);
+    expect(useIniciarTarefa).toHaveBeenCalledWith('agrosmart');
+    expect(iniciarMutate).toHaveBeenCalledWith('t-1', expect.anything());
+  });
+
+  it('erro ao começar aparece inline com a mensagem da API', async () => {
+    iniciarMutate.mockImplementationOnce((_s: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(new ApiError(409, 'TAREFA_NAO_PENDENTE', 'Só dá para começar uma tarefa pendente')),
+    );
+    const user = userEvent.setup();
+    render(<MinhasTarefas />);
+    await user.click(screen.getByRole('button', { name: 'Comecei' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Só dá para começar uma tarefa pendente');
+  });
+
+  it('tarefa atrasada mostra o chip "atrasada há N dias"', () => {
+    mockTarefas([tarefa({ status: 'atrasada', dataEntrega: '2026-09-01T00:00:00.000Z' })]);
+    render(<MinhasTarefas />);
+    expect(screen.getByText(/^atrasada há \d+ dias$/)).toBeInTheDocument();
+  });
+
+  it('líder vê "Comecei" e "Enviar entrega"', () => {
+    mockEquipe(detalhe({ souLider: true }));
+    render(<MinhasTarefas />);
+    expect(screen.getByRole('button', { name: 'Comecei' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enviar entrega/i })).toBeInTheDocument();
+  });
+
+  it('quem não é líder não vê "Comecei" nem "Enviar entrega", e vê o aviso com o nome do líder', () => {
+    comoIntegrante();
+    mockEquipe(detalhe({ souLider: false }));
+    render(<MinhasTarefas />);
+    expect(screen.queryByRole('button', { name: 'Comecei' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /enviar entrega/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Quem envia as entregas é o líder: Lia Líder')).toBeInTheDocument();
   });
 });
 

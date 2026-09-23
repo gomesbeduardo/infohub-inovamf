@@ -21,6 +21,15 @@ export function podeVerEquipe(
   return membros.includes(id);
 }
 
+// Enviar entrega / marcar tarefa como iniciada: só o aluno líder ativo da
+// equipe (decisão do dono do produto). `membros` já vem filtrado por ativo.
+export function ehLiderAtivo(
+  membros: Array<{ usuario_id: string; papel: string }>,
+  usuarioId: string,
+): boolean {
+  return membros.some((m) => m.usuario_id === usuarioId && m.papel === "lider");
+}
+
 // Gerir (criar tarefa, avaliar entrega, mover etapa): só admin ou mentor da equipe.
 export function podeGerirEquipe(req: Request, mentorId: string | null): boolean {
   if (req.auth.role === "admin") return true;
@@ -33,4 +42,10 @@ export function escopoDo(req: Request): Escopo {
   if (req.auth.role === "admin") return { tipo: "admin" };
   if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: idDoChamador(req) };
   return { tipo: "aluno", usuarioId: idDoChamador(req) };
+}
+
+// RNF-05: IP de origem gravado na auditoria. req.ip já é o IP real do cliente
+// (app.ts confia no X-Forwarded-For do rewrite do Next — trust proxy).
+export function ipDoChamador(req: Request): string | null {
+  return req.ip ?? null;
 }

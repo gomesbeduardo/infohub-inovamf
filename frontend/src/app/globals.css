@@ -277,3 +277,193 @@ h2,
     animation: none;
   }
 }
+
+/* ── Landing ───────────────────────────────────────────────────────────────── */
+/* Âncoras param abaixo do cabeçalho fixo da landing (h-16) e deslizam até lá. */
+html {
+  scroll-padding-top: 4rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Brilho do topo: nasce na borda de cima, atrás do cabeçalho transparente. */
+.landing-brilho {
+  background: radial-gradient(
+      70% 62% at 6% 0%,
+      color-mix(in srgb, var(--grad-amber) 52%, transparent) 0%,
+      transparent 66%
+    ),
+    radial-gradient(
+      58% 60% at 100% 100%,
+      color-mix(in srgb, var(--grad-flame) 38%, transparent) 0%,
+      transparent 66%
+    ),
+    linear-gradient(180deg, #fff3ea 0%, var(--bg) 100%);
+}
+[data-theme='dark'] .landing-brilho {
+  background: radial-gradient(
+      78% 72% at 8% 0%,
+      color-mix(in srgb, var(--grad-flame) 44%, transparent) 0%,
+      transparent 68%
+    ),
+    radial-gradient(
+      56% 60% at 100% 100%,
+      color-mix(in srgb, var(--grad-maroon) 42%, transparent) 0%,
+      transparent 70%
+    );
+}
+
+/* Véu sobre a foto do card de cursos: legível no claro e no escuro. */
+.veu-foto {
+  background: linear-gradient(
+    180deg,
+    transparent 10%,
+    color-mix(in srgb, var(--hub-950) 62%, transparent) 50%,
+    color-mix(in srgb, var(--hub-950) 88%, transparent) 85%
+  );
+}
+
+/* Jornada: uma faixa por etapa (em tela média ou maior), com um brilho na cor
+   da etapa saindo do ápice da curva. O fundo muda de tom etapa a etapa, do
+   laranja ao vinho, e a etapa ativa brilha mais. */
+@media (min-width: 768px) {
+  .jornada-tela {
+    height: 80svh;
+    min-height: 34rem;
+  }
+  .jornada-tela::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      closest-side at var(--apice-x) 50%,
+      color-mix(in srgb, var(--cor-etapa) 34%, transparent) 0%,
+      color-mix(in srgb, var(--cor-etapa) 12%, transparent) 55%,
+      transparent 100%
+    );
+    opacity: 0.45;
+  }
+  [data-theme='dark'] .jornada-tela::before {
+    background: radial-gradient(
+      closest-side at var(--apice-x) 50%,
+      color-mix(in srgb, var(--cor-etapa) 26%, transparent) 0%,
+      color-mix(in srgb, var(--cor-etapa) 9%, transparent) 55%,
+      transparent 100%
+    );
+  }
+  .jornada-tela[data-ativo='true']::before {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Hero: o único momento autoral. O título ganha nitidez linha a linha, a
+     seta se desenha do esboço ao pitch, as seis marcas acendem nas cores das
+     etapas e o pitch assenta. Roda uma vez; sem JS, tudo já está no lugar. */
+  @keyframes hero-nitidez {
+    from {
+      opacity: 0;
+      transform: translateY(0.25em);
+      filter: blur(10px);
+    }
+  }
+  .hero-linha {
+    animation: hero-nitidez 0.75s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+  @keyframes hero-chega {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  .hero-apoio {
+    animation: hero-chega 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.28s backwards;
+  }
+  .hero-esboco {
+    animation: hero-chega 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+  }
+  @keyframes hero-traco {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .hero-seta-traco {
+    stroke-dasharray: 1;
+    animation: hero-traco 1s cubic-bezier(0.65, 0, 0.35, 1) 0.45s backwards;
+  }
+  @keyframes hero-marca {
+    from {
+      opacity: 0;
+      transform: scale(0.2);
+    }
+  }
+  .hero-seta-marca {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: hero-marca 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(0.6s + var(--i) * 130ms);
+  }
+  @keyframes hero-some {
+    from {
+      opacity: 0;
+    }
+  }
+  .hero-seta-ponta {
+    animation: hero-some 0.25s ease-out 1.4s backwards;
+  }
+  @keyframes hero-assenta {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.97);
+      filter: blur(6px);
+    }
+  }
+  .hero-pitch {
+    animation: hero-assenta 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.25s backwards;
+  }
+
+  /* Jornada: o texto da etapa entra na direção do scroll — sobe quando você
+     desce e desce quando você sobe. Sai mais rápido do que entra. */
+  @media (min-width: 768px) {
+    .jornada-conteudo > * {
+      transition:
+        transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.5s ease-out;
+    }
+    .jornada-conteudo > :nth-child(2) { transition-delay: 60ms; }
+    .jornada-conteudo > :nth-child(3) { transition-delay: 120ms; }
+    .jornada-conteudo > :nth-child(4) { transition-delay: 180ms; }
+    .jornada-conteudo > :nth-child(5) { transition-delay: 240ms; }
+    .jornada-entregavel > * { transition-delay: 150ms; }
+    .jornada-tela[data-estado='abaixo'] .jornada-conteudo > *,
+    .jornada-tela[data-estado='acima'] .jornada-conteudo > * {
+      opacity: 0;
+      transition-duration: 0.3s;
+      transition-delay: 0s;
+    }
+    .jornada-tela[data-estado='abaixo'] .jornada-conteudo > * {
+      transform: translateY(40px);
+    }
+    .jornada-tela[data-estado='acima'] .jornada-conteudo > * {
+      transform: translateY(-40px);
+    }
+    .jornada-trilha-ativa {
+      transition: stroke-dashoffset 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .jornada-marco {
+      transition: fill 0.4s ease-out, stroke 0.4s ease-out;
+    }
+    .jornada-tela::before {
+      transition: opacity 0.6s ease-out;
+    }
+  }
+}

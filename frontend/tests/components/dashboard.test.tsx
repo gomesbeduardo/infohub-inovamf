@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -17,11 +17,14 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/data/api/consultas', () => ({
   useDashboard: vi.fn(),
+  useAgenda: vi.fn(),
+  useEtapas: vi.fn(),
+  useEquipes: vi.fn(),
 }));
 
-import { useDashboard } from '@/data/api/consultas';
+import { useAgenda, useDashboard, useEquipes, useEtapas } from '@/data/api/consultas';
 import { ApiError } from '@/data/api/erro';
-import type { Dashboard } from '@/data/api/tipos';
+import type { Dashboard, EquipeResumo } from '@/data/api/tipos';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
 import { PainelOrientador } from '@/features/orientador/PainelOrientador';
 
@@ -42,8 +45,24 @@ const DASHBOARD: Dashboard = {
     { numero: 6, nome: 'Encontro 4', total: 0 },
   ],
   serieSemanal: [
-    { semanaInicio: '2026-08-03', rotulo: '03/08', avancos: 2, entregas: 5 },
-    { semanaInicio: '2026-08-10', rotulo: '10/08', avancos: 1, entregas: 3 },
+    {
+      semanaInicio: '2026-08-03',
+      rotulo: '03/08',
+      avancos: 2,
+      entregasRecebidas: 4,
+      entregasAvaliadas: 3,
+      tarefasConcluidas: 5,
+      entregas: 5,
+    },
+    {
+      semanaInicio: '2026-08-10',
+      rotulo: '10/08',
+      avancos: 1,
+      entregasRecebidas: 2,
+      entregasAvaliadas: 2,
+      tarefasConcluidas: 3,
+      entregas: 3,
+    },
   ],
 };
 
@@ -57,6 +76,45 @@ function mockDashboard(v: Partial<R<typeof useDashboard>>) {
     ...v,
   } as unknown as R<typeof useDashboard>);
 }
+
+const EQUIPES_MENTOR = [
+  {
+    slug: 'agro',
+    nomeIdeia: 'AgroSmart',
+    descricaoIdeia: '',
+    status: 'ativa',
+    estagio: 'ideia',
+    etapa: { numero: 3, nome: 'Encontro 1' },
+    area: null,
+    ciclo: null,
+    mentor: null,
+    lider: null,
+    membrosCount: 3,
+    tarefasAtrasadas: 0,
+    criadoEm: '2026-08-01T00:00:00Z',
+  },
+] as EquipeResumo[];
+
+beforeEach(() => {
+  vi.mocked(useAgenda).mockReturnValue({
+    data: { paraAvaliar: [], prazos: [], equipes: [] },
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useAgenda>);
+  vi.mocked(useEtapas).mockReturnValue({ data: [], isPending: false, isError: false } as unknown as R<
+    typeof useEtapas
+  >);
+  vi.mocked(useEquipes).mockReturnValue({
+    data: EQUIPES_MENTOR,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useEquipes>);
+});
 
 describe('DashboardIndicadores', () => {
   it('mostra os cards com os números da API', () => {
@@ -105,6 +163,25 @@ describe('DashboardIndicadores', () => {
 });
 
 describe('PainelOrientador', () => {
+  it('ordem da visão geral: indicadores, gráfico e só depois a mesa do mentor', () => {
+    mockDashboard({});
+    const { container } = render(<PainelOrientador />);
+    const mesa = screen.getByRole('region', { name: 'Mesa do mentor' });
+    expect(within(mesa).getByText('Para avaliar')).toBeInTheDocument();
+    expect(within(mesa).getByText('Prazos')).toBeInTheDocument();
+    expect(within(mesa).getByText('Minhas equipes')).toBeInTheDocument();
+
+    const grafico = within(container).getByRole('img', { name: /gráfico de linha/i });
+    const indicador = screen.getByText('Equipes mentoradas');
+    // DOM em ordem de documento: cards de indicador → gráfico → mesa do mentor.
+    expect(
+      indicador.compareDocumentPosition(grafico) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      grafico.compareDocumentPosition(mesa) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('mostra os cards com totalEquipes/aAvaliar/tarefasAtrasadas/prontasInovamf da API', () => {
     mockDashboard({});
     render(<PainelOrientador />);
@@ -115,16 +192,37 @@ describe('PainelOrientador', () => {
     expect(screen.getByText('Prontas p/ InovAMF').closest('button')).toHaveTextContent('3');
   });
 
-  it('o gráfico recebe a serieSemanal (rotulo/avancos/entregas) da API', () => {
+  it('o gráfico recebe a serieSemanal (rotulo + as quatro contagens) da API, com as 4 séries na legenda', () => {
     mockDashboard({});
     const { container } = render(<PainelOrientador />);
 
     const grafico = within(container).getByRole('img', {
-      name: /gráfico de linha com avanços de etapa e entregas concluídas por semana/i,
+      name: /gráfico de linha com avanços de etapa, entregas recebidas, entregas avaliadas e tarefas concluídas por semana/i,
     });
     expect(grafico).toBeInTheDocument();
     expect(screen.getByText('03/08')).toBeInTheDocument();
     expect(screen.getByText('10/08')).toBeInTheDocument();
+
+    const legenda = screen.getByRole('group', { name: 'Selecionar séries do gráfico' });
+    expect(within(legenda).getByRole('button', { name: /Avanços de etapa/ })).toBeInTheDocument();
+    expect(within(legenda).getByRole('button', { name: /Entregas recebidas/ })).toBeInTheDocument();
+    expect(within(legenda).getByRole('button', { name: /Entregas avaliadas/ })).toBeInTheDocument();
+    expect(within(legenda).getByRole('button', { name: /Tarefas concluídas/ })).toBeInTheDocument();
+  });
+
+  it('aba "Equipes" vem depois de "Funil", lista as equipes do mentor e o link usa /orientador/equipes', async () => {
+    const user = userEvent.setup();
+    mockDashboard({});
+    render(<PainelOrientador />);
+
+    const abas = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(abas).toEqual(['Visão geral', 'Funil', 'Equipes']);
+
+    await user.click(screen.getByRole('tab', { name: 'Equipes' }));
+    expect(screen.getByRole('link', { name: 'AgroSmart' })).toHaveAttribute(
+      'href',
+      '/orientador/equipes/agro',
+    );
   });
 
   it('carregando mostra "Carregando…"', () => {

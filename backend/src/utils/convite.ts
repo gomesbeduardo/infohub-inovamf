@@ -6,3 +6,9 @@ import { env } from "../env.js";
 export function linkConvite(tokenBruto: string, base: string = env.inviteUrlBase): string {
   return `${base}?token=${encodeURIComponent(tokenBruto)}`;
 }
+
+// Link de redefinição de senha (RF-01) gerado pelo admin: SEMPRE relativo; o
+// CopiarLink do front completa com a origem da página.
+export function linkRedefinicao(tokenBruto: string): string {
+  return linkConvite(tokenBruto, "/redefinir-senha");
+}

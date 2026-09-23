@@ -3,9 +3,11 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, requisicao } from './http';
 import { sessao, type RespostaSessao } from './sessao';
 import type {
-  Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
-  FiltrosEquipes, Me, ModeloTarefa, NumerosPublicos, Pagina, Posicao, Tarefa, UsuarioAdmin,
+  Agenda, Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
+  FiltrosEquipes, ItemLinhaDoTempo, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa,
+  UsuarioAdmin,
 } from './tipos';
+import type { StatusEquipe } from '@/domain/types';
 
 function qs(f: object): string {
   const p = new URLSearchParams();
@@ -24,11 +26,16 @@ export const chaves = {
   tarefas: (equipeSlug: string) => ['tarefas', equipeSlug] as const,
   entregas: (tarefaSlug: string) => ['entregas', tarefaSlug] as const,
   anotacoes: (equipeSlug: string) => ['anotacoes', equipeSlug] as const,
+  linhaDoTempo: (equipeSlug: string) => ['linha-do-tempo', equipeSlug] as const,
   dashboard: ['dashboard'] as const,
+  // Prefixo de `dashboard`: quem já invalida o dashboard (mover etapa, entregar,
+  // avaliar) invalida a agenda junto.
+  agenda: ['dashboard', 'agenda'] as const,
   usuarios: (tipo?: string) => ['usuarios', tipo ?? 'todos'] as const,
   convite: (token: string) => ['convite', token] as const,
   me: ['me'] as const,
   publicoNumeros: ['publico', 'numeros'] as const,
+  notificacoes: ['notificacoes'] as const,
 };
 
 // ── Referência ────────────────────────────────────────────────────────────────
@@ -58,6 +65,40 @@ export function useEquipes(filtros: FiltrosEquipes = {}) {
 export const useEquipe = (slug: string) =>
   useQuery({ queryKey: chaves.equipe(slug), queryFn: () => api<EquipeDetalhe>(`/equipes/${slug}`), enabled: !!slug });
 
+/** A5: linha do tempo da equipe (o backend já aplica o escopo do papel). */
+export const useLinhaDoTempo = (equipeSlug: string) =>
+  useQuery({
+    queryKey: chaves.linhaDoTempo(equipeSlug),
+    queryFn: () =>
+      api<{ data: ItemLinhaDoTempo[] }>(`/equipes/${equipeSlug}/linha-do-tempo`).then((r) => r.data),
+    enabled: !!equipeSlug,
+  });
+
+/** A1: gestão do admin — mentor e status via PATCH /equipes/:slug (a regra é do backend). */
+export function useAtualizarEquipe(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: { mentor?: string | null; status?: StatusEquipe }) =>
+      api(`/equipes/${slug}`, { method: 'PATCH', body: b }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: chaves.equipe(slug) });
+      void qc.invalidateQueries({ queryKey: ['equipes'] });
+      void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(slug) });
+      void qc.invalidateQueries({ queryKey: chaves.dashboard });
+    },
+  });
+}
+
+/** RF-20: lembrete manual avulso para os integrantes (admin ou mentor da equipe). */
+export function useEnviarLembrete(equipeSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: { mensagem?: string }) =>
+      api<{ enfileirados: number; total: number }>(`/equipes/${equipeSlug}/lembrete`, { method: 'POST', body: b }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(equipeSlug) }),
+  });
+}
+
 export function useMoverEtapa(slug: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -67,6 +108,7 @@ export function useMoverEtapa(slug: string) {
       void qc.invalidateQueries({ queryKey: ['equipes'] });
       void qc.invalidateQueries({ queryKey: chaves.equipe(slug) });
       void qc.invalidateQueries({ queryKey: chaves.dashboard });
+      void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(slug) });
     },
   });
 }
@@ -155,6 +197,18 @@ export function useCriarTarefa(equipeSlug: string) {
   });
 }
 
+/** A3/RF-12: o aluno marca "Comecei" (pendente → em andamento). */
+export function useIniciarTarefa(equipeSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tarefaSlug: string) => api<Tarefa>(`/tarefas/${tarefaSlug}/iniciar`, { method: 'POST' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: chaves.tarefas(equipeSlug) });
+      void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) });
+    },
+  });
+}
+
 export const useEntregas = (tarefaSlug: string) =>
   useQuery({
     queryKey: chaves.entregas(tarefaSlug),
@@ -168,6 +222,7 @@ function invalidarTarefa(qc: ReturnType<typeof useQueryClient>, tarefaSlug: stri
   void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) });
   void qc.invalidateQueries({ queryKey: ['equipes'] });
   void qc.invalidateQueries({ queryKey: chaves.dashboard });
+  void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(equipeSlug) });
 }
 
 export function useEnviarEntrega(tarefaSlug: string, equipeSlug: string) {
@@ -208,11 +263,20 @@ export function useAnotar(equipeSlug: string) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export const useDashboard = () => useQuery({ queryKey: chaves.dashboard, queryFn: () => api<Dashboard>('/dashboard') });
 
+/** Adendo 23/09: "mesa do mentor" e blocos do painel do admin (o escopo vem do backend). */
+export const useAgenda = () =>
+  useQuery({
+    queryKey: chaves.agenda,
+    queryFn: () => api<{ data: Agenda }>('/dashboard/agenda').then((r) => r.data),
+  });
+
 // ── Contas ────────────────────────────────────────────────────────────────────
-export const useUsuarios = (tipo?: 'admin' | 'mentor' | 'aluno') =>
+export const useUsuarios = (tipo?: 'admin' | 'mentor' | 'aluno', opcoes: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: chaves.usuarios(tipo),
     queryFn: () => api<Pagina<UsuarioAdmin>>(`/usuarios${qs({ tipo, perPage: 100 })}`).then((r) => r.data),
+    // GET /usuarios é só do admin: quem não é admin passa enabled=false.
+    enabled: opcoes.enabled ?? true,
   });
 
 // POST /usuarios não devolve ativo/conviteAceito (a conta nasce pendente,
@@ -245,6 +309,30 @@ export function useReenviarConvite() {
   });
 }
 
+/** A3/RF-01: admin gera o link de uso único (24 h) para a pessoa definir outra senha. */
+export function useGerarRedefinicao() {
+  return useMutation({
+    mutationFn: (slug: string) =>
+      api<{ link: string; expiraEm: string }>(`/usuarios/${slug}/redefinir-senha`, { method: 'POST' }),
+  });
+}
+
+/** A3/RF-01: a pessoa troca a senha pelo link (rota pública; 204). */
+export function useRedefinirSenha() {
+  return useMutation({
+    mutationFn: (b: { token: string; senha: string }) =>
+      api<void>('/auth/redefinir-senha', { method: 'POST', body: b, publica: true }),
+  });
+}
+
+/** Adendo 23/09 (RF-01): pedido público de redefinição; a resposta é sempre a mesma (202). */
+export function usePedirRedefinicao() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api<{ mensagem: string }>('/auth/pedido-redefinicao', { method: 'POST', body: { email }, publica: true }),
+  });
+}
+
 export const useMe = () => useQuery({ queryKey: chaves.me, queryFn: () => api<Me>('/auth/me') });
 
 export function useAtualizarMe() {
@@ -261,6 +349,16 @@ export function useTrocarSenha() {
     onSuccess: (r) => sessao.aplicar(r),
   });
 }
+
+// ── Notificações (B1) ────────────────────────────────────────────────────────
+/** Inbox do sino. Consulta a cada 60 s e quando a janela volta a ter foco. */
+export const useNotificacoes = () =>
+  useQuery({
+    queryKey: chaves.notificacoes,
+    queryFn: () => api<Pagina<Notificacao>>('/notificacoes?perPage=20').then((r) => r.data),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
 
 // ── Público (landing) ────────────────────────────────────────────────────────
 export const useNumerosPublicos = () =>

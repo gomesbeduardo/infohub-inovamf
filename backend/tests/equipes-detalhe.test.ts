@@ -8,16 +8,26 @@ const app = createApp();
 const sufixo = `det${Date.now()}`;
 const email = (n: string) => `${n}.${sufixo}@teste.local`;
 let liderAccess = "";
+let integranteAccess = "";
 let equipe = { id: "", slug: "" };
 
 beforeAll(async () => {
   const lider = await criarUsuario(email("lider"), "aluno");
+  const integrante = await criarUsuario(email("integrante"), "aluno");
   await prisma.alunos.create({ data: { usuario_id: lider.id, curso: "Direito", semestre: "3º" } });
-  equipe = await criarEquipe({ nome: `D ${sufixo}`, etapa: 2, membros: [{ id: lider.id, papel: "lider" }] });
+  equipe = await criarEquipe({
+    nome: `D ${sufixo}`,
+    etapa: 2,
+    membros: [
+      { id: lider.id, papel: "lider" },
+      { id: integrante.id, papel: "integrante" },
+    ],
+  });
   await prisma.tarefas.create({
     data: { equipe_id: equipe.id, etapa_id: 2, titulo: "Obrigatória", obrigatoria: true, data_entrega: new Date("2099-01-01T00:00:00Z") },
   });
   liderAccess = await login(app, email("lider"));
+  integranteAccess = await login(app, email("integrante"));
 });
 
 afterAll(async () => {
@@ -33,5 +43,15 @@ describe("GET /equipes/:slug", () => {
     expect(r.body.pendenciasParaAvancar).toEqual([
       expect.objectContaining({ tipo: "tarefa", titulo: "Obrigatória" }),
     ]);
+  });
+
+  it("souLider: true para o líder, false para o integrante", async () => {
+    const doLider = await request(app).get(`/api/v1/equipes/${equipe.slug}`).set(bearer(liderAccess));
+    expect(doLider.body.souLider).toBe(true);
+
+    const doIntegrante = await request(app)
+      .get(`/api/v1/equipes/${equipe.slug}`)
+      .set(bearer(integranteAccess));
+    expect(doIntegrante.body.souLider).toBe(false);
   });
 });

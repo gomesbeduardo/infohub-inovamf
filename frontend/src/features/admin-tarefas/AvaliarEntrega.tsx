@@ -5,6 +5,7 @@ import type { Entrega, Tarefa } from '@/data/api/tipos';
 import { useAvaliar } from '@/data/api/consultas';
 import { Button } from '@/design-system/components/Button';
 import { Textarea } from '@/design-system/components/Textarea';
+import { useToast } from '@/design-system/components/Toast';
 
 /** Avalia (aprova ou pede ajustes) só a última entrega, e só com a tarefa "entregue". */
 export function AvaliarEntrega({
@@ -17,6 +18,7 @@ export function AvaliarEntrega({
   equipeSlug: string;
 }) {
   const avaliar = useAvaliar(tarefa.slug, equipeSlug);
+  const toast = useToast();
   const [ajustando, setAjustando] = useState(false);
   const [comentario, setComentario] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -27,7 +29,10 @@ export function AvaliarEntrega({
     setErro(null);
     avaliar.mutate(
       { entregaSlug: entrega.slug, resultado: 'aprovada' },
-      { onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível avaliar a entrega.') },
+      {
+        onSuccess: () => toast.sucesso('Entrega aprovada.'),
+        onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível avaliar a entrega.'),
+      },
     );
   }
 
@@ -41,6 +46,7 @@ export function AvaliarEntrega({
         onSuccess: () => {
           setAjustando(false);
           setComentario('');
+          toast.sucesso('Ajustes solicitados à equipe.');
         },
         onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível avaliar a entrega.'),
       },

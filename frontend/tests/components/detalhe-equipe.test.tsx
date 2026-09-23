@@ -14,6 +14,10 @@ vi.mock('@/data/api/consultas', () => ({
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
   useEtapas: vi.fn(),
+  useLinhaDoTempo: vi.fn(),
+  useUsuarios: vi.fn(),
+  useAtualizarEquipe: vi.fn(),
+  useEnviarLembrete: vi.fn(),
 }));
 vi.mock('@/data/api/useSessao', () => ({ useUsuario: vi.fn() }));
 
@@ -21,14 +25,18 @@ import {
   useAdicionarMembro,
   useAnotacoes,
   useAnotar,
+  useAtualizarEquipe,
+  useEnviarLembrete,
   useEquipe,
   useEtapas,
   useGerarConvite,
+  useLinhaDoTempo,
   useMoverEtapa,
+  useUsuarios,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { ApiError } from '@/data/api/erro';
-import type { Anotacao, EquipeDetalhe } from '@/data/api/tipos';
+import type { Anotacao, EquipeDetalhe, ItemLinhaDoTempo, UsuarioAdmin } from '@/data/api/tipos';
 import { DetalheEquipe } from '@/features/admin-detalhe/DetalheEquipe';
 
 type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
@@ -73,11 +81,30 @@ const ANOTACOES: Anotacao[] = [
   { slug: 'a2', conteudo: 'Encontro produtivo', autor: { slug: 'admin', nome: 'Coord Admin' }, etapa: 3, criadoEm: '2026-09-01T10:00:00Z' },
 ];
 
+const LINHA: ItemLinhaDoTempo[] = [
+  {
+    tipo: 'etapa',
+    titulo: 'Etapa 6 → Pronta p/ InovAMF (forçado)',
+    detalhe: 'Banca antecipada',
+    autor: 'Coord Admin',
+    em: '2026-09-10T15:30:00Z',
+  },
+  { tipo: 'avaliacao', titulo: 'Entrega aprovada: Pitch', autor: 'Ana Mentora', em: '2026-09-09T10:00:00Z' },
+];
+
 const mover = vi.fn();
 const gerar = vi.fn();
 const adicionar = vi.fn();
 const anotar = vi.fn();
 const refetch = vi.fn();
+const atualizarEquipe = vi.fn();
+const enviarLembrete = vi.fn();
+
+const MENTORES: UsuarioAdmin[] = [
+  { slug: 'mentor-ana', nome: 'Ana Mentora', email: 'ana@amf.edu.br', telefone: '', role: 'mentor', ativo: true, conviteAceito: true },
+  { slug: 'mentor-bruno', nome: 'Bruno Mentor', email: 'bruno@amf.edu.br', telefone: '', role: 'mentor', ativo: true, conviteAceito: true },
+  { slug: 'mentor-inativo', nome: 'Inativo Mentor', email: 'x@amf.edu.br', telefone: '', role: 'mentor', ativo: false, conviteAceito: true },
+];
 
 function mockEquipe(d: EquipeDetalhe) {
   vi.mocked(useEquipe).mockReturnValue({
@@ -110,6 +137,22 @@ function mockPadrao() {
     error: null,
     refetch: vi.fn(),
   } as unknown as R<typeof useAnotacoes>);
+  vi.mocked(useLinhaDoTempo).mockReturnValue({
+    data: LINHA,
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useLinhaDoTempo>);
+  vi.mocked(useUsuarios).mockReturnValue({ data: MENTORES, isPending: false, isError: false } as unknown as R<
+    typeof useUsuarios
+  >);
+  vi.mocked(useAtualizarEquipe).mockReturnValue({ mutate: atualizarEquipe, isPending: false } as unknown as R<
+    typeof useAtualizarEquipe
+  >);
+  vi.mocked(useEnviarLembrete).mockReturnValue({ mutate: enviarLembrete, isPending: false } as unknown as R<
+    typeof useEnviarLembrete
+  >);
 }
 
 function comoAdmin() {
@@ -151,10 +194,19 @@ describe('DetalheEquipe — ideia e membros', () => {
     expect(screen.getByTestId('membro-bia')).toHaveTextContent('convite pendente');
   });
 
+  it('abaInicial abre direto na aba pedida (link "?aba=" da mesa) e as abas continuam trocando', async () => {
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" abaInicial="anotacoes" />);
+    expect(screen.getByRole('tab', { name: 'Anotações' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: 'Visão geral' }));
+    expect(screen.getByRole('tab', { name: 'Visão geral' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('carregando mostra "Carregando…"', () => {
     vi.mocked(useEquipe).mockReturnValue({ isPending: true, isError: false } as unknown as R<typeof useEquipe>);
     render(<DetalheEquipe slug="agrosmart" />);
     expect(screen.getByText('Carregando…')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Carregando…');
   });
 
   it('erro da API mostra a mensagem e "Tentar de novo" chama refetch', async () => {
@@ -280,21 +332,19 @@ describe('AdicionarMembroDialog', () => {
   });
 });
 
-describe('HistoricoEtapas', () => {
-  it('mostra "de → para" com "Pronta", badge forçado, observação, autor e data', async () => {
+describe('Linha do tempo', () => {
+  it('a aba mostra os eventos da API com detalhe, autor e data', async () => {
     const user = userEvent.setup();
     render(<DetalheEquipe slug="agrosmart" />);
-    await user.click(screen.getByRole('tab', { name: 'Histórico' }));
+    await user.click(screen.getByRole('tab', { name: 'Linha do tempo' }));
 
-    const itens = screen.getAllByRole('listitem');
-    // mais recente primeiro
-    expect(itens[0]).toHaveTextContent('Etapa 6 → Pronta');
-    expect(within(itens[0]).getByText('forçado')).toBeInTheDocument();
+    expect(useLinhaDoTempo).toHaveBeenCalledWith('agrosmart');
+    const itens = within(screen.getByRole('list', { name: 'Linha do tempo' })).getAllByRole('listitem');
+    expect(itens[0]).toHaveTextContent('Etapa 6 → Pronta p/ InovAMF (forçado)');
     expect(itens[0]).toHaveTextContent('Banca antecipada');
     expect(itens[0]).toHaveTextContent('Coord Admin');
     expect(itens[0]).toHaveTextContent('10/09/2026');
-    expect(itens[1]).toHaveTextContent('Etapa 1');
-    expect(within(itens[1]).queryByText('forçado')).not.toBeInTheDocument();
+    expect(itens[1]).toHaveTextContent('Entrega aprovada: Pitch');
   });
 });
 
@@ -424,5 +474,86 @@ describe('AvancarEtapa', () => {
     mockEquipe(detalhe({ etapa: { numero: 1, nome: 'Envio da ideia' } }));
     render(<DetalheEquipe slug="agrosmart" />);
     expect(screen.queryByRole('button', { name: /retroceder/i })).not.toBeInTheDocument();
+  });
+
+  it('409 RN02_PENDENCIAS também vira "forçar", listando o entregável ausente', async () => {
+    mover.mockImplementationOnce((_b: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(
+        new ApiError(409, 'RN02_PENDENCIAS', 'Faltam entregáveis finais ou dados de integrantes', {
+          pendencias: [{ tipo: 'entregavel', titulo: 'Pitch vídeo' }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" />);
+    await user.click(screen.getByRole('button', { name: /avançar etapa/i }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByTestId('confirmar-movimento'));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Faltam entregáveis finais');
+    expect(within(dialog).getByTestId('pendencias-mover')).toHaveTextContent('entregável não criado: Pitch vídeo');
+    expect(within(dialog).getByLabelText('Observação')).toBeInTheDocument();
+  });
+});
+
+describe('Gestão da equipe (A1)', () => {
+  async function abrirGestao() {
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" />);
+    await user.click(screen.getByRole('tab', { name: 'Gestão' }));
+    return user;
+  }
+
+  it('só o admin vê a aba Gestão', () => {
+    comoMentor();
+    render(<DetalheEquipe slug="agrosmart" />);
+    expect(screen.queryByRole('tab', { name: 'Gestão' })).not.toBeInTheDocument();
+  });
+
+  it('lista só mentores ativos e troca o mentor com { mentor: slug }', async () => {
+    const user = await abrirGestao();
+    const select = screen.getByLabelText('Mentor');
+    expect(within(select).queryByRole('option', { name: 'Inativo Mentor' })).not.toBeInTheDocument();
+    await user.selectOptions(select, 'mentor-bruno');
+    expect(useAtualizarEquipe).toHaveBeenCalledWith('agrosmart');
+    expect(atualizarEquipe).toHaveBeenCalledWith({ mentor: 'mentor-bruno' }, expect.anything());
+  });
+
+  it('"Sem mentor" envia { mentor: null }', async () => {
+    const user = await abrirGestao();
+    await user.selectOptions(screen.getByLabelText('Mentor'), '');
+    expect(atualizarEquipe).toHaveBeenCalledWith({ mentor: null }, expect.anything());
+  });
+
+  it('status manda { status } e o 409 da API aparece inline', async () => {
+    atualizarEquipe.mockImplementationOnce((_b: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(
+        new ApiError(409, 'TRANSICAO_INVALIDA', 'Só dá para encaminhar ao InovAMF uma equipe que está Pronta p/ InovAMF'),
+      ),
+    );
+    const user = await abrirGestao();
+    await user.selectOptions(screen.getByLabelText('Status'), 'encaminhada_inovamf');
+    expect(atualizarEquipe).toHaveBeenCalledWith({ status: 'encaminhada_inovamf' }, expect.anything());
+    expect(screen.getByRole('alert')).toHaveTextContent('Só dá para encaminhar ao InovAMF');
+  });
+});
+
+describe('Enviar lembrete (RF-20)', () => {
+  it('envia a mensagem opcional, com teto de 500 caracteres', async () => {
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" />);
+    await user.click(screen.getByRole('button', { name: /enviar lembrete/i }));
+    const dialog = screen.getByRole('dialog');
+    const campo = within(dialog).getByLabelText('Mensagem (opcional)');
+    expect(campo).toHaveAttribute('maxlength', '500');
+    await user.type(campo, 'Pitch na sexta');
+    await user.click(within(dialog).getByRole('button', { name: /^enviar$/i }));
+    expect(useEnviarLembrete).toHaveBeenCalledWith('agrosmart');
+    expect(enviarLembrete).toHaveBeenCalledWith({ mensagem: 'Pitch na sexta' }, expect.anything());
+  });
+
+  it('mentor de outra equipe não vê o botão', () => {
+    comoMentor('outro-mentor');
+    render(<DetalheEquipe slug="agrosmart" />);
+    expect(screen.queryByRole('button', { name: /enviar lembrete/i })).not.toBeInTheDocument();
   });
 });

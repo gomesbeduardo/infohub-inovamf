@@ -178,6 +178,35 @@ describe("seedDemo — cenário obrigatório do G1", () => {
     }
   });
 
+  it("B1: cada perfil de demo tem 3–4 notificações realistas, todas canceladas", async () => {
+    for (const u of ["mentor1", "bruna.lopes", "pedro.souza", "mariana.alves"]) {
+      const n = await prisma.emails.count({
+        where: { destinatario_email: `${u}${DEMO_DOMINIO}`, status: "cancelado" },
+      });
+      expect(n).toBeGreaterThanOrEqual(3);
+      expect(n).toBeLessThanOrEqual(4);
+    }
+    const doAdmin = await prisma.emails.count({
+      where: {
+        destinatario_email: ADMIN_EMAIL,
+        status: "cancelado",
+        equipes: { nome_ideia: { in: ["EcoRota", "SaúdeJá", "Aprende+"] } },
+      },
+    });
+    expect(doAdmin).toBe(4);
+    // nada do seed fica na fila de envio
+    expect(
+      await prisma.emails.count({
+        where: { destinatario_email: { endsWith: DEMO_DOMINIO }, status: { not: "cancelado" } },
+      }),
+    ).toBe(0);
+
+    const access = await entrar(`bruna.lopes${DEMO_DOMINIO}`, SENHAS_DEMO.aluno);
+    const inbox = await request(app).get("/api/v1/notificacoes").set(bearer(access));
+    expect(inbox.body.data.length).toBeGreaterThanOrEqual(3);
+    expect(inbox.body.data[0].dados.equipe_slug).toBeTruthy();
+  });
+
   it("ensaio da demo: A avança após aprovar a entrega; B é barrada pela RN-01", async () => {
     const access = await entrar(`mentor1${DEMO_DOMINIO}`, SENHAS_DEMO.mentor);
     const lista = await request(app).get("/api/v1/equipes").set(bearer(access));
@@ -220,5 +249,12 @@ describe("purgeDemo", () => {
     expect(r.usuarios).toBe(17);
     expect(await prisma.usuarios.count({ where: { email: { endsWith: DEMO_DOMINIO } } })).toBe(0);
     expect(await prisma.usuarios.count({ where: { email: ADMIN_EMAIL } })).toBe(1);
+    // pedidos de redefinição de OUTROS arquivos de teste também caem no sino do
+    // admin da base (cancelados) — não são da camada demo.
+    expect(
+      await prisma.emails.count({
+        where: { destinatario_email: ADMIN_EMAIL, status: "cancelado", tipo: { not: "recuperacao_senha" } },
+      }),
+    ).toBe(0);
   });
 });

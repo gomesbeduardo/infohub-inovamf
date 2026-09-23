@@ -18,7 +18,7 @@ const DETALHE_SELECT = {
       slug: true,
       nome_ideia: true,
       mentor_id: true,
-      equipe_membros: { where: { ativo: true }, select: { usuario_id: true } },
+      equipe_membros: { where: { ativo: true }, select: { usuario_id: true, papel: true } },
     },
   },
 } satisfies Prisma.tarefasSelect;
@@ -88,4 +88,14 @@ export function listarPorEquipe(
 
 export function atualizarPorId(id: string, data: Prisma.tarefasUpdateInput) {
   return prisma.tarefas.update({ where: { id }, data, select: DETALHE_SELECT });
+}
+
+// RF-12: pendente → em_andamento. UPDATE condicional: só vale se ainda está
+// pendente (dois cliques simultâneos não "começam" duas vezes). null = não estava.
+export async function iniciar(id: string) {
+  const r = await prisma.tarefas.updateMany({
+    where: { id, status: "pendente" },
+    data: { status: "em_andamento" },
+  });
+  return r.count === 0 ? null : findById(id);
 }

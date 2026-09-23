@@ -3,14 +3,17 @@ import { httpError } from "../utils/error.js";
 import { fromSlug, toSlug } from "../utils/slug.js";
 import { ehUrlHttps } from "../utils/text.js";
 import {
+  ehLiderAtivo,
   idDoChamador,
+  ipDoChamador,
   podeGerirEquipe,
   podeVerEquipe,
 } from "../utils/acesso.js";
-import { RESULTADOS_AVALIACAO } from "../domain/enums.js";
+import { RESULTADOS_AVALIACAO, type ResultadoAvaliacao } from "../domain/enums.js";
 import * as entregaModel from "../models/entrega.model.js";
 import * as tarefaModel from "../models/tarefa.model.js";
 import * as usuarioModel from "../models/usuario.model.js";
+import * as equipeModel from "../models/equipe.model.js";
 import * as emailModel from "../models/email.model.js";
 
 interface EntregaView {
@@ -53,7 +56,8 @@ function mapEntrega(e: EntregaView) {
   };
 }
 
-// POST /tarefas/:slug/entregas — membro da equipe envia entrega (RF-14/16).
+// POST /tarefas/:slug/entregas — só o aluno líder da equipe envia entrega
+// (decisão do dono do produto, 23/09; RF-14/16).
 export async function store(req: Request, res: Response, next: NextFunction) {
   try {
     const tarefaId = fromSlug(req.params.slug ?? "");
@@ -63,6 +67,9 @@ export async function store(req: Request, res: Response, next: NextFunction) {
     const membros = tarefa.equipes.equipe_membros.map((m) => m.usuario_id);
     if (!podeVerEquipe(req, tarefa.equipes.mentor_id, membros)) {
       throw httpError(403, "FORBIDDEN", "Tarefa fora do seu escopo");
+    }
+    if (req.auth.role !== "aluno" || !ehLiderAtivo(tarefa.equipes.equipe_membros, idDoChamador(req))) {
+      throw httpError(403, "APENAS_LIDER", "Só o líder da equipe envia entregas");
     }
 
     const { links, comentario } = req.body ?? {};
@@ -86,16 +93,17 @@ export async function store(req: Request, res: Response, next: NextFunction) {
     }
 
     // Colisão de versão por reenvio simultâneo (P2002) → 409 pelo handler central.
+    // Entrega + status "entregue" + auditoria numa transação só (RNF-05).
     const versao = await entregaModel.proximaVersao(tarefaId as string);
-    const entrega = await entregaModel.criarComArquivos({
+    const entrega = await entregaModel.enviar({
       tarefaId: tarefaId as string,
+      tarefaTitulo: tarefa.titulo,
       versao,
       enviadoPor: idDoChamador(req),
       comentario: typeof comentario === "string" ? comentario.trim() : null,
       arquivos,
+      ip: ipDoChamador(req),
     });
-
-    await tarefaModel.atualizarPorId(tarefaId as string, { status: "entregue" });
 
     // Notifica admins (RF-19), best-effort.
     const admins = await usuarioModel.listarEmailsAdminsAtivos().catch(() => []);
@@ -106,7 +114,7 @@ export async function store(req: Request, res: Response, next: NextFunction) {
         destinatarioEmail: a.email,
         assunto: "Nova entrega recebida",
         template: "entrega_recebida_admin",
-        dadosTemplate: { tarefa: tarefa.titulo, versao },
+        dadosTemplate: { tarefa: tarefa.titulo, versao, equipe_slug: tarefa.equipes.slug },
       })),
     );
 
@@ -174,34 +182,38 @@ export async function avaliar(req: Request, res: Response, next: NextFunction) {
       throw httpError(400, "INVALID_COMENTARIO", "Comentário inválido");
     }
 
-    const avaliacao = await entregaModel.criarAvaliacao({
+    const texto = typeof comentario === "string" ? comentario.trim() : null;
+    // Avaliação + status da tarefa (RF-15) + auditoria numa transação (RNF-05).
+    const avaliacao = await entregaModel.avaliar({
       entregaId: id as string,
+      tarefaId: entrega.tarefas.id,
+      tarefaTitulo: entrega.tarefas.titulo,
       avaliadorId: idDoChamador(req),
-      resultado,
-      comentario: typeof comentario === "string" ? comentario.trim() : null,
+      resultado: resultado as ResultadoAvaliacao,
+      comentario: texto,
+      ip: ipDoChamador(req),
     });
 
-    // A avaliação reflete no status da tarefa (RF-15).
-    await tarefaModel.atualizarPorId(entrega.tarefas.id, {
-      status: resultado,
-      concluida_em: resultado === "aprovada" ? new Date() : null,
-    });
-
-    // RF-18: avisa quem enviou a entrega do resultado (best-effort).
-    await emailModel.enfileirarLote([
-      {
-        tipo: resultado === "aprovada" ? "entrega_aprovada" : "entrega_ajustar",
-        destinatarioId: entrega.usuarios.id,
-        destinatarioEmail: entrega.usuarios.email,
-        assunto:
-          resultado === "aprovada" ? "Entrega aprovada" : "Ajustes solicitados",
-        template: resultado === "aprovada" ? "entrega_aprovada" : "entrega_ajustar",
+    // RF-18/B1: todos os alunos ativos da equipe ficam sabendo (best-effort).
+    const equipe = entrega.tarefas.equipes;
+    const aprovada = resultado === "aprovada";
+    const membros = await equipeModel.listarEmailsMembros(equipe.id).catch(() => []);
+    await emailModel.enfileirarLote(
+      membros.map((m) => ({
+        tipo: aprovada ? "entrega_aprovada" : "entrega_ajustar",
+        destinatarioId: m.usuarios.id,
+        destinatarioEmail: m.usuarios.email,
+        assunto: aprovada ? "Entrega aprovada" : "Ajustes solicitados",
+        template: aprovada ? "entrega_aprovada" : "entrega_ajustar",
         dadosTemplate: {
-          comentario: typeof comentario === "string" ? comentario.trim() : "",
+          tarefa: entrega.tarefas.titulo,
+          comentario: texto ?? "",
+          equipe_slug: equipe.slug,
         },
+        equipeId: equipe.id,
         tarefaId: entrega.tarefas.id,
-      },
-    ]);
+      })),
+    );
 
     res.status(201).json({
       resultado: avaliacao.resultado,

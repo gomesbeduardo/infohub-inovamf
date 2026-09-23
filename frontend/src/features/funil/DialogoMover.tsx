@@ -8,6 +8,7 @@ import { Button } from '@/design-system/components/Button';
 import { FormField } from '@/design-system/components/FormField';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
+import { useToast } from '@/design-system/components/Toast';
 
 /** Posição no funil: etapas 1..6 e "pronta" (7). Só para comparar origem × destino. */
 export const POSICAO_PRONTA = 7;
@@ -29,8 +30,18 @@ const MOTIVO: Record<Extract<Pendencia, { tipo: 'integrante' }>['motivo'], strin
 };
 
 export function textoPendencia(p: Pendencia): string {
-  return p.tipo === 'tarefa' ? `tarefa: ${p.titulo}` : `integrante: ${p.nome} — ${MOTIVO[p.motivo]}`;
+  if (p.tipo === 'tarefa') return `tarefa: ${p.titulo}`;
+  if (p.tipo === 'entregavel') return `entregável não criado: ${p.titulo}`;
+  return `integrante: ${p.nome} — ${MOTIVO[p.motivo]}`;
 }
+
+/** Chave estável de uma pendência numa lista (o entregável ausente não tem slug). */
+export function chavePendencia(p: Pendencia): string {
+  return p.tipo === 'entregavel' ? `entregavel-${p.titulo}` : `${p.tipo}-${p.slug}`;
+}
+
+/** 409 que levam o diálogo ao modo "forçar" com as pendências da API (RN-01 e RN-02). */
+const CODIGOS_FORCAR = ['RN01_PENDENCIAS', 'RN01_SALTO', 'RN02_PENDENCIAS'];
 
 function pendenciasDoErro(e: ApiError): Pendencia[] {
   const d = e.details as { pendencias?: Pendencia[] } | undefined;
@@ -41,8 +52,8 @@ function pendenciasDoErro(e: ApiError): Pendencia[] {
  * Confirmação de um arraste no funil (RF-09 / RN-01). Mostra origem → destino e,
  * se for avanço, as pendências que a API aponta (`pendenciasParaAvancar`). Com
  * pendência ou salto de etapa, exige observação e envia `forcado: true`. Se a
- * API recusar com 409 `RN01_*`, passa para o modo "forçar" com as pendências
- * devolvidas. A regra é do backend — aqui só se lê o que ele diz.
+ * API recusar com 409 `RN01_*`/`RN02_PENDENCIAS`, passa para o modo "forçar" com
+ * as pendências devolvidas. A regra é do backend — aqui só se lê o que ele diz.
  */
 export function DialogoMover({
   equipe,
@@ -59,6 +70,7 @@ export function DialogoMover({
 }) {
   const detalhe = useEquipe(equipe.slug);
   const mover = useMoverEtapa(equipe.slug);
+  const toast = useToast();
   const [observacao, setObservacao] = useState('');
   const [erroObs, setErroObs] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -84,9 +96,12 @@ export function DialogoMover({
       ? { etapa: destino, forcado: true, observacao: observacao.trim() }
       : { etapa: destino };
     mover.mutate(body, {
-      onSuccess: () => onClose(),
+      onSuccess: () => {
+        toast.sucesso(`${equipe.nomeIdeia} movida para ${destinoLabel}.`);
+        onClose();
+      },
       onError: (e) => {
-        if (e instanceof ApiError && (e.code === 'RN01_PENDENCIAS' || e.code === 'RN01_SALTO')) {
+        if (e instanceof ApiError && CODIGOS_FORCAR.includes(e.code)) {
           setRecusa(pendenciasDoErro(e));
           setErro(e.message);
           return;
@@ -125,7 +140,7 @@ export function DialogoMover({
             <p className="text-sm font-medium text-text">Pendências para avançar</p>
             <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-text-muted">
               {pendencias.map((p) => (
-                <li key={`${p.tipo}-${p.slug}`}>{textoPendencia(p)}</li>
+                <li key={chavePendencia(p)}>{textoPendencia(p)}</li>
               ))}
             </ul>
           </div>
