@@ -20,8 +20,13 @@ type Estado = 'ocioso' | 'copiado' | 'falhou';
  * quando existe; em contexto inseguro (deploy em HTTP puro não tem
  * `navigator.clipboard`) ou se a cópia falhar, seleciona o texto do campo e
  * pede para o usuário copiar manualmente.
+ *
+ * Aceita link relativo (o backend manda "/convite?token=…" quando não há
+ * domínio configurado) e completa com a origem da página, que é o domínio
+ * real do deploy.
  */
-export function CopiarLink({ url, rotulo = 'Link de convite', className }: CopiarLinkProps) {
+export function CopiarLink({ url: urlRecebida, rotulo = 'Link de convite', className }: CopiarLinkProps) {
+  const url = absoluta(urlRecebida);
   const campo = useRef<HTMLInputElement>(null);
   const [estado, setEstado] = useState<Estado>('ocioso');
 
@@ -86,4 +91,13 @@ export function CopiarLink({ url, rotulo = 'Link de convite', className }: Copia
       )}
     </div>
   );
+}
+
+function absoluta(url: string): string {
+  if (typeof window === 'undefined') return url;
+  try {
+    return new URL(url, window.location.origin).href;
+  } catch {
+    return url;
+  }
 }
