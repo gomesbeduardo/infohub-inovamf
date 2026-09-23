@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/prisma.js";
+import { novoIdComSlug } from "../src/utils/slug.js";
 import { bearer, criarEquipe, criarUsuario, limpar, login } from "./helpers.js";
 
 // A3/RF-12: "Comecei" — o aluno da equipe leva a tarefa de pendente a em_andamento.
@@ -48,6 +49,14 @@ describe("POST /tarefas/:slug/iniciar", () => {
   it("aluno de fora → 403; mentor → 403 (só aluno)", async () => {
     expect((await iniciar(foraAccess)).status).toBe(403);
     expect((await iniciar(mentorAccess)).status).toBe(403);
+  });
+
+  it("slug de tarefa desconhecido → 404 TAREFA_NOT_FOUND", async () => {
+    const r = await request(app)
+      .post(`/api/v1/tarefas/${novoIdComSlug().slug}/iniciar`)
+      .set(bearer(alunoAccess));
+    expect(r.status).toBe(404);
+    expect(r.body.error.code).toBe("TAREFA_NOT_FOUND");
   });
 
   it("aluno da equipe começa a tarefa pendente → em_andamento", async () => {

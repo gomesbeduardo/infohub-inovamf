@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/prisma.js";
+import { novoIdComSlug } from "../src/utils/slug.js";
 import { SENHA, bearer, criarUsuario, limpar, login } from "./helpers.js";
 
 // A3/RF-01: o admin gera um link de uso único (24 h); a pessoa define a senha nova.
@@ -66,6 +67,19 @@ describe("POST /usuarios/:slug/redefinir-senha (admin)", () => {
     expect(r.status).toBe(409);
     expect(r.body.error.code).toBe("CONVITE_PENDENTE");
   });
+
+  it("conta inativa → 409 CONTA_INATIVA", async () => {
+    const inativo = await criarUsuario(email("inativo"), "mentor", { ativo: false });
+    const r = await gerar(inativo.slug);
+    expect(r.status).toBe(409);
+    expect(r.body.error.code).toBe("CONTA_INATIVA");
+  });
+
+  it("slug desconhecido → 404 USUARIO_NOT_FOUND", async () => {
+    const r = await gerar(novoIdComSlug().slug);
+    expect(r.status).toBe(404);
+    expect(r.body.error.code).toBe("USUARIO_NOT_FOUND");
+  });
 });
 
 describe("POST /auth/redefinir-senha (pública)", () => {
@@ -112,5 +126,27 @@ describe("POST /auth/redefinir-senha (pública)", () => {
     const r = await redefinir("nao-e-um-token", "qualquer-senha-1");
     expect(r.status).toBe(400);
     expect(r.body.error.code).toBe("INVALID_RESET");
+  });
+
+  it("token de convite é rejeitado aqui com o erro de redefinição (INVALID_RESET)", async () => {
+    const criado = await request(app)
+      .post("/api/v1/usuarios")
+      .set(bearer(adminAccess))
+      .send({ nome: "Convite Cruzado", email: email("cruzado"), tipo: "mentor" });
+    expect(criado.status).toBe(201);
+    const tokenDeConvite = criado.body.token_dev as string;
+
+    const r = await redefinir(tokenDeConvite, "senha-valida-123");
+    expect(r.status).toBe(400);
+    expect(r.body.error.code).toBe("INVALID_RESET");
+  });
+});
+
+describe("GET /auth/invite (pública) recebendo token de outra finalidade", () => {
+  it("token de redefinição é rejeitado aqui com o erro de convite (INVALID_INVITE)", async () => {
+    const tokenDeRedefinicao = await novoToken();
+    const r = await request(app).get("/api/v1/auth/invite").query({ token: tokenDeRedefinicao });
+    expect(r.status).toBe(400);
+    expect(r.body.error.code).toBe("INVALID_INVITE");
   });
 });
