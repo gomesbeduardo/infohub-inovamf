@@ -7,12 +7,12 @@ import {
 } from '@/features/admin-dashboard/DistribuicaoPorEtapa';
 
 const PONTOS: PontoEtapa[] = [
-  { etapaId: 1, numero: 1, nome: 'Envio da ideia', total: 5 },
-  { etapaId: 2, numero: 2, nome: 'Contato com a equipe', total: 3 },
-  { etapaId: 3, numero: 3, nome: 'Encontro 1', total: 3 },
-  { etapaId: 4, numero: 4, nome: 'Encontro 2', total: 1 },
-  { etapaId: 5, numero: 5, nome: 'Encontro 3', total: 2 },
-  { etapaId: 6, numero: 6, nome: 'Encontro 4', total: 1 },
+  { numero: 1, nome: 'Envio da ideia', total: 5 },
+  { numero: 2, nome: 'Contato com a equipe', total: 3 },
+  { numero: 3, nome: 'Encontro 1', total: 3 },
+  { numero: 4, nome: 'Encontro 2', total: 1 },
+  { numero: 5, nome: 'Encontro 3', total: 2 },
+  { numero: 6, nome: 'Encontro 4', total: 1 },
 ];
 
 describe('DistribuicaoPorEtapa', () => {

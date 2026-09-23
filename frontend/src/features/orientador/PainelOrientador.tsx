@@ -1,59 +1,75 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useStore } from '@/data/store';
-import { getUsuarioAtual } from '@/data/session';
-import { equipesVisiveis, serieSemanalMentor, hojeISO } from '@/data/repository';
+import { useState } from 'react';
+import { useDashboard } from '@/data/api/consultas';
 import { StatCard } from '@/design-system/components/StatCard';
 import { Card } from '@/design-system/components/Card';
 import { Tabs } from '@/design-system/components/Tabs';
 import { LineChart } from '@/design-system/components/LineChart';
 import { EmptyState } from '@/design-system/components/EmptyState';
+import { Button } from '@/design-system/components/Button';
 import { UsersIcon, ListChecksIcon, AlertIcon, CheckIcon } from '@/design-system/icons';
 import { FunilKanban } from '@/features/orientador/FunilKanban';
 
+function CarregandoOuErro({
+  isPending,
+  error,
+  refetch,
+}: {
+  isPending: boolean;
+  error: Error | null;
+  refetch: () => void;
+}) {
+  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p
+        role="alert"
+        className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+      >
+        {error?.message}
+      </p>
+      <Button variant="secondary" onClick={() => refetch()}>
+        Tentar de novo
+      </Button>
+    </div>
+  );
+}
+
 export function PainelOrientador() {
-  const { state } = useStore();
-  const [montado, setMontado] = useState(false);
   const [aba, setAba] = useState('visao');
-  useEffect(() => setMontado(true), []);
+  const dashboard = useDashboard();
 
-  if (!montado) return null;
-
-  const usuario = getUsuarioAtual(state);
-  if (!usuario) {
-    return <EmptyState title="Sessão não encontrada" description="Faça login novamente." />;
+  if (dashboard.isPending || dashboard.isError) {
+    return (
+      <CarregandoOuErro
+        isPending={dashboard.isPending}
+        error={dashboard.error}
+        refetch={() => void dashboard.refetch()}
+      />
+    );
   }
 
-  const equipes = equipesVisiveis(state, usuario);
-  const ids = new Set(equipes.map((e) => e.id));
-  const daMinhas = state.tarefas.filter((t) => ids.has(t.equipeId));
-  const aAvaliar = daMinhas.filter((t) => t.status === 'entregue').length;
-  const atrasadas = daMinhas.filter((t) => t.status === 'atrasada').length;
-  const prontas = equipes.filter(
-    (e) => e.status === 'pronta_inovamf' || e.status === 'encaminhada_inovamf',
-  ).length;
-
-  const serie = serieSemanalMentor(state, usuario, hojeISO(), 8);
+  const { totalEquipes, aAvaliar, tarefasAtrasadas, prontasInovamf, serieSemanal } = dashboard.data;
   const irParaFunil = () => setAba('funil');
 
   const visaoGeral = (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Equipes mentoradas" value={equipes.length} Icon={UsersIcon} onClick={irParaFunil} />
+        <StatCard label="Equipes mentoradas" value={totalEquipes} Icon={UsersIcon} onClick={irParaFunil} />
         <StatCard label="Entregas a avaliar" value={aAvaliar} Icon={ListChecksIcon} onClick={irParaFunil} />
         <StatCard
           label="Tarefas atrasadas"
-          value={atrasadas}
+          value={tarefasAtrasadas}
           Icon={AlertIcon}
-          tone={atrasadas > 0 ? 'danger' : 'neutral'}
+          tone={tarefasAtrasadas > 0 ? 'danger' : 'neutral'}
           onClick={irParaFunil}
         />
         <StatCard
           label="Prontas p/ InovAMF"
-          value={prontas}
+          value={prontasInovamf}
           Icon={CheckIcon}
-          tone={prontas > 0 ? 'success' : 'neutral'}
+          tone={prontasInovamf > 0 ? 'success' : 'neutral'}
           onClick={irParaFunil}
         />
       </div>
@@ -61,28 +77,28 @@ export function PainelOrientador() {
       <Card>
         <Card.Body className="flex flex-col gap-4">
           <div className="flex flex-col gap-0.5">
-            <h3 className="text-sm font-semibold text-text">Ritmo das últimas 8 semanas</h3>
+            <h3 className="text-sm font-semibold text-text">Ritmo das últimas semanas</h3>
             <p className="text-sm text-text-muted">
               Avanços de etapa e entregas concluídas das suas equipes.
             </p>
           </div>
-          {equipes.length === 0 ? (
+          {totalEquipes === 0 ? (
             <EmptyState title="Sem dados ainda" description="Seus indicadores aparecem quando houver equipes atribuídas." />
           ) : (
             <LineChart
               className="w-full"
-              labels={serie.map((p) => p.rotulo)}
+              labels={serieSemanal.map((p) => p.rotulo)}
               ariaLabel="Gráfico de linha com avanços de etapa e entregas concluídas por semana"
               series={[
                 {
                   nome: 'Avanços de etapa',
                   cor: 'var(--primary)',
-                  valores: serie.map((p) => p.avancos),
+                  valores: serieSemanal.map((p) => p.avancos),
                 },
                 {
                   nome: 'Entregas concluídas',
                   cor: 'var(--accent)',
-                  valores: serie.map((p) => p.entregas),
+                  valores: serieSemanal.map((p) => p.entregas),
                 },
               ]}
             />

@@ -6,7 +6,6 @@ import { Button } from '@/design-system/components/Button';
 import { StageTag } from '@/design-system/components/StageTag';
 
 export interface PontoEtapa {
-  etapaId: number;
   numero: number;
   nome: string;
   total: number;
@@ -117,7 +116,7 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
               {pontos.map((p, i) => {
                 const comprimento = bw(p.total);
                 return (
-                  <g key={p.etapaId}>
+                  <g key={p.numero}>
                     {/* rótulo da etapa no gutter esquerdo */}
                     <text
                       x={x0 - 10}
@@ -135,7 +134,7 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
                       width={Math.max(0, comprimento)}
                       height={ALT_BARRA}
                       rx={3}
-                      fill={`var(--stage-${p.etapaId})`}
+                      fill={`var(--stage-${p.numero})`}
                       opacity={ativo === null || ativo === i ? 1 : 0.55}
                       onMouseEnter={() => setAtivo(i)}
                       onMouseLeave={() => setAtivo(null)}
@@ -193,9 +192,9 @@ export function DistribuicaoPorEtapa({ pontos }: { pontos: PontoEtapa[] }) {
             </thead>
             <tbody>
               {pontos.map((p) => (
-                <tr key={p.etapaId} className="border-b border-border last:border-0">
+                <tr key={p.numero} className="border-b border-border last:border-0">
                   <td className="py-2">
-                    <StageTag etapaId={p.etapaId}>{p.numero}</StageTag>
+                    <StageTag etapaId={p.numero}>{p.numero}</StageTag>
                   </td>
                   <td className="py-2 text-text">{p.nome}</td>
                   <td className="py-2 text-right font-medium tabular-nums text-text">
