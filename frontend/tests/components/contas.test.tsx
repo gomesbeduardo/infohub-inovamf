@@ -425,7 +425,7 @@ describe('ContasAdmin', () => {
     const linhaMarina = screen.getByText('Marina Mentora').closest('li')!;
     await user.click(within(linhaMarina).getByRole('button', { name: /editar/i }));
     expect(screen.getByText('Acesso')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /gerar link de redefinição/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /gerar link de redefinição/i })).toBeDisabled();
     expect(screen.getByText(/disponível só para conta ativa com convite aceito/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /cancelar/i }));
 

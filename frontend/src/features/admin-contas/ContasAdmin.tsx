@@ -385,19 +385,19 @@ export function ContasAdmin() {
             {editando && (
               <div className="flex flex-col gap-3 border-t border-border pt-4">
                 <h3 className="text-sm font-semibold text-text">Acesso</h3>
-                {podeRedefinir ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="self-start"
-                    disabled={gerarRedefinicao.isPending}
-                    onClick={gerarLinkRedefinicao}
-                  >
-                    {gerarRedefinicao.isPending ? 'Gerando…' : 'Gerar link de redefinição'}
-                  </Button>
-                ) : (
-                  <p className="text-xs text-text-muted">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="self-start"
+                  disabled={!podeRedefinir || gerarRedefinicao.isPending}
+                  aria-describedby={podeRedefinir ? undefined : 'dica-redefinir'}
+                  onClick={gerarLinkRedefinicao}
+                >
+                  {gerarRedefinicao.isPending ? 'Gerando…' : 'Gerar link de redefinição'}
+                </Button>
+                {!podeRedefinir && (
+                  <p id="dica-redefinir" className="text-xs text-text-muted">
                     Disponível só para conta ativa com convite aceito.
                   </p>
                 )}
