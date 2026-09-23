@@ -7,6 +7,7 @@ import type {
   FiltrosEquipes, ItemLinhaDoTempo, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa,
   UsuarioAdmin,
 } from './tipos';
+import type { StatusEquipe } from '@/domain/types';
 
 function qs(f: object): string {
   const p = new URLSearchParams();
@@ -69,6 +70,31 @@ export const useLinhaDoTempo = (equipeSlug: string) =>
       api<{ data: ItemLinhaDoTempo[] }>(`/equipes/${equipeSlug}/linha-do-tempo`).then((r) => r.data),
     enabled: !!equipeSlug,
   });
+
+/** A1: gestão do admin — mentor e status via PATCH /equipes/:slug (a regra é do backend). */
+export function useAtualizarEquipe(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: { mentor?: string | null; status?: StatusEquipe }) =>
+      api(`/equipes/${slug}`, { method: 'PATCH', body: b }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: chaves.equipe(slug) });
+      void qc.invalidateQueries({ queryKey: ['equipes'] });
+      void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(slug) });
+      void qc.invalidateQueries({ queryKey: chaves.dashboard });
+    },
+  });
+}
+
+/** RF-20: lembrete manual avulso para os integrantes (admin ou mentor da equipe). */
+export function useEnviarLembrete(equipeSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (b: { mensagem?: string }) =>
+      api<{ enfileirados: number; total: number }>(`/equipes/${equipeSlug}/lembrete`, { method: 'POST', body: b }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(equipeSlug) }),
+  });
+}
 
 export function useMoverEtapa(slug: string) {
   const qc = useQueryClient();

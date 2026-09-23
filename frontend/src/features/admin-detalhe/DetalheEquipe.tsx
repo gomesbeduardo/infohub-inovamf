@@ -17,6 +17,8 @@ import { LinhaDoTempo } from '@/features/equipe/LinhaDoTempo';
 import { AnotacoesInternas } from '@/features/admin-detalhe/AnotacoesInternas';
 import { TarefaList } from '@/features/admin-tarefas/TarefaList';
 import { POSICAO_PRONTA, posicaoDe } from '@/features/funil/DialogoMover';
+import { GestaoEquipe } from '@/features/admin-detalhe/GestaoEquipe';
+import { EnviarLembreteDialog } from '@/features/admin-detalhe/EnviarLembreteDialog';
 
 /** Detalhe da equipe para admin e mentor (rotas /admin/equipes/:slug e /orientador/equipes/:slug). */
 export function DetalheEquipe({ slug }: { slug: string }) {
@@ -53,6 +55,7 @@ export function DetalheEquipe({ slug }: { slug: string }) {
   const lider = equipe.membros.find((m) => m.papel === 'lider');
   const podeGerirMembros = podeMover || (!!usuario && lider?.slug === usuario.slug);
   const pronta = posicaoDe(equipe) === POSICAO_PRONTA;
+  const ehAdmin = usuario?.role === 'admin';
 
   const visaoGeral = (
     <div className="flex flex-col gap-4">
@@ -105,7 +108,14 @@ export function DetalheEquipe({ slug }: { slug: string }) {
           </span>
           {' · '}Mentor: <span className="text-text">{equipe.mentor?.nome ?? 'sem mentor'}</span>
         </p>
-        {podeMover && <AvancarEtapa equipe={equipe} />}
+        {podeMover && (
+          <div className="flex flex-col gap-3">
+            <AvancarEtapa equipe={equipe} />
+            <div>
+              <EnviarLembreteDialog equipeSlug={equipe.slug} />
+            </div>
+          </div>
+        )}
       </div>
 
       <Tabs
@@ -114,6 +124,7 @@ export function DetalheEquipe({ slug }: { slug: string }) {
           { id: 'tarefas', label: 'Tarefas', content: <TarefaList equipe={equipe} /> },
           { id: 'anotacoes', label: 'Anotações', content: <AnotacoesInternas equipeSlug={equipe.slug} /> },
           { id: 'linha', label: 'Linha do tempo', content: <LinhaDoTempo equipeSlug={equipe.slug} /> },
+          ...(ehAdmin ? [{ id: 'gestao', label: 'Gestão', content: <GestaoEquipe equipe={equipe} /> }] : []),
         ]}
       />
     </div>
