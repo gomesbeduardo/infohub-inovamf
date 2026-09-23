@@ -29,8 +29,13 @@ export async function show(req: Request, res: Response, next: NextFunction) {
         }),
       )
       .map((h) => hojeISO(h.criado_em));
-    const entregas = ev.concluidas.map((t) => hojeISO(t.concluida_em as Date));
-    res.json({ ...ind, serieSemanal: serieSemanal(hoje, SEMANAS, avancos, entregas) });
+    const entregasRecebidas = ev.entregasCriadas.map((e) => hojeISO(e.criado_em));
+    const entregasAvaliadas = ev.avaliacoes.map((a) => hojeISO(a.criado_em));
+    const tarefasConcluidas = ev.concluidas.map((t) => hojeISO(t.concluida_em as Date));
+    res.json({
+      ...ind,
+      serieSemanal: serieSemanal(hoje, SEMANAS, avancos, entregasRecebidas, entregasAvaliadas, tarefasConcluidas),
+    });
   } catch (err) {
     next(err);
   }
