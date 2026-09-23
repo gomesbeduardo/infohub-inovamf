@@ -161,7 +161,7 @@ function CardCursos() {
     <div
       className={cn(
         'relative mt-10 flex items-end overflow-hidden rounded-[var(--radius-lg)] border border-border bg-auth-hero',
-        FOTO_AMF && 'min-h-[24rem]',
+        FOTO_AMF && 'min-h-[24rem] md:min-h-[28rem]',
       )}
     >
       {FOTO_AMF && (
@@ -170,7 +170,7 @@ function CardCursos() {
           alt={FOTO_AMF.alt}
           fill
           sizes="(min-width: 1152px) 1152px, 100vw"
-          className="object-cover"
+          className="object-cover object-[center_40%]"
         />
       )}
       <div aria-hidden className="veu-foto absolute inset-0" />

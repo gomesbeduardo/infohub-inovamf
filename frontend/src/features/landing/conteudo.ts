@@ -133,11 +133,12 @@ export const EQUIPES_VITRINE: CasoVitrine[] = [
 
 /**
  * Foto da AMF no card "Aberto a todos os cursos" (opção 2b: a foto ocupa o
- * card inteiro, com véu). Precisa de direito de uso; enquanto não houver, o
- * card usa o fundo quente da marca. Para ligar: salve a imagem em
- * `frontend/public/landing/` e aponte aqui (ex.: '/landing/amf-campus.webp').
+ * card inteiro, com véu). Com `null`, o card usa o fundo quente da marca.
  */
-export const FOTO_AMF: { src: string; alt: string } | null = null;
+export const FOTO_AMF: { src: string; alt: string } | null = {
+  src: '/landing/amf-campus.jpg',
+  alt: 'Vista aérea do campus da AMF no Recanto Maestro, com os prédios brancos e vermelhos cercados de mata e campos',
+};
 
 /** Endereço e contato oficiais da AMF (confirmados pelo dono do produto, 23/09). */
 export const CONTATO_AMF = {
