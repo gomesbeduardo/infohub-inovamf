@@ -367,11 +367,12 @@ export function Landing() {
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 text-center sm:px-6">
           <h2 id="titulo-enviar" className="font-display text-3xl font-bold tracking-tight text-text sm:text-4xl">
-            Comece pela ideia crua
+            Inscreva sua ideia no InfoHub
           </h2>
           <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-text-muted">
-            Preencha o formulário inicial contando o que você imaginou. A equipe
-            InfoHub analisa e chama a sua equipe para o primeiro encontro.
+            Envie sua proposta pelo formulário de inscrição. A coordenação do
+            InfoHub analisa cada ideia e entra em contato para agendar o primeiro
+            encontro com a sua equipe.
           </p>
           <Link href="/cadastro" className={cn(BOTAO_PRINCIPAL, 'mt-8')}>
             Enviar minha ideia
