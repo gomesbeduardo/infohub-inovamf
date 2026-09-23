@@ -5,6 +5,8 @@
 // "etapa_movida" existe para a auditoria (RNF-05) e é ignorado aqui para não
 // duplicar. Anotações internas nunca entram (não são auditadas).
 
+import { STATUS_EQUIPE_LABEL } from "./csv.js";
+
 export type TipoItem = "etapa" | "status" | "mentor" | "entrega" | "avaliacao" | "lembrete";
 
 export interface ItemLinhaDoTempo {
@@ -34,14 +36,6 @@ export interface EventoAuditoria {
 
 export const LIMITE_LINHA_DO_TEMPO = 50;
 
-const STATUS_LABEL: Record<string, string> = {
-  ativa: "Ativa",
-  pronta_inovamf: "Pronta p/ InovAMF",
-  encaminhada_inovamf: "Encaminhada ao InovAMF",
-  pausada: "Pausada",
-  desistente: "Desistente",
-};
-
 const posicao = (p: number | "pronta") => (p === "pronta" ? "Pronta p/ InovAMF" : `Etapa ${p}`);
 
 // Lê um campo texto/número de um JSON de auditoria (antes/depois).
@@ -70,7 +64,7 @@ function daAuditoria(e: EventoAuditoria): ItemLinhaDoTempo | null {
     case "status_alterado": {
       const de = campo(e.antes, "status") ?? "";
       const para = campo(e.depois, "status") ?? "";
-      return { tipo: "status", titulo: `Status: ${STATUS_LABEL[de] ?? de} → ${STATUS_LABEL[para] ?? para}`, ...base };
+      return { tipo: "status", titulo: `Status: ${STATUS_EQUIPE_LABEL[de] ?? de} → ${STATUS_EQUIPE_LABEL[para] ?? para}`, ...base };
     }
     case "mentor_atribuido":
       return { tipo: "mentor", titulo: `Mentor: ${campo(e.depois, "mentor") ?? "sem mentor"}`, ...base };
