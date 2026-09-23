@@ -10,6 +10,7 @@ import type { EstagioIdeia } from '@/domain/types';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
@@ -148,12 +149,11 @@ export function CadastroForm() {
                 <Input id="email" type="email" autoComplete="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} />
               </FormField>
               <FormField label="Senha" htmlFor="senha" error={erros.senha}>
-                <Input id="senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+                <PasswordInput id="senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
               </FormField>
               <FormField label="Confirmar senha" htmlFor="confirmarSenha" error={erros.confirmarSenha}>
-                <Input
+                <PasswordInput
                   id="confirmarSenha"
-                  type="password"
                   autoComplete="new-password"
                   value={confirmarSenha}
                   onChange={(e) => setConfirmarSenha(e.target.value)}

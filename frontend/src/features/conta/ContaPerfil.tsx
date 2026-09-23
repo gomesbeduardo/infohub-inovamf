@@ -7,6 +7,7 @@ import { getUsuarioAtual } from '@/data/session';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { FormField } from '@/design-system/components/FormField';
 import { Avatar } from '@/design-system/components/Avatar';
 import { Badge } from '@/design-system/components/Badge';
@@ -137,18 +138,16 @@ export function ContaPerfil() {
           <form onSubmit={alterarSenha} className="flex flex-col gap-4" noValidate>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Nova senha" htmlFor="conta-senha">
-                <Input
+                <PasswordInput
                   id="conta-senha"
-                  type="password"
                   autoComplete="new-password"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                 />
               </FormField>
               <FormField label="Confirmar nova senha" htmlFor="conta-confirma">
-                <Input
+                <PasswordInput
                   id="conta-confirma"
-                  type="password"
                   autoComplete="new-password"
                   value={confirma}
                   onChange={(e) => setConfirma(e.target.value)}
