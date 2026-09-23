@@ -11,6 +11,7 @@ import { Button } from '@/design-system/components/Button';
 import { UsersIcon, ListChecksIcon, AlertIcon, CheckIcon } from '@/design-system/icons';
 import { FunilKanban } from '@/features/orientador/FunilKanban';
 import { Skeleton } from '@/design-system/components/Skeleton';
+import { MesaDoMentor } from '@/features/agenda/Agenda';
 
 function CarregandoOuErro({
   isPending,
@@ -56,6 +57,7 @@ export function PainelOrientador() {
 
   const visaoGeral = (
     <div className="flex flex-col gap-5">
+      <MesaDoMentor />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Equipes mentoradas" value={totalEquipes} Icon={UsersIcon} onClick={irParaFunil} />
         <StatCard label="Entregas a avaliar" value={aAvaliar} Icon={ListChecksIcon} onClick={irParaFunil} />

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -17,9 +17,11 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/data/api/consultas', () => ({
   useDashboard: vi.fn(),
+  useAgenda: vi.fn(),
+  useEtapas: vi.fn(),
 }));
 
-import { useDashboard } from '@/data/api/consultas';
+import { useAgenda, useDashboard, useEtapas } from '@/data/api/consultas';
 import { ApiError } from '@/data/api/erro';
 import type { Dashboard } from '@/data/api/tipos';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
@@ -57,6 +59,19 @@ function mockDashboard(v: Partial<R<typeof useDashboard>>) {
     ...v,
   } as unknown as R<typeof useDashboard>);
 }
+
+beforeEach(() => {
+  vi.mocked(useAgenda).mockReturnValue({
+    data: { paraAvaliar: [], prazos: [], equipes: [] },
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useAgenda>);
+  vi.mocked(useEtapas).mockReturnValue({ data: [], isPending: false, isError: false } as unknown as R<
+    typeof useEtapas
+  >);
+});
 
 describe('DashboardIndicadores', () => {
   it('mostra os cards com os números da API', () => {
@@ -105,6 +120,15 @@ describe('DashboardIndicadores', () => {
 });
 
 describe('PainelOrientador', () => {
+  it('a mesa do mentor aparece no topo da visão geral', () => {
+    mockDashboard({});
+    render(<PainelOrientador />);
+    const mesa = screen.getByRole('region', { name: 'Mesa do mentor' });
+    expect(within(mesa).getByText('Para avaliar')).toBeInTheDocument();
+    expect(within(mesa).getByText('Prazos')).toBeInTheDocument();
+    expect(within(mesa).getByText('Minhas equipes')).toBeInTheDocument();
+  });
+
   it('mostra os cards com totalEquipes/aAvaliar/tarefasAtrasadas/prontasInovamf da API', () => {
     mockDashboard({});
     render(<PainelOrientador />);

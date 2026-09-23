@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useEquipe } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { ApiError } from '@/data/api/erro';
@@ -22,7 +23,9 @@ import { EnviarLembreteDialog } from '@/features/admin-detalhe/EnviarLembreteDia
 import { Skeleton } from '@/design-system/components/Skeleton';
 
 /** Detalhe da equipe para admin e mentor (rotas /admin/equipes/:slug e /orientador/equipes/:slug). */
-export function DetalheEquipe({ slug }: { slug: string }) {
+export function DetalheEquipe({ slug, abaInicial }: { slug: string; abaInicial?: string }) {
+  // `?aba=tarefas` (mesa do mentor / agenda do admin) abre direto onde se avalia.
+  const [aba, setAba] = useState(abaInicial ?? 'visao');
   const consulta = useEquipe(slug);
   const usuario = useUsuario();
 
@@ -120,6 +123,8 @@ export function DetalheEquipe({ slug }: { slug: string }) {
       </div>
 
       <Tabs
+        active={aba}
+        onChange={setAba}
         tabs={[
           { id: 'visao', label: 'Visão geral', content: visaoGeral },
           { id: 'tarefas', label: 'Tarefas', content: <TarefaList equipe={equipe} /> },

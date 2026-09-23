@@ -194,6 +194,14 @@ describe('DetalheEquipe — ideia e membros', () => {
     expect(screen.getByTestId('membro-bia')).toHaveTextContent('convite pendente');
   });
 
+  it('abaInicial abre direto na aba pedida (link "?aba=" da mesa) e as abas continuam trocando', async () => {
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" abaInicial="anotacoes" />);
+    expect(screen.getByRole('tab', { name: 'Anotações' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: 'Visão geral' }));
+    expect(screen.getByRole('tab', { name: 'Visão geral' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('carregando mostra "Carregando…"', () => {
     vi.mocked(useEquipe).mockReturnValue({ isPending: true, isError: false } as unknown as R<typeof useEquipe>);
     render(<DetalheEquipe slug="agrosmart" />);

@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, requisicao } from './http';
 import { sessao, type RespostaSessao } from './sessao';
 import type {
-  Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
+  Agenda, Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
   FiltrosEquipes, ItemLinhaDoTempo, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa,
   UsuarioAdmin,
 } from './tipos';
@@ -28,6 +28,9 @@ export const chaves = {
   anotacoes: (equipeSlug: string) => ['anotacoes', equipeSlug] as const,
   linhaDoTempo: (equipeSlug: string) => ['linha-do-tempo', equipeSlug] as const,
   dashboard: ['dashboard'] as const,
+  // Prefixo de `dashboard`: quem já invalida o dashboard (mover etapa, entregar,
+  // avaliar) invalida a agenda junto.
+  agenda: ['dashboard', 'agenda'] as const,
   usuarios: (tipo?: string) => ['usuarios', tipo ?? 'todos'] as const,
   convite: (token: string) => ['convite', token] as const,
   me: ['me'] as const,
@@ -260,6 +263,13 @@ export function useAnotar(equipeSlug: string) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export const useDashboard = () => useQuery({ queryKey: chaves.dashboard, queryFn: () => api<Dashboard>('/dashboard') });
 
+/** Adendo 23/09: "mesa do mentor" e blocos do painel do admin (o escopo vem do backend). */
+export const useAgenda = () =>
+  useQuery({
+    queryKey: chaves.agenda,
+    queryFn: () => api<{ data: Agenda }>('/dashboard/agenda').then((r) => r.data),
+  });
+
 // ── Contas ────────────────────────────────────────────────────────────────────
 export const useUsuarios = (tipo?: 'admin' | 'mentor' | 'aluno') =>
   useQuery({
@@ -310,6 +320,14 @@ export function useRedefinirSenha() {
   return useMutation({
     mutationFn: (b: { token: string; senha: string }) =>
       api<void>('/auth/redefinir-senha', { method: 'POST', body: b, publica: true }),
+  });
+}
+
+/** Adendo 23/09 (RF-01): pedido público de redefinição; a resposta é sempre a mesma (202). */
+export function usePedirRedefinicao() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api<{ mensagem: string }>('/auth/pedido-redefinicao', { method: 'POST', body: { email }, publica: true }),
   });
 }
 
