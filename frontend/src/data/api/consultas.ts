@@ -4,7 +4,8 @@ import { api, requisicao } from './http';
 import { sessao, type RespostaSessao } from './sessao';
 import type {
   Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
-  FiltrosEquipes, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa, UsuarioAdmin,
+  FiltrosEquipes, ItemLinhaDoTempo, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa,
+  UsuarioAdmin,
 } from './tipos';
 
 function qs(f: object): string {
@@ -24,6 +25,7 @@ export const chaves = {
   tarefas: (equipeSlug: string) => ['tarefas', equipeSlug] as const,
   entregas: (tarefaSlug: string) => ['entregas', tarefaSlug] as const,
   anotacoes: (equipeSlug: string) => ['anotacoes', equipeSlug] as const,
+  linhaDoTempo: (equipeSlug: string) => ['linha-do-tempo', equipeSlug] as const,
   dashboard: ['dashboard'] as const,
   usuarios: (tipo?: string) => ['usuarios', tipo ?? 'todos'] as const,
   convite: (token: string) => ['convite', token] as const,
@@ -59,6 +61,15 @@ export function useEquipes(filtros: FiltrosEquipes = {}) {
 export const useEquipe = (slug: string) =>
   useQuery({ queryKey: chaves.equipe(slug), queryFn: () => api<EquipeDetalhe>(`/equipes/${slug}`), enabled: !!slug });
 
+/** A5: linha do tempo da equipe (o backend já aplica o escopo do papel). */
+export const useLinhaDoTempo = (equipeSlug: string) =>
+  useQuery({
+    queryKey: chaves.linhaDoTempo(equipeSlug),
+    queryFn: () =>
+      api<{ data: ItemLinhaDoTempo[] }>(`/equipes/${equipeSlug}/linha-do-tempo`).then((r) => r.data),
+    enabled: !!equipeSlug,
+  });
+
 export function useMoverEtapa(slug: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -68,6 +79,7 @@ export function useMoverEtapa(slug: string) {
       void qc.invalidateQueries({ queryKey: ['equipes'] });
       void qc.invalidateQueries({ queryKey: chaves.equipe(slug) });
       void qc.invalidateQueries({ queryKey: chaves.dashboard });
+      void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(slug) });
     },
   });
 }
@@ -169,6 +181,7 @@ function invalidarTarefa(qc: ReturnType<typeof useQueryClient>, tarefaSlug: stri
   void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) });
   void qc.invalidateQueries({ queryKey: ['equipes'] });
   void qc.invalidateQueries({ queryKey: chaves.dashboard });
+  void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(equipeSlug) });
 }
 
 export function useEnviarEntrega(tarefaSlug: string, equipeSlug: string) {

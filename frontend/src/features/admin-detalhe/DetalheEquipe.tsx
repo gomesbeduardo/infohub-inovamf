@@ -13,7 +13,7 @@ import { EmptyState } from '@/design-system/components/EmptyState';
 import { AdicionarMembroDialog } from '@/features/equipe/AdicionarMembroDialog';
 import { MembrosLista } from '@/features/equipe/MembrosLista';
 import { AvancarEtapa } from '@/features/admin-detalhe/AvancarEtapa';
-import { HistoricoEtapas } from '@/features/admin-detalhe/HistoricoEtapas';
+import { LinhaDoTempo } from '@/features/equipe/LinhaDoTempo';
 import { AnotacoesInternas } from '@/features/admin-detalhe/AnotacoesInternas';
 import { TarefaList } from '@/features/admin-tarefas/TarefaList';
 import { POSICAO_PRONTA, posicaoDe } from '@/features/funil/DialogoMover';
@@ -113,7 +113,7 @@ export function DetalheEquipe({ slug }: { slug: string }) {
           { id: 'visao', label: 'Visão geral', content: visaoGeral },
           { id: 'tarefas', label: 'Tarefas', content: <TarefaList equipe={equipe} /> },
           { id: 'anotacoes', label: 'Anotações', content: <AnotacoesInternas equipeSlug={equipe.slug} /> },
-          { id: 'historico', label: 'Histórico', content: <HistoricoEtapas historico={equipe.historico} /> },
+          { id: 'linha', label: 'Linha do tempo', content: <LinhaDoTempo equipeSlug={equipe.slug} /> },
         ]}
       />
     </div>

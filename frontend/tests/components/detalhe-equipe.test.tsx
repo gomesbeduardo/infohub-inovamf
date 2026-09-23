@@ -14,6 +14,7 @@ vi.mock('@/data/api/consultas', () => ({
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
   useEtapas: vi.fn(),
+  useLinhaDoTempo: vi.fn(),
 }));
 vi.mock('@/data/api/useSessao', () => ({ useUsuario: vi.fn() }));
 
@@ -24,11 +25,12 @@ import {
   useEquipe,
   useEtapas,
   useGerarConvite,
+  useLinhaDoTempo,
   useMoverEtapa,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { ApiError } from '@/data/api/erro';
-import type { Anotacao, EquipeDetalhe } from '@/data/api/tipos';
+import type { Anotacao, EquipeDetalhe, ItemLinhaDoTempo } from '@/data/api/tipos';
 import { DetalheEquipe } from '@/features/admin-detalhe/DetalheEquipe';
 
 type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
@@ -73,6 +75,17 @@ const ANOTACOES: Anotacao[] = [
   { slug: 'a2', conteudo: 'Encontro produtivo', autor: { slug: 'admin', nome: 'Coord Admin' }, etapa: 3, criadoEm: '2026-09-01T10:00:00Z' },
 ];
 
+const LINHA: ItemLinhaDoTempo[] = [
+  {
+    tipo: 'etapa',
+    titulo: 'Etapa 6 → Pronta p/ InovAMF (forçado)',
+    detalhe: 'Banca antecipada',
+    autor: 'Coord Admin',
+    em: '2026-09-10T15:30:00Z',
+  },
+  { tipo: 'avaliacao', titulo: 'Entrega aprovada: Pitch', autor: 'Ana Mentora', em: '2026-09-09T10:00:00Z' },
+];
+
 const mover = vi.fn();
 const gerar = vi.fn();
 const adicionar = vi.fn();
@@ -110,6 +123,13 @@ function mockPadrao() {
     error: null,
     refetch: vi.fn(),
   } as unknown as R<typeof useAnotacoes>);
+  vi.mocked(useLinhaDoTempo).mockReturnValue({
+    data: LINHA,
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useLinhaDoTempo>);
 }
 
 function comoAdmin() {
@@ -280,21 +300,19 @@ describe('AdicionarMembroDialog', () => {
   });
 });
 
-describe('HistoricoEtapas', () => {
-  it('mostra "de → para" com "Pronta", badge forçado, observação, autor e data', async () => {
+describe('Linha do tempo', () => {
+  it('a aba mostra os eventos da API com detalhe, autor e data', async () => {
     const user = userEvent.setup();
     render(<DetalheEquipe slug="agrosmart" />);
-    await user.click(screen.getByRole('tab', { name: 'Histórico' }));
+    await user.click(screen.getByRole('tab', { name: 'Linha do tempo' }));
 
-    const itens = screen.getAllByRole('listitem');
-    // mais recente primeiro
-    expect(itens[0]).toHaveTextContent('Etapa 6 → Pronta');
-    expect(within(itens[0]).getByText('forçado')).toBeInTheDocument();
+    expect(useLinhaDoTempo).toHaveBeenCalledWith('agrosmart');
+    const itens = within(screen.getByRole('list', { name: 'Linha do tempo' })).getAllByRole('listitem');
+    expect(itens[0]).toHaveTextContent('Etapa 6 → Pronta p/ InovAMF (forçado)');
     expect(itens[0]).toHaveTextContent('Banca antecipada');
     expect(itens[0]).toHaveTextContent('Coord Admin');
     expect(itens[0]).toHaveTextContent('10/09/2026');
-    expect(itens[1]).toHaveTextContent('Etapa 1');
-    expect(within(itens[1]).queryByText('forçado')).not.toBeInTheDocument();
+    expect(itens[1]).toHaveTextContent('Entrega aprovada: Pitch');
   });
 });
 
@@ -424,5 +442,23 @@ describe('AvancarEtapa', () => {
     mockEquipe(detalhe({ etapa: { numero: 1, nome: 'Envio da ideia' } }));
     render(<DetalheEquipe slug="agrosmart" />);
     expect(screen.queryByRole('button', { name: /retroceder/i })).not.toBeInTheDocument();
+  });
+
+  it('409 RN02_PENDENCIAS também vira "forçar", listando o entregável ausente', async () => {
+    mover.mockImplementationOnce((_b: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(
+        new ApiError(409, 'RN02_PENDENCIAS', 'Faltam entregáveis finais ou dados de integrantes', {
+          pendencias: [{ tipo: 'entregavel', titulo: 'Pitch vídeo' }],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" />);
+    await user.click(screen.getByRole('button', { name: /avançar etapa/i }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByTestId('confirmar-movimento'));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Faltam entregáveis finais');
+    expect(within(dialog).getByTestId('pendencias-mover')).toHaveTextContent('entregável não criado: Pitch vídeo');
+    expect(within(dialog).getByLabelText('Observação')).toBeInTheDocument();
   });
 });

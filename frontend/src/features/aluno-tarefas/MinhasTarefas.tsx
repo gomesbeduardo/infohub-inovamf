@@ -141,7 +141,10 @@ function LinhaTarefa({ tarefa, equipeSlug }: { tarefa: Tarefa; equipeSlug: strin
     tarefa.status === 'ajustar' ? (ultima?.avaliacoes[0]?.comentario ?? null) : null;
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+    <li
+      id={`tarefa-${tarefa.slug}`}
+      className="flex scroll-mt-28 flex-col gap-2 rounded-lg border border-border bg-surface p-3"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-1">
           <span className="flex items-center gap-2 font-medium text-text">
