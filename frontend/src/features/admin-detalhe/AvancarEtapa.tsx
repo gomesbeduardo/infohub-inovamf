@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { EquipeDetalhe, Posicao } from '@/data/api/tipos';
 import { useEtapas } from '@/data/api/consultas';
 import { Button } from '@/design-system/components/Button';
-import { DialogoMover, POSICAO_PRONTA, posicaoDe, textoPendencia } from '@/features/funil/DialogoMover';
+import { DialogoMover, POSICAO_PRONTA, chavePendencia, posicaoDe, textoPendencia } from '@/features/funil/DialogoMover';
 
 const TITULO_PRONTA = 'Pronta p/ InovAMF';
 
@@ -49,7 +49,7 @@ export function AvancarEtapa({ equipe }: { equipe: EquipeDetalhe }) {
           <p className="text-sm font-medium text-text">Pendências para avançar</p>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-text-muted">
             {pendencias.map((p) => (
-              <li key={`${p.tipo}-${p.slug}`}>{textoPendencia(p)}</li>
+              <li key={chavePendencia(p)}>{textoPendencia(p)}</li>
             ))}
           </ul>
         </div>

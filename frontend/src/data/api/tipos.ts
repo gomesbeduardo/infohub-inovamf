@@ -27,7 +27,9 @@ export interface EquipeResumo {
 
 export type Pendencia =
   | { tipo: 'tarefa'; slug: string; titulo: string }
-  | { tipo: 'integrante'; slug: string; nome: string; motivo: 'convite_pendente' | 'dados_incompletos' };
+  | { tipo: 'integrante'; slug: string; nome: string; motivo: 'convite_pendente' | 'dados_incompletos' }
+  // RN-02: entregável final que o mentor ainda nem criou como tarefa.
+  | { tipo: 'entregavel'; titulo: string };
 
 export interface Membro {
   slug: string; nome: string; papel: PapelMembro; tipo: TipoUsuario; pendente: boolean;
@@ -86,4 +88,10 @@ export interface FiltrosEquipes {
 /** GET /notificacoes (RF-18) — a fila de e-mails endereçada à pessoa; o sino (B1) lê daqui. */
 export interface Notificacao {
   tipo: string; assunto: string; status: string; dados: Record<string, unknown> | null; criadoEm: string;
+}
+
+/** GET /equipes/:slug/linha-do-tempo (A5) — sem UUID; `detalhe` e `autor` só quando existem. */
+export type TipoItemLinhaDoTempo = 'etapa' | 'status' | 'mentor' | 'entrega' | 'avaliacao' | 'lembrete';
+export interface ItemLinhaDoTempo {
+  tipo: TipoItemLinhaDoTempo; titulo: string; detalhe?: string; autor?: string; em: string;
 }

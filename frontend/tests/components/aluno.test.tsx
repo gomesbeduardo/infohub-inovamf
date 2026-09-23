@@ -15,6 +15,7 @@ vi.mock('@/data/api/consultas', () => ({
   useEtapas: vi.fn(),
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
+  useLinhaDoTempo: vi.fn(),
 }));
 vi.mock('@/data/api/useSessao', () => ({ useUsuario: vi.fn() }));
 
@@ -26,6 +27,7 @@ import {
   useEquipes,
   useEtapas,
   useGerarConvite,
+  useLinhaDoTempo,
   useTarefas,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
@@ -161,6 +163,13 @@ function mockPadrao() {
   vi.mocked(useAdicionarMembro).mockReturnValue({ mutate: adicionarMutate, isPending: false } as unknown as R<
     typeof useAdicionarMembro
   >);
+  vi.mocked(useLinhaDoTempo).mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useLinhaDoTempo>);
 }
 
 function comoLider() {
@@ -215,6 +224,13 @@ describe('MinhaEquipe', () => {
     expect(screen.queryByRole('button', { name: /adicionar integrante/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /gerar link/i })).not.toBeInTheDocument();
   });
+
+  it('mostra o "Próximo passo" e a linha do tempo resumida da equipe', () => {
+    render(<MinhaEquipe />);
+    expect(screen.getByText('Próximo passo')).toBeInTheDocument();
+    expect(screen.getByText('Tudo entregue — aguardando a avaliação do mentor')).toBeInTheDocument();
+    expect(useLinhaDoTempo).toHaveBeenCalledWith('agrosmart');
+  });
 });
 
 describe('MinhasTarefas', () => {
@@ -263,6 +279,11 @@ describe('MinhasTarefas', () => {
     render(<MinhasTarefas />);
 
     expect(screen.getByText(/Revisar o público-alvo/)).toBeInTheDocument();
+  });
+
+  it('cada tarefa tem a âncora que o "Próximo passo" usa', () => {
+    render(<MinhasTarefas />);
+    expect(document.getElementById('tarefa-t-1')).not.toBeNull();
   });
 });
 

@@ -17,7 +17,9 @@ import { EmptyState } from '@/design-system/components/EmptyState';
 import { Button } from '@/design-system/components/Button';
 import { ChevronRightIcon } from '@/design-system/icons';
 import { AdicionarMembroDialog } from '@/features/equipe/AdicionarMembroDialog';
+import { LinhaDoTempo } from '@/features/equipe/LinhaDoTempo';
 import { MembrosLista } from '@/features/equipe/MembrosLista';
+import { ProximoPasso } from '@/features/aluno-equipe/ProximoPasso';
 import { POSICAO_PRONTA } from '@/features/funil/DialogoMover';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
@@ -148,6 +150,8 @@ function MinhaEquipeConteudo({ slug }: { slug: string }) {
         </Card.Body>
       </Card>
 
+      <ProximoPasso equipe={equipe} />
+
       {/* Atalho para tarefas */}
       <Link
         href="/aluno/tarefas"
@@ -194,6 +198,16 @@ function MinhaEquipeConteudo({ slug }: { slug: string }) {
           </Card.Body>
         </Card>
       </div>
+
+      {/* Linha do tempo (resumida) */}
+      <Card>
+        <Card.Header>
+          <h3 className="text-sm font-semibold text-text">Linha do tempo</h3>
+        </Card.Header>
+        <Card.Body>
+          <LinhaDoTempo equipeSlug={equipe.slug} resumida />
+        </Card.Body>
+      </Card>
     </div>
   );
 }
