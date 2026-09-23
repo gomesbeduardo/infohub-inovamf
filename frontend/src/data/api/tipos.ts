@@ -64,6 +64,11 @@ export interface Dashboard {
   serieSemanal: Array<{ semanaInicio: string; rotulo: string; avancos: number; entregas: number }>;
 }
 
+/** GET /publico/numeros — agregados reais para o hero da landing (issue #157). */
+export interface NumerosPublicos {
+  data: { ideias: number; equipesEmAndamento: number; alunos: number; cursos: number };
+}
+
 export interface UsuarioAdmin {
   slug: string; nome: string; email: string; telefone: string; role: TipoUsuario; ativo: boolean;
   conviteAceito: boolean; ultimoLoginEm?: string | null; criadoEm?: string;

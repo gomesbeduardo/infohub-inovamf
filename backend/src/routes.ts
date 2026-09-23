@@ -13,6 +13,7 @@ import * as notificacaoCtrl from "./controllers/notificacao.controller.js";
 import * as referenciaCtrl from "./controllers/referencia.controller.js";
 import * as anotacaoCtrl from "./controllers/anotacao.controller.js";
 import * as dashboardCtrl from "./controllers/dashboard.controller.js";
+import * as publicoCtrl from "./controllers/publico.controller.js";
 
 // Router único, montado em /api/v1 pelo app.ts.
 // Recursos entram aqui na ordem do §10: auth → usuarios → equipes → ...
@@ -47,6 +48,9 @@ routes.post("/usuarios/:slug/convite", auth, role("admin"), conviteCtrl.reenviar
 routes.get("/areas-ideia", referenciaCtrl.areas);
 routes.get("/etapas-funil", referenciaCtrl.etapas);
 routes.get("/ciclos", referenciaCtrl.ciclos);
+
+// --- Números públicos da landing (issue #157) ----------------------------------
+routes.get("/publico/numeros", publicoCtrl.numeros);
 
 // --- Equipes (RF-02/05/06/08/09) ----------------------------------------------
 // Inscrição do aluno é pública (formulário de ideia).

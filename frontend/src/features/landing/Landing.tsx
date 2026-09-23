@@ -23,12 +23,12 @@ import {
 } from '@/design-system/icons';
 import { LandingHeader } from '@/features/landing/LandingHeader';
 import { FunilVisual } from '@/features/landing/FunilVisual';
+import { NumerosVitrine } from '@/features/landing/NumerosVitrine';
 import {
   AREAS_VITRINE,
   CASOS_VITRINE,
   EQUIPES_VITRINE,
   ETAPAS_VITRINE,
-  NUMEROS_VITRINE,
   type CasoVitrine,
 } from '@/features/landing/conteudo';
 
@@ -206,21 +206,7 @@ export function Landing() {
               minutos.
             </p>
 
-            <dl className="mt-10 grid grid-cols-2 gap-4 border-t border-border pt-6 sm:grid-cols-4">
-              {NUMEROS_VITRINE.map((n) => (
-                <div key={n.rotulo}>
-                  <dt className="sr-only">{n.rotulo}</dt>
-                  <dd>
-                    <span className="block font-display text-2xl font-bold text-text">
-                      {n.valor}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-snug text-text-muted">
-                      {n.rotulo}
-                    </span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            <NumerosVitrine />
           </div>
 
           <div className="motion-fade lg:pl-4">

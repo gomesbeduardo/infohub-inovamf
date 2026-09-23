@@ -4,7 +4,7 @@ import { api, requisicao } from './http';
 import { sessao, type RespostaSessao } from './sessao';
 import type {
   Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
-  FiltrosEquipes, Me, ModeloTarefa, Pagina, Posicao, Tarefa, UsuarioAdmin,
+  FiltrosEquipes, Me, ModeloTarefa, NumerosPublicos, Pagina, Posicao, Tarefa, UsuarioAdmin,
 } from './tipos';
 
 function qs(f: object): string {
@@ -28,6 +28,7 @@ export const chaves = {
   usuarios: (tipo?: string) => ['usuarios', tipo ?? 'todos'] as const,
   convite: (token: string) => ['convite', token] as const,
   me: ['me'] as const,
+  publicoNumeros: ['publico', 'numeros'] as const,
 };
 
 // ── Referência ────────────────────────────────────────────────────────────────
@@ -260,3 +261,11 @@ export function useTrocarSenha() {
     onSuccess: (r) => sessao.aplicar(r),
   });
 }
+
+// ── Público (landing) ────────────────────────────────────────────────────────
+export const useNumerosPublicos = () =>
+  useQuery({
+    queryKey: chaves.publicoNumeros,
+    queryFn: () => api<NumerosPublicos>('/publico/numeros'),
+    staleTime: 60_000,
+  });

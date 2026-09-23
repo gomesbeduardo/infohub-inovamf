@@ -8,10 +8,11 @@
  * `/etapas-funil` e `/areas-ideia`, são só leitura e raramente mudam; não
  * vale o custo de um fetch client-side numa página pública só por isso).
  *
- * Os números, casos e equipes em destaque são copy ilustrativa da vitrine —
- * não há endpoint público de indicadores/listagem de equipes (o dashboard e
- * a listagem de equipes exigem sessão autenticada), então este conteúdo é
- * estático e não reflete dados ao vivo.
+ * Os casos e equipes em destaque são copy ilustrativa da vitrine — não há
+ * endpoint público de listagem de equipes (a listagem exige sessão
+ * autenticada), então esse conteúdo é estático e não reflete dados ao vivo,
+ * por decisão do dono do produto. Os números do hero, esses sim, são reais:
+ * ver `NumerosVitrine` (GET /publico/numeros).
  */
 
 export interface EtapaVitrine {
@@ -30,11 +31,6 @@ export interface CasoVitrine {
   cursos: string[];
 }
 
-export interface NumeroVitrine {
-  valor: string;
-  rotulo: string;
-}
-
 /** As 6 etapas da jornada InfoHub → InovAMF, com o entregável de cada uma. */
 export const ETAPAS_VITRINE: EtapaVitrine[] = [
   { numero: 1, nome: 'Envio da ideia', entregavel: 'Cadastro da ideia (formulário)' },
@@ -43,14 +39,6 @@ export const ETAPAS_VITRINE: EtapaVitrine[] = [
   { numero: 4, nome: 'Encontro 2 – Proposta de valor', entregavel: 'Value Proposition Design' },
   { numero: 5, nome: 'Encontro 3 – Modelo de negócio', entregavel: 'Business Model Canvas' },
   { numero: 6, nome: 'Encontro 4 – Pitch e inscrição', entregavel: 'Pitch Vídeo, Canvas final, VPD final, dados de todos os integrantes' },
-];
-
-/** Números do programa exibidos no hero (copy ilustrativa da vitrine). */
-export const NUMEROS_VITRINE: NumeroVitrine[] = [
-  { valor: '20+', rotulo: 'ideias no InfoHub' },
-  { valor: '12', rotulo: 'equipes ativas agora' },
-  { valor: '40+', rotulo: 'alunos participando' },
-  { valor: '5', rotulo: 'prontas para o InovAMF' },
 ];
 
 /** Áreas de atuação aceitas nas ideias (lista configurável — RF, seção 4.2). */
