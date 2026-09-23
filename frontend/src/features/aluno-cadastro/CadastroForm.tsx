@@ -14,6 +14,7 @@ import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
+import { OpcoesSegmentadas } from '@/design-system/components/OpcoesSegmentadas';
 import { AlertIcon } from '@/design-system/icons';
 import { LinksConvite } from './LinksConvite';
 
@@ -25,6 +26,13 @@ const ESTAGIOS: EstagioIdeia[] = [
   'mvp_desenvolvimento',
   'mvp_pronto',
 ];
+
+const ESTAGIO_DESCRICAO: Record<EstagioIdeia, string> = {
+  ideia: 'Ainda no papel',
+  prototipo: 'Algo testável, mesmo simples',
+  mvp_desenvolvimento: 'Produto mínimo sendo construído',
+  mvp_pronto: 'Já usado por pessoas reais',
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -300,25 +308,18 @@ export function CadastroForm() {
               </FormField>
             </div>
 
-            <fieldset className="flex flex-col gap-2">
-              <legend className="text-sm font-medium text-text">
-                Estágio da ideia
-              </legend>
-              <div className="flex flex-wrap gap-3">
-                {ESTAGIOS.map((es) => (
-                  <label key={es} className="flex items-center gap-2 text-sm text-text">
-                    <input
-                      type="radio"
-                      name="estagio"
-                      value={es}
-                      checked={estagioIdeia === es}
-                      onChange={() => setEstagioIdeia(es)}
-                    />
-                    {ESTAGIO_LABEL[es]}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <OpcoesSegmentadas
+              name="estagio"
+              legenda="Estágio da ideia"
+              opcoes={ESTAGIOS.map((es) => ({
+                value: es,
+                label: ESTAGIO_LABEL[es],
+                descricao: ESTAGIO_DESCRICAO[es],
+              }))}
+              value={estagioIdeia}
+              onChange={setEstagioIdeia}
+              error={erros.estagioIdeia}
+            />
           </section>
 
           {erroGeral && (
