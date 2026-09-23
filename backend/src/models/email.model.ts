@@ -1,10 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import type { TipoEmail } from "../domain/enums.js";
+import { registrarAuditoria, type RegistroAuditoria } from "./auditoria.model.js";
 
-// Enfileira um e-mail (status='pendente'). O envio real (SMTP/provedor) é feito
-// por um worker à parte — Q7 dos requisitos, fora de escopo agora (RNF-06).
-export function enfileirar(data: {
+export interface NovoEmail {
   tipo: TipoEmail;
   destinatarioId?: string | null;
   destinatarioEmail: string;
@@ -13,19 +12,37 @@ export function enfileirar(data: {
   dadosTemplate?: Prisma.InputJsonValue;
   equipeId?: string | null;
   tarefaId?: string | null;
-}) {
-  return prisma.emails.create({
-    data: {
-      tipo: data.tipo,
-      destinatario_id: data.destinatarioId ?? null,
-      destinatario_email: data.destinatarioEmail,
-      assunto: data.assunto,
-      template: data.template ?? null,
-      dados_template: data.dadosTemplate,
-      equipe_id: data.equipeId ?? null,
-      tarefa_id: data.tarefaId ?? null,
-    },
-    select: { id: true, status: true },
+}
+
+function linha(data: NovoEmail) {
+  return {
+    tipo: data.tipo,
+    destinatario_id: data.destinatarioId ?? null,
+    destinatario_email: data.destinatarioEmail,
+    assunto: data.assunto,
+    template: data.template ?? null,
+    dados_template: data.dadosTemplate,
+    equipe_id: data.equipeId ?? null,
+    tarefa_id: data.tarefaId ?? null,
+  };
+}
+
+// Enfileira um e-mail (status='pendente'). O envio real (SMTP/provedor) é feito
+// por um worker à parte — Q7 dos requisitos, fora de escopo agora (RNF-06).
+export function enfileirar(data: NovoEmail) {
+  return prisma.emails.create({ data: linha(data), select: { id: true, status: true } });
+}
+
+// Lembrete manual (RF-20): fila + auditoria na MESMA transação — ou tudo, ou
+// nada (RNF-05). Devolve quantos e-mails entraram na fila.
+export async function enfileirarComAuditoria(
+  itens: NovoEmail[],
+  auditoria: RegistroAuditoria,
+): Promise<number> {
+  return prisma.$transaction(async (tx) => {
+    const r = await tx.emails.createMany({ data: itens.map(linha) });
+    await registrarAuditoria(tx, auditoria);
+    return r.count;
   });
 }
 
