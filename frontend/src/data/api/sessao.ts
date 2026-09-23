@@ -93,12 +93,18 @@ export const sessao = {
           return false;
         }
         const res = await postar('/auth/refresh', { refresh }).catch(() => null);
-        if (!res || !res.ok) {
+        if (res?.ok) {
+          sessao.aplicar((await res.json()) as RespostaSessao);
+          return true;
+        }
+        if (res && (res.status === 401 || res.status === 403)) {
           limpar();
           return false;
         }
-        sessao.aplicar((await res.json()) as RespostaSessao);
-        return true;
+        // Rede/5xx (ex.: backend subindo no deploy): o refresh guardado ainda
+        // vale — mantém para a próxima tentativa; só sai do "carregando".
+        if (estadoAtual.status === 'carregando') definir({ status: 'anonimo' });
+        return false;
       })().finally(() => {
         renovando = null;
       });
