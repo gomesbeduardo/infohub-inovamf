@@ -50,7 +50,7 @@ const PILARES: Bloco[] = [
     icone: LightbulbIcon,
     titulo: 'Sua ideia sai do papel',
     texto:
-      'Você envia a ideia mesmo crua. A equipe InfoHub analisa, chama para conversar e ajuda a transformar o esboço em um problema, um público e uma solução.',
+      'Você envia a ideia ainda no começo. A equipe InfoHub analisa, chama para conversar e ajuda a transformar o esboço em um problema, um público e uma solução.',
   },
   {
     icone: UsersIcon,
@@ -223,7 +223,7 @@ export function Landing() {
               <p className="mt-5 max-w-xl text-base leading-relaxed text-text-muted sm:text-lg">
                 O InfoHub é o laboratório de empreendedorismo da AMF: seis etapas
                 de mentoria que levam o seu esboço até um MVP pronto para o centro
-                de inovação InovAMF. Envie a ideia — mesmo que ainda esteja crua.
+                de inovação InovAMF. Envie a sua ideia, mesmo que ainda esteja no começo.
               </p>
               <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <Link href="/cadastro" className={BOTAO_PRINCIPAL}>

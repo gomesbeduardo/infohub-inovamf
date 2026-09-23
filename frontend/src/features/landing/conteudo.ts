@@ -35,7 +35,7 @@ export interface CasoVitrine {
 
 /** As 6 etapas da jornada InfoHub → InovAMF, com o entregável de cada uma. */
 export const ETAPAS_VITRINE: EtapaVitrine[] = [
-  { numero: 1, nome: 'Envio da ideia', descricao: 'Você conta a ideia no formulário inicial, mesmo que ainda esteja crua. A conta de acesso é criada na hora.', entregavel: 'Cadastro da ideia (formulário)' },
+  { numero: 1, nome: 'Envio da ideia', descricao: 'Você conta a ideia no formulário inicial, mesmo que ainda esteja no começo. A conta de acesso é criada na hora.', entregavel: 'Cadastro da ideia (formulário)' },
   { numero: 2, nome: 'Contato com a equipe', descricao: 'A equipe InfoHub analisa a proposta e agenda o primeiro encontro com vocês.', entregavel: 'Agendamento confirmado' },
   { numero: 3, nome: 'Encontro 1 – Entendendo a ideia', descricao: 'Mentor e equipe definem o problema, o público-alvo e a solução inicial.', entregavel: 'Problema, público-alvo e solução definidos' },
   { numero: 4, nome: 'Encontro 2 – Proposta de valor', descricao: 'Vocês constroem o Value Proposition Design com o mentor.', entregavel: 'Value Proposition Design' },
