@@ -101,7 +101,7 @@ export function findPerfilBySlug(slug: string) {
 export function findParaConviteBySlug(slug: string) {
   return prisma.usuarios.findFirst({
     where: { slug, excluido_em: null },
-    select: { id: true, nome: true, email: true, convite_aceito_em: true },
+    select: { id: true, nome: true, email: true, ativo: true, convite_aceito_em: true },
   });
 }
 

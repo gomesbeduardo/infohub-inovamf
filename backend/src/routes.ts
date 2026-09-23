@@ -33,12 +33,14 @@ routes.post("/auth/logout", auth, authCtrl.logout);
 routes.get("/auth/me", auth, authCtrl.me);
 routes.patch("/auth/me", auth, authCtrl.atualizarMe);
 routes.post("/auth/senha", auth, authLimiter, authCtrl.trocarSenha);
+routes.post("/auth/redefinir-senha", authLimiter, authCtrl.redefinirSenha);
 
 // --- Usuários (RF-03: admin cria/edita/desativa; convite por e-mail) ----------
 routes.get("/usuarios", auth, role("admin"), usuarioCtrl.index);
 routes.post("/usuarios", auth, role("admin"), usuarioCtrl.store);
 routes.get("/usuarios/:slug", auth, role("admin"), usuarioCtrl.show);
 routes.patch("/usuarios/:slug", auth, role("admin"), usuarioCtrl.update);
+routes.post("/usuarios/:slug/redefinir-senha", auth, role("admin"), usuarioCtrl.gerarRedefinicaoSenha);
 
 // --- Convites (RF-03) ---------------------------------------------------------
 routes.get("/convites/pendentes", auth, role("admin"), conviteCtrl.pendentes);
@@ -74,6 +76,7 @@ routes.get("/equipes/:slug/tarefas", auth, tarefaCtrl.index);
 routes.post("/equipes/:slug/tarefas", auth, role("admin", "mentor"), tarefaCtrl.store);
 routes.get("/tarefas/:slug", auth, tarefaCtrl.show);
 routes.patch("/tarefas/:slug", auth, role("admin", "mentor"), tarefaCtrl.update);
+routes.post("/tarefas/:slug/iniciar", auth, role("aluno"), tarefaCtrl.iniciar);
 
 // --- Entregas / avaliações (RF-14/15/16) — aluno membro envia; admin/mentor avalia
 routes.get("/tarefas/:slug/entregas", auth, entregaCtrl.index);

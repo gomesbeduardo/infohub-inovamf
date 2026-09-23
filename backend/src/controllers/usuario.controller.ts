@@ -5,7 +5,8 @@ import { hashSenha, tokenAleatorio } from "../utils/hash.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
 import { env } from "../env.js";
-import { linkConvite } from "../utils/convite.js";
+import { linkConvite, linkRedefinicao } from "../utils/convite.js";
+import { idDoChamador, ipDoChamador } from "../utils/acesso.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
 import * as emailModel from "../models/email.model.js";
@@ -213,6 +214,34 @@ export async function update(req: Request, res: Response, next: NextFunction) {
       ativo: atualizado.ativo,
       conviteAceito: atualizado.convite_aceito_em !== null,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /usuarios/:slug/redefinir-senha — admin gera o link de uso único (24 h)
+// para a pessoa definir outra senha (RF-01). Sem e-mail configurado, o admin
+// copia o link. Só para conta ativa que já aceitou o convite.
+export async function gerarRedefinicaoSenha(req: Request, res: Response, next: NextFunction) {
+  try {
+    const alvo = await usuarioModel.findParaConviteBySlug(req.params.slug ?? "");
+    if (!alvo) throw httpError(404, "USUARIO_NOT_FOUND", "Usuário não encontrado");
+    if (!alvo.ativo) {
+      throw httpError(409, "CONTA_INATIVA", "Conta inativa: ative a conta antes de redefinir a senha");
+    }
+    if (!alvo.convite_aceito_em) {
+      throw httpError(
+        409,
+        "CONVITE_PENDENTE",
+        "A pessoa ainda não aceitou o convite: gere um novo link de convite",
+      );
+    }
+    const r = await tokenModel.emitirRecuperacao({
+      usuarioId: alvo.id,
+      adminId: idDoChamador(req),
+      ip: ipDoChamador(req),
+    });
+    res.status(201).json({ link: linkRedefinicao(r.tokenBruto), expiraEm: r.expiraEm.toISOString() });
   } catch (err) {
     next(err);
   }
