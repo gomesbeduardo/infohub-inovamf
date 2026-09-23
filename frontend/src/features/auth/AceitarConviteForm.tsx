@@ -11,6 +11,7 @@ import { homeFor } from '@/features/shell/nav';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
@@ -127,12 +128,11 @@ export function AceitarConviteForm() {
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
           <FormField label="Senha" htmlFor="senha" error={erros.senha}>
-            <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+            <PasswordInput id="senha" value={senha} onChange={(e) => setSenha(e.target.value)} />
           </FormField>
           <FormField label="Confirmar senha" htmlFor="confirmarSenha" error={erros.confirmarSenha}>
-            <Input
+            <PasswordInput
               id="confirmarSenha"
-              type="password"
               value={confirmarSenha}
               onChange={(e) => setConfirmarSenha(e.target.value)}
             />
