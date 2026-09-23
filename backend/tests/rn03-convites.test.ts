@@ -40,7 +40,7 @@ afterAll(async () => {
 describe("inscrição com colegas já cadastrados (RN-03)", () => {
   it("reutiliza o veterano (1 linha) e gera link só para o novo", async () => {
     const r = await inscricao(email("lider"), [
-      { nome: "Veterano Souza", email: email("veterano") },
+      { nome: "Nome Digitado", email: email("veterano") },
       { nome: "Novo Colega", email: email("novo") },
     ]);
     expect(r.status).toBe(201);
@@ -48,6 +48,8 @@ describe("inscrição com colegas já cadastrados (RN-03)", () => {
     liderAccess = r.body.access;
     const porEmail = Object.fromEntries(r.body.colegas.map((c: { email: string }) => [c.email, c]));
     expect(porEmail[email("veterano")].conviteUrl).toBeNull();
+    // Rota pública: devolve o nome digitado, nunca o cadastrado ("Veterano Souza").
+    expect(porEmail[email("veterano")].nome).toBe("Nome Digitado");
     expect(porEmail[email("novo")].conviteUrl).toContain("/convite?token=");
     novoSlug = porEmail[email("novo")].slug;
     tokenInicial = decodeURIComponent(porEmail[email("novo")].conviteUrl.split("token=")[1]);
