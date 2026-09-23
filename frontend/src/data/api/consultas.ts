@@ -297,6 +297,22 @@ export function useReenviarConvite() {
   });
 }
 
+/** A3/RF-01: admin gera o link de uso único (24 h) para a pessoa definir outra senha. */
+export function useGerarRedefinicao() {
+  return useMutation({
+    mutationFn: (slug: string) =>
+      api<{ link: string; expiraEm: string }>(`/usuarios/${slug}/redefinir-senha`, { method: 'POST' }),
+  });
+}
+
+/** A3/RF-01: a pessoa troca a senha pelo link (rota pública; 204). */
+export function useRedefinirSenha() {
+  return useMutation({
+    mutationFn: (b: { token: string; senha: string }) =>
+      api<void>('/auth/redefinir-senha', { method: 'POST', body: b, publica: true }),
+  });
+}
+
 export const useMe = () => useQuery({ queryKey: chaves.me, queryFn: () => api<Me>('/auth/me') });
 
 export function useAtualizarMe() {

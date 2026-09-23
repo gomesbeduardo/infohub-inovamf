@@ -11,6 +11,7 @@ vi.mock('@/data/api/consultas', () => ({
   useCriarUsuario: vi.fn(),
   useEditarUsuario: vi.fn(),
   useReenviarConvite: vi.fn(),
+  useGerarRedefinicao: vi.fn(),
   useMe: vi.fn(),
   useAtualizarMe: vi.fn(),
   useTrocarSenha: vi.fn(),
@@ -22,6 +23,7 @@ import {
   useAtualizarMe,
   useCriarUsuario,
   useEditarUsuario,
+  useGerarRedefinicao,
   useMe,
   useReenviarConvite,
   useTrocarSenha,
@@ -68,6 +70,7 @@ const USUARIOS: UsuarioAdmin[] = [
 const criar = vi.fn();
 const editar = vi.fn();
 const reenviar = vi.fn();
+const gerarRedefinicao = vi.fn();
 const refetchUsuarios = vi.fn();
 
 function mockUsuarios(data: UsuarioAdmin[] = USUARIOS) {
@@ -131,6 +134,10 @@ function mockPadraoConta() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(useGerarRedefinicao).mockReturnValue({
+    mutate: gerarRedefinicao,
+    isPending: false,
+  } as unknown as R<typeof useGerarRedefinicao>);
 });
 
 describe('ContasAdmin', () => {
@@ -322,6 +329,35 @@ describe('ContasAdmin', () => {
     await user.click(botao);
 
     expect(refetchUsuarios).toHaveBeenCalled();
+  });
+
+  it('"Redefinir senha" só em conta ativa com convite aceito; mostra o link para copiar', async () => {
+    mockPadraoAdmin();
+    gerarRedefinicao.mockImplementationOnce((_slug: unknown, opts?: { onSuccess?: (r: unknown) => void }) =>
+      opts?.onSuccess?.({ link: '/redefinir-senha?token=abc.def', expiraEm: '2026-09-23T12:00:00Z' }),
+    );
+    const user = userEvent.setup();
+    render(<ContasAdmin />);
+
+    const marina = screen.getByText('Marina Mentora').closest('li')!;
+    expect(within(marina).queryByRole('button', { name: /redefinir senha/i })).not.toBeInTheDocument();
+
+    const ana = screen.getByText('Ana Admin').closest('li')!;
+    await user.click(within(ana).getByRole('button', { name: /redefinir senha/i }));
+    expect(gerarRedefinicao).toHaveBeenCalledWith('admin-1', expect.anything());
+    expect(within(ana).getByDisplayValue(/\/redefinir-senha\?token=abc\.def$/)).toBeInTheDocument();
+  });
+
+  it('erro ao gerar o link de redefinição aparece como alerta', async () => {
+    mockPadraoAdmin();
+    gerarRedefinicao.mockImplementationOnce((_slug: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(new ApiError(409, 'CONVITE_PENDENTE', 'A pessoa ainda não aceitou o convite')),
+    );
+    const user = userEvent.setup();
+    render(<ContasAdmin />);
+    const ana = screen.getByText('Ana Admin').closest('li')!;
+    await user.click(within(ana).getByRole('button', { name: /redefinir senha/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent('A pessoa ainda não aceitou o convite');
   });
 });
 
