@@ -98,6 +98,7 @@ function MinhasTarefasConteudo({ slug }: { slug: string }) {
   const tarefas = tarefasConsulta.data;
   const pendentes = tarefas.filter((t) => PENDENTES.includes(t.status));
   const concluidas = tarefas.filter((t) => CONCLUIDAS.includes(t.status));
+  const nomeLider = equipe.membros.find((m) => m.papel === 'lider')?.nome ?? '';
 
   return (
     <div className="flex flex-col gap-5">
@@ -115,7 +116,13 @@ function MinhasTarefasConteudo({ slug }: { slug: string }) {
         ) : (
           <ul className="flex flex-col gap-3">
             {pendentes.map((t) => (
-              <LinhaTarefa key={t.slug} tarefa={t} equipeSlug={equipe.slug} />
+              <LinhaTarefa
+                key={t.slug}
+                tarefa={t}
+                equipeSlug={equipe.slug}
+                souLider={equipe.souLider}
+                nomeLider={nomeLider}
+              />
             ))}
           </ul>
         )}
@@ -126,7 +133,13 @@ function MinhasTarefasConteudo({ slug }: { slug: string }) {
           <h2 className="text-sm font-semibold text-text">Concluídas</h2>
           <ul className="flex flex-col gap-3">
             {concluidas.map((t) => (
-              <LinhaTarefa key={t.slug} tarefa={t} equipeSlug={equipe.slug} />
+              <LinhaTarefa
+                key={t.slug}
+                tarefa={t}
+                equipeSlug={equipe.slug}
+                souLider={equipe.souLider}
+                nomeLider={nomeLider}
+              />
             ))}
           </ul>
         </section>
@@ -135,7 +148,17 @@ function MinhasTarefasConteudo({ slug }: { slug: string }) {
   );
 }
 
-function LinhaTarefa({ tarefa, equipeSlug }: { tarefa: Tarefa; equipeSlug: string }) {
+function LinhaTarefa({
+  tarefa,
+  equipeSlug,
+  souLider,
+  nomeLider,
+}: {
+  tarefa: Tarefa;
+  equipeSlug: string;
+  souLider: boolean;
+  nomeLider: string;
+}) {
   const entregavel = tarefa.status !== 'aprovada';
   const entregasConsulta = useEntregas(tarefa.slug);
   const iniciar = useIniciarTarefa(equipeSlug);
@@ -191,18 +214,26 @@ function LinhaTarefa({ tarefa, equipeSlug }: { tarefa: Tarefa; equipeSlug: strin
           {erroInicio}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
-        {tarefa.status === 'pendente' && (
-          <Button size="sm" variant="secondary" disabled={iniciar.isPending} onClick={comecar}>
-            Comecei
-          </Button>
-        )}
-        {entregavel && (
-          <EnviarEntregaDialog
-            tarefaSlug={tarefa.slug}
-            equipeSlug={equipeSlug}
-            tituloTarefa={tarefa.titulo}
-          />
+      <div className="flex flex-wrap items-center gap-2">
+        {souLider ? (
+          <>
+            {tarefa.status === 'pendente' && (
+              <Button size="sm" variant="secondary" disabled={iniciar.isPending} onClick={comecar}>
+                Comecei
+              </Button>
+            )}
+            {entregavel && (
+              <EnviarEntregaDialog
+                tarefaSlug={tarefa.slug}
+                equipeSlug={equipeSlug}
+                tituloTarefa={tarefa.titulo}
+              />
+            )}
+          </>
+        ) : (
+          <span className="text-sm text-text-muted">
+            Quem envia as entregas é o líder: {nomeLider}
+          </span>
         )}
       </div>
     </li>

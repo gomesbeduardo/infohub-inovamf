@@ -78,6 +78,7 @@ function detalhe(p: Partial<EquipeDetalhe> = {}): EquipeDetalhe {
     area: 'Agronegócio',
     ciclo: '2026/2',
     mentor: { slug: 'mentor-ana', nome: 'Ana Mentora' },
+    souLider: true,
     membros: [
       { slug: 'lia', nome: 'Lia Líder', papel: 'lider', tipo: 'aluno', pendente: false, curso: 'Direito', semestre: '3' },
       { slug: 'caio', nome: 'Caio Integrante', papel: 'integrante', tipo: 'aluno', pendente: false, curso: 'Agronomia', semestre: '5º' },
@@ -321,6 +322,22 @@ describe('MinhasTarefas', () => {
     mockTarefas([tarefa({ status: 'atrasada', dataEntrega: '2026-09-01T00:00:00.000Z' })]);
     render(<MinhasTarefas />);
     expect(screen.getByText(/^atrasada há \d+ dias$/)).toBeInTheDocument();
+  });
+
+  it('líder vê "Comecei" e "Enviar entrega"', () => {
+    mockEquipe(detalhe({ souLider: true }));
+    render(<MinhasTarefas />);
+    expect(screen.getByRole('button', { name: 'Comecei' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enviar entrega/i })).toBeInTheDocument();
+  });
+
+  it('quem não é líder não vê "Comecei" nem "Enviar entrega", e vê o aviso com o nome do líder', () => {
+    comoIntegrante();
+    mockEquipe(detalhe({ souLider: false }));
+    render(<MinhasTarefas />);
+    expect(screen.queryByRole('button', { name: 'Comecei' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /enviar entrega/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Quem envia as entregas é o líder: Lia Líder')).toBeInTheDocument();
   });
 });
 
