@@ -66,7 +66,7 @@ export interface Dashboard {
 
 /** GET /publico/numeros — agregados reais para o hero da landing (issue #157). */
 export interface NumerosPublicos {
-  data: { ideias: number; equipesEmAndamento: number; alunos: number; cursos: number };
+  ideias: number; equipesEmAndamento: number; alunos: number; cursos: number;
 }
 
 export interface UsuarioAdmin {

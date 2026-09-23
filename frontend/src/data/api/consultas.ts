@@ -266,6 +266,6 @@ export function useTrocarSenha() {
 export const useNumerosPublicos = () =>
   useQuery({
     queryKey: chaves.publicoNumeros,
-    queryFn: () => api<NumerosPublicos>('/publico/numeros'),
+    queryFn: () => api<{ data: NumerosPublicos }>('/publico/numeros').then((r) => r.data),
     staleTime: 60_000,
   });

@@ -3,10 +3,8 @@ import request from "supertest";
 import { Prisma } from "@prisma/client";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/prisma.js";
-import { hashSenha } from "../src/utils/hash.js";
-import { novoIdComSlug } from "../src/utils/slug.js";
 import * as publicoModel from "../src/models/publico.model.js";
-import { limpar, SENHA } from "./helpers.js";
+import { criarEquipe, criarUsuario, limpar } from "./helpers.js";
 
 const app = createApp();
 const sufixo = `pub${Date.now()}`;
@@ -21,68 +19,35 @@ const email = (n: string) => `${n}.${sufixo}@teste.local`;
 // antes dela abrir, mais as próprias escritas. O delta sai limpo.
 let delta: { ideias: number; equipesEmAndamento: number; alunos: number; cursos: number };
 
-async function criarAlunoNaTx(
-  tx: Prisma.TransactionClient,
-  n: string,
-  opts: { convitePendente?: boolean } = {},
-): Promise<{ id: string }> {
-  const ids = novoIdComSlug();
-  await tx.usuarios.create({
-    data: {
-      id: ids.id,
-      slug: ids.slug,
-      nome: `Aluno ${n}`,
-      email: email(n),
-      senha: await hashSenha(SENHA),
-      telefone: "55990000000",
-      tipo_usuario: "aluno",
-      ativo: true,
-      convite_aceito_em: opts.convitePendente ? null : new Date(),
-    },
-  });
-  await tx.alunos.create({ data: { usuario_id: ids.id, curso: `Curso ${n} ${sufixo}` } });
-  return ids;
-}
-
-async function criarEquipeNaTx(
-  tx: Prisma.TransactionClient,
-  p: { nome: string; status?: string; membros: string[] },
-): Promise<void> {
-  const ids = novoIdComSlug();
-  await tx.equipes.create({
-    data: {
-      id: ids.id,
-      slug: ids.slug,
-      nome_ideia: p.nome,
-      descricao_ideia: "descrição de teste",
-      estagio_ideia: "ideia",
-      etapa_atual_id: 1,
-      status: p.status ?? "ativa",
-    },
-  });
-  for (const usuarioId of p.membros) {
-    await tx.equipe_membros.create({ data: { equipe_id: ids.id, usuario_id: usuarioId } });
-  }
-}
-
 beforeAll(async () => {
   await prisma.$transaction(
     async (tx) => {
       const base = await publicoModel.numeros(tx);
 
       // Equipe ativa com 2 alunos de cursos distintos: conta em tudo.
-      const aluno1 = await criarAlunoNaTx(tx, "a1");
-      const aluno2 = await criarAlunoNaTx(tx, "a2");
-      await criarEquipeNaTx(tx, { nome: nome("Ativa"), membros: [aluno1.id, aluno2.id] });
+      const aluno1 = await criarUsuario(email("a1"), "aluno", { curso: `Curso a1 ${sufixo}` }, tx);
+      const aluno2 = await criarUsuario(email("a2"), "aluno", { curso: `Curso a2 ${sufixo}` }, tx);
+      await criarEquipe(
+        { nome: nome("Ativa"), membros: [{ id: aluno1.id }, { id: aluno2.id }] },
+        tx,
+      );
 
       // Equipe desistente (não ativa) com 1 aluno: conta em ideias, não no resto.
-      const aluno3 = await criarAlunoNaTx(tx, "a3");
-      await criarEquipeNaTx(tx, { nome: nome("Desistente"), status: "desistente", membros: [aluno3.id] });
+      const aluno3 = await criarUsuario(email("a3"), "aluno", { curso: `Curso a3 ${sufixo}` }, tx);
+      await criarEquipe(
+        { nome: nome("Desistente"), status: "desistente", membros: [{ id: aluno3.id }] },
+        tx,
+      );
 
       // Equipe ativa com aluno de convite pendente: conta em ideias/equipesEmAndamento,
       // não em alunos/cursos.
-      const aluno4 = await criarAlunoNaTx(tx, "a4", { convitePendente: true });
-      await criarEquipeNaTx(tx, { nome: nome("ComPendente"), membros: [aluno4.id] });
+      const aluno4 = await criarUsuario(
+        email("a4"),
+        "aluno",
+        { curso: `Curso a4 ${sufixo}`, ativado: false },
+        tx,
+      );
+      await criarEquipe({ nome: nome("ComPendente"), membros: [{ id: aluno4.id }] }, tx);
 
       const atual = await publicoModel.numeros(tx);
       delta = {

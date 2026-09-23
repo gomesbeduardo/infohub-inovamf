@@ -37,7 +37,7 @@ export function NumerosVitrine() {
             <dd>
               <span
                 aria-hidden
-                className="block h-8 w-16 animate-pulse rounded-[0.375rem] bg-surface-sunken"
+                className="block h-8 w-16 motion-safe:animate-pulse rounded-[0.375rem] bg-surface-sunken"
               />
               <span className="mt-0.5 block text-xs leading-snug text-text-muted">
                 {ROTULOS[chave]}
@@ -49,7 +49,7 @@ export function NumerosVitrine() {
     );
   }
 
-  const valores = numeros.data.data;
+  const valores = numeros.data;
 
   return (
     <dl className="mt-10 grid grid-cols-2 gap-4 border-t border-border pt-6 sm:grid-cols-4">

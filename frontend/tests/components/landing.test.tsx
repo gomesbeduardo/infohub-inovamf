@@ -13,9 +13,7 @@ import { ETAPAS_VITRINE } from '@/features/landing/conteudo';
 
 type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
 
-const NUMEROS: NumerosPublicos = {
-  data: { ideias: 2048, equipesEmAndamento: 57, alunos: 913, cursos: 15 },
-};
+const NUMEROS: NumerosPublicos = { ideias: 2048, equipesEmAndamento: 57, alunos: 913, cursos: 15 };
 
 function mockNumeros(v: Partial<R<typeof useNumerosPublicos>>) {
   vi.mocked(useNumerosPublicos).mockReturnValue({
