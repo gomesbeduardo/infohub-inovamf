@@ -37,6 +37,7 @@ export function ContasAdmin() {
   const [conviteCriado, setConviteCriado] = useState<{ nome: string; url: string } | null>(null);
 
   const [linkPendente, setLinkPendente] = useState<{ slug: string; url: string } | null>(null);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   const contas = (consulta.data ?? []).filter((u) => u.role === 'admin' || u.role === 'mentor');
 
@@ -99,13 +100,21 @@ export function ContasAdmin() {
   }
 
   function alternarAtivo(u: UsuarioAdmin) {
-    editar.mutate({ slug: u.slug, ativo: !u.ativo });
+    setErroAcao(null);
+    editar.mutate(
+      { slug: u.slug, ativo: !u.ativo },
+      {
+        onError: (err) => setErroAcao(err instanceof Error ? err.message : 'Não foi possível atualizar a conta.'),
+      },
+    );
   }
 
   function novoLink(u: UsuarioAdmin) {
     setLinkPendente(null);
+    setErroAcao(null);
     reenviar.mutate(u.slug, {
       onSuccess: (r) => setLinkPendente({ slug: u.slug, url: r.conviteUrl }),
+      onError: (err) => setErroAcao(err instanceof Error ? err.message : 'Não foi possível gerar o link.'),
     });
   }
 
@@ -117,6 +126,12 @@ export function ContasAdmin() {
           Nova conta
         </Button>
       </div>
+
+      {erroAcao && (
+        <p role="alert" className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text">
+          {erroAcao}
+        </p>
+      )}
 
       {consulta.isError ? (
         <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-6 py-10 text-center">

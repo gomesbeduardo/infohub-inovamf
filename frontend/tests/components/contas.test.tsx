@@ -222,7 +222,22 @@ describe('ContasAdmin', () => {
     const linha = screen.getByText('Ana Admin').closest('li')!;
     await user.click(within(linha).getByRole('button', { name: /desativar/i }));
 
-    expect(editar).toHaveBeenCalledWith({ slug: 'admin-1', ativo: false });
+    expect(editar).toHaveBeenCalledWith({ slug: 'admin-1', ativo: false }, expect.anything());
+  });
+
+  it('mostra alerta de erro quando ativar/desativar falha', async () => {
+    mockPadraoAdmin();
+    editar.mockImplementation((_body, opts) => {
+      opts?.onError?.(new ApiError(500, 'ERRO_INTERNO', 'Não foi possível atualizar a conta.'));
+    });
+
+    const user = userEvent.setup();
+    render(<ContasAdmin />);
+
+    const linha = screen.getByText('Ana Admin').closest('li')!;
+    await user.click(within(linha).getByRole('button', { name: /desativar/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível atualizar a conta.');
   });
 
   it('"Novo link" chama useReenviarConvite e mostra o link retornado', async () => {
@@ -239,6 +254,54 @@ describe('ContasAdmin', () => {
 
     expect(reenviar).toHaveBeenCalledWith('mentor-1', expect.anything());
     expect(within(linha).getByDisplayValue('https://infohub.dev/convite/xyz789')).toBeInTheDocument();
+  });
+
+  it('mostra alerta de erro quando gerar novo link falha', async () => {
+    mockPadraoAdmin();
+    reenviar.mockImplementation((_slug, opts) => {
+      opts?.onError?.(new ApiError(500, 'ERRO_INTERNO', 'Não foi possível gerar o link.'));
+    });
+
+    const user = userEvent.setup();
+    render(<ContasAdmin />);
+
+    const linha = screen.getByText('Marina Mentora').closest('li')!;
+    await user.click(within(linha).getByRole('button', { name: /novo link/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível gerar o link.');
+  });
+
+  it('mostra estado de erro com "Tentar de novo" chamando refetch', async () => {
+    mockUsuarios();
+    vi.mocked(useUsuarios).mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+      error: new ApiError(500, 'ERRO_INTERNO', 'Não foi possível carregar as contas.'),
+      refetch: refetchUsuarios,
+    } as unknown as R<typeof useUsuarios>);
+    vi.mocked(useCriarUsuario).mockReturnValue({
+      mutate: criar,
+      isPending: false,
+    } as unknown as R<typeof useCriarUsuario>);
+    vi.mocked(useEditarUsuario).mockReturnValue({
+      mutate: editar,
+      isPending: false,
+      variables: undefined,
+    } as unknown as R<typeof useEditarUsuario>);
+    vi.mocked(useReenviarConvite).mockReturnValue({
+      mutate: reenviar,
+      isPending: false,
+    } as unknown as R<typeof useReenviarConvite>);
+
+    const user = userEvent.setup();
+    render(<ContasAdmin />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível carregar as contas.');
+    const botao = screen.getByRole('button', { name: /tentar de novo/i });
+    await user.click(botao);
+
+    expect(refetchUsuarios).toHaveBeenCalled();
   });
 });
 
@@ -325,5 +388,32 @@ describe('ContaPerfil', () => {
     await user.click(screen.getByRole('button', { name: /alterar senha/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/senha atual incorreta/i);
+  });
+
+  it('mostra estado de erro com "Tentar de novo" chamando refetch', async () => {
+    vi.mocked(useMe).mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+      error: new ApiError(500, 'ERRO_INTERNO', 'Não foi possível carregar seus dados.'),
+      refetch: refetchMe,
+    } as unknown as R<typeof useMe>);
+    vi.mocked(useAtualizarMe).mockReturnValue({
+      mutate: atualizarMe,
+      isPending: false,
+    } as unknown as R<typeof useAtualizarMe>);
+    vi.mocked(useTrocarSenha).mockReturnValue({
+      mutate: trocarSenha,
+      isPending: false,
+    } as unknown as R<typeof useTrocarSenha>);
+
+    const user = userEvent.setup();
+    render(<ContaPerfil />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível carregar seus dados.');
+    const botao = screen.getByRole('button', { name: /tentar de novo/i });
+    await user.click(botao);
+
+    expect(refetchMe).toHaveBeenCalled();
   });
 });
