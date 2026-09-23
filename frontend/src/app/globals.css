@@ -279,9 +279,14 @@ h2,
 }
 
 /* ── Landing ───────────────────────────────────────────────────────────────── */
-/* Âncoras e snap param abaixo do cabeçalho fixo da landing (h-16). */
+/* Âncoras param abaixo do cabeçalho fixo da landing (h-16) e deslizam até lá. */
 html {
   scroll-padding-top: 4rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Brilho do topo: nasce na borda de cima, atrás do cabeçalho transparente. */
@@ -320,19 +325,38 @@ html {
   );
 }
 
-/* Jornada: uma tela por etapa (só em tela média ou maior). */
+/* Jornada: uma faixa por etapa (em tela média ou maior), com um brilho na cor
+   da etapa saindo do ápice da curva. O fundo muda de tom etapa a etapa, do
+   laranja ao vinho, e a etapa ativa brilha mais. */
 @media (min-width: 768px) {
   .jornada-tela {
-    height: calc(100svh - 4rem);
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
+    height: 80svh;
+    min-height: 34rem;
   }
-  .jornada-borda {
-    scroll-snap-align: start;
+  .jornada-tela::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      closest-side at var(--apice-x) 50%,
+      color-mix(in srgb, var(--cor-etapa) 34%, transparent) 0%,
+      color-mix(in srgb, var(--cor-etapa) 12%, transparent) 55%,
+      transparent 100%
+    );
+    opacity: 0.45;
   }
-  /* Posto pelo JS só enquanto uma etapa ocupa a tela (e sem reduced-motion). */
-  html.jornada-snap {
-    scroll-snap-type: y mandatory;
+  [data-theme='dark'] .jornada-tela::before {
+    background: radial-gradient(
+      closest-side at var(--apice-x) 50%,
+      color-mix(in srgb, var(--cor-etapa) 26%, transparent) 0%,
+      color-mix(in srgb, var(--cor-etapa) 9%, transparent) 55%,
+      transparent 100%
+    );
+  }
+  .jornada-tela[data-ativo='true']::before {
+    opacity: 1;
   }
 }
 
@@ -436,6 +460,9 @@ html {
     }
     .jornada-marco {
       transition: fill 0.4s ease-out, stroke 0.4s ease-out;
+    }
+    .jornada-tela::before {
+      transition: opacity 0.6s ease-out;
     }
   }
 }
