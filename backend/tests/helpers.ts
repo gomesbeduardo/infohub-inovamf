@@ -20,7 +20,7 @@ export const bearer = (t: string) => ({ Authorization: `Bearer ${t}` });
 export async function criarUsuario(
   email: string,
   tipo: "admin" | "mentor" | "aluno",
-  opts: { ativado?: boolean; ativo?: boolean; nome?: string; curso?: string } = {},
+  opts: { ativado?: boolean; ativo?: boolean; nome?: string; curso?: string; semestre?: string } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<{ id: string; slug: string }> {
   const ids = novoIdComSlug();
@@ -37,8 +37,10 @@ export async function criarUsuario(
       convite_aceito_em: opts.ativado === false ? null : new Date(),
     },
   });
-  if (tipo === "aluno" && opts.curso !== undefined) {
-    await db.alunos.create({ data: { usuario_id: ids.id, curso: opts.curso } });
+  if (tipo === "aluno" && (opts.curso !== undefined || opts.semestre !== undefined)) {
+    await db.alunos.create({
+      data: { usuario_id: ids.id, curso: opts.curso, semestre: opts.semestre },
+    });
   }
   return ids;
 }
