@@ -30,6 +30,26 @@ describe('ThemeProvider + ThemeToggle', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 
+  it('o ícone mostra o tema atual: monitor no sistema, lua no escuro, sol no claro', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider>
+        <ThemeToggle />
+      </ThemeProvider>,
+    );
+    const botao = screen.getByRole('button', { name: /tema/i });
+    const icone = () => botao.querySelector('svg')?.getAttribute('data-icone');
+
+    // sem preferência salva segue o sistema (claro no jsdom)
+    expect(icone()).toBe('sistema');
+    await user.click(botao);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(icone()).toBe('lua');
+    await user.click(botao);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(icone()).toBe('sol');
+  });
+
   it('persiste a escolha em localStorage', async () => {
     const user = userEvent.setup();
     render(
