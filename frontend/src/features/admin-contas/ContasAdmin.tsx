@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import type { TipoUsuario } from '@/domain/types';
 import type { UsuarioAdmin } from '@/data/api/tipos';
 import { useCriarUsuario, useEditarUsuario, useReenviarConvite, useUsuarios } from '@/data/api/consultas';
+import { useUsuario } from '@/data/api/useSessao';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
@@ -25,6 +26,8 @@ export function ContasAdmin() {
   const criar = useCriarUsuario();
   const editar = useEditarUsuario();
   const reenviar = useReenviarConvite();
+  // A própria conta não se desativa nem sai de admin (o backend também recusa).
+  const eu = useUsuario();
 
   const [aberto, setAberto] = useState(false);
   const [editando, setEditando] = useState<UsuarioAdmin | null>(null);
@@ -167,14 +170,16 @@ export function ContasAdmin() {
                   <Button size="sm" variant="ghost" onClick={() => abrirEdicao(u)}>
                     Editar
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={editar.isPending && editar.variables?.slug === u.slug}
-                    onClick={() => alternarAtivo(u)}
-                  >
-                    {u.ativo ? 'Desativar' : 'Ativar'}
-                  </Button>
+                  {u.slug !== eu?.slug && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={editar.isPending && editar.variables?.slug === u.slug}
+                      onClick={() => alternarAtivo(u)}
+                    >
+                      {u.ativo ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  )}
                   {!u.conviteAceito && (
                     <Button
                       size="sm"
@@ -227,9 +232,14 @@ export function ContasAdmin() {
             <FormField label="Telefone" htmlFor="c-tel" hint="Opcional">
               <Input id="c-tel" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
             </FormField>
-            <FormField label="Perfil" htmlFor="c-tipo">
+            <FormField
+              label="Perfil"
+              htmlFor="c-tipo"
+              hint={editando && editando.slug === eu?.slug ? 'Você não pode mudar o próprio perfil.' : undefined}
+            >
               <Select
                 id="c-tipo"
+                disabled={!!editando && editando.slug === eu?.slug}
                 options={[
                   { value: 'mentor', label: 'Mentor' },
                   { value: 'admin', label: 'Administrador' },

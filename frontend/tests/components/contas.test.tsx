@@ -16,6 +16,8 @@ vi.mock('@/data/api/consultas', () => ({
   useTrocarSenha: vi.fn(),
 }));
 
+vi.mock('@/data/api/useSessao', () => ({ useUsuario: vi.fn(() => null) }));
+
 import {
   useAtualizarMe,
   useCriarUsuario,
@@ -26,6 +28,7 @@ import {
   useUsuarios,
 } from '@/data/api/consultas';
 import { ApiError } from '@/data/api/erro';
+import { useUsuario } from '@/data/api/useSessao';
 import type { Me, UsuarioAdmin } from '@/data/api/tipos';
 import { ContasAdmin } from '@/features/admin-contas/ContasAdmin';
 import { ContaPerfil } from '@/features/conta/ContaPerfil';
@@ -223,6 +226,23 @@ describe('ContasAdmin', () => {
     await user.click(within(linha).getByRole('button', { name: /desativar/i }));
 
     expect(editar).toHaveBeenCalledWith({ slug: 'admin-1', ativo: false }, expect.anything());
+  });
+
+  it('na própria linha não há "Desativar" e o próprio perfil fica travado', async () => {
+    mockPadraoAdmin();
+    vi.mocked(useUsuario).mockReturnValue({ slug: 'admin-1', nome: 'Ana Admin', role: 'admin' });
+    const user = userEvent.setup();
+    render(<ContasAdmin />);
+
+    const minha = screen.getByText('Ana Admin').closest('li') as HTMLElement;
+    expect(within(minha).queryByRole('button', { name: /desativar/i })).not.toBeInTheDocument();
+    const outra = screen.getByText('Marina Mentora').closest('li') as HTMLElement;
+    expect(within(outra).getByRole('button', { name: /desativar/i })).toBeInTheDocument();
+
+    await user.click(within(minha).getByRole('button', { name: /editar/i }));
+    expect(screen.getByLabelText('Perfil')).toBeDisabled();
+    expect(screen.getByText('Você não pode mudar o próprio perfil.')).toBeInTheDocument();
+    vi.mocked(useUsuario).mockReturnValue(null);
   });
 
   it('mostra alerta de erro quando ativar/desativar falha', async () => {
