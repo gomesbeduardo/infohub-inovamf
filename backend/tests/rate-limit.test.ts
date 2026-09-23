@@ -43,3 +43,17 @@ describe("authLimiter atrás do proxy", () => {
     expect((await entrar(emailB, "203.0.113.30")).status).toBe(401);
   });
 });
+
+describe("pedidoRedefinicaoLimiter", () => {
+  it("o 202 também gasta tentativa: o 6º pedido em 15 min do mesmo IP + e-mail leva 429", async () => {
+    const pedir = () =>
+      request(app)
+        .post("/api/v1/auth/pedido-redefinicao")
+        .set("X-Forwarded-For", "203.0.113.50")
+        .send({ email: `ninguem.${sufixo}@teste.local` });
+    for (let i = 0; i < 5; i++) {
+      expect((await pedir()).status).toBe(202);
+    }
+    expect((await pedir()).status).toBe(429);
+  });
+});

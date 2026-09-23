@@ -46,6 +46,59 @@ export async function enfileirarComAuditoria(
   });
 }
 
+// Pedido de redefinição feito na tela pública (adendo 23/09, RF-01). No máximo
+// UM por conta por hora — a janela é contada pela auditoria. Trava a conta
+// (FOR UPDATE) para dois pedidos simultâneos não passarem juntos. Cada admin
+// ativo recebe o aviso no sino com status 'cancelado' (o worker de e-mail do
+// Plano 4 nunca envia) e o pedido é auditado na MESMA transação (RNF-05).
+export const JANELA_PEDIDO_REDEFINICAO_MS = 60 * 60 * 1000;
+
+export function registrarPedidoRedefinicao(p: {
+  usuario: { id: string; slug: string; nome: string; email: string };
+  ip: string | null;
+}): Promise<"registrado" | "repetido"> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${p.usuario.id}::uuid FOR UPDATE`;
+    const recente = await tx.log_auditoria.findFirst({
+      where: {
+        entidade: "usuario",
+        entidade_id: p.usuario.id,
+        acao: "redefinicao_solicitada",
+        criado_em: { gt: new Date(Date.now() - JANELA_PEDIDO_REDEFINICAO_MS) },
+      },
+      select: { id: true },
+    });
+    if (recente) return "repetido" as const;
+
+    const admins = await tx.usuarios.findMany({
+      where: { tipo_usuario: "admin", ativo: true, excluido_em: null },
+      select: { id: true, email: true },
+    });
+    await tx.emails.createMany({
+      data: admins.map((a) => ({
+        ...linha({
+          tipo: "recuperacao_senha",
+          destinatarioId: a.id,
+          destinatarioEmail: a.email,
+          assunto: `Pedido de redefinição de senha: ${p.usuario.nome}`,
+          template: "recuperacao_senha",
+          dadosTemplate: { nome: p.usuario.nome, email: p.usuario.email, usuario_slug: p.usuario.slug },
+        }),
+        status: "cancelado",
+      })),
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: null, // pedido anônimo: quem digitou o e-mail não está autenticado
+      entidade: "usuario",
+      entidadeId: p.usuario.id,
+      acao: "redefinicao_solicitada",
+      depois: { notificados: admins.length },
+      ip: p.ip,
+    });
+    return "registrado" as const;
+  });
+}
+
 // Enfileira vários de uma vez, best-effort: um destinatário ruim não derruba os
 // demais. Retorna quantos entraram na fila (para o caller reportar/logar).
 export async function enfileirarLote(
