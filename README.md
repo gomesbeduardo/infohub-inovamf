@@ -164,9 +164,13 @@ Três armadilhas que já custaram tempo:
 No resource do Coolify: **Ports Exposes = `3000`** (é para lá que o Traefik
 manda o tráfego) e **sem Port Mapping** — o servidor é compartilhado e não há
 motivo para publicar a porta no host. Healthcheck, se ligado: `/api/v1/health`.
+Deixe o healthcheck **desligado**, ou com start period **≥ 90 s**: o boot roda
+migrate + seed antes da API subir, e com o padrão do Coolify o container é
+marcado unhealthy e o deploy volta atrás.
 
 As variáveis de ambiente vão todas numa lista só, no resource — ver
-[.env.example](.env.example).
+[.env.example](.env.example). Para o G1: `SEED_DEMO=true` e `INVITE_URL_BASE`
+sem definir (os links de convite saem relativos e o front completa o domínio).
 
 ### Seed (G1)
 O `npm start` roda `prisma migrate deploy` → **seed** → servidor. O seed nunca
