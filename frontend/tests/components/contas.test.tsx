@@ -34,6 +34,7 @@ import { useUsuario } from '@/data/api/useSessao';
 import type { Me, UsuarioAdmin } from '@/data/api/tipos';
 import { ContasAdmin } from '@/features/admin-contas/ContasAdmin';
 import { ContaPerfil } from '@/features/conta/ContaPerfil';
+import { ToastProvider } from '@/design-system/components/Toast';
 
 type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
 
@@ -471,5 +472,19 @@ describe('ContaPerfil', () => {
     await user.click(botao);
 
     expect(refetchMe).toHaveBeenCalled();
+  });
+
+  it('salvar dados confirma com toast (sucesso não vira alerta)', async () => {
+    mockPadraoConta();
+    atualizarMe.mockImplementationOnce((_b: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.());
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <ContaPerfil />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: /salvar dados/i }));
+    expect(screen.getByRole('status')).toHaveTextContent('Dados atualizados.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

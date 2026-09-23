@@ -7,6 +7,7 @@ import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
 import { Textarea } from '@/design-system/components/Textarea';
 import { FormField } from '@/design-system/components/FormField';
+import { useToast } from '@/design-system/components/Toast';
 
 const HTTPS = /^https:\/\//;
 const ERRO_HTTPS = 'O link precisa começar com https://';
@@ -21,6 +22,7 @@ export function EnviarEntregaDialog({
   tituloTarefa: string;
 }) {
   const enviar = useEnviarEntrega(tarefaSlug, equipeSlug);
+  const toast = useToast();
   const [aberto, setAberto] = useState(false);
   const [url, setUrl] = useState('');
   const [links, setLinks] = useState<string[]>([]);
@@ -76,7 +78,10 @@ export function EnviarEntregaDialog({
     enviar.mutate(
       { links: finais.map((u) => ({ url: u })), comentario: comentario.trim() || undefined },
       {
-        onSuccess: fechar,
+        onSuccess: () => {
+          fechar();
+          toast.sucesso('Entrega enviada para avaliação.');
+        },
         onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível enviar a entrega.'),
       },
     );

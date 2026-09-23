@@ -13,6 +13,7 @@ import { Button } from '@/design-system/components/Button';
 import { PrazoChip } from '@/design-system/components/PrazoChip';
 import { useToast } from '@/design-system/components/Toast';
 import { EnviarEntregaDialog } from '@/features/aluno-tarefas/EnviarEntregaDialog';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
 const CONCLUIDAS: StatusTarefa[] = ['entregue', 'aprovada'];
@@ -26,7 +27,7 @@ function CarregandoOuErro({
   error: Error | null;
   refetch: () => void;
 }) {
-  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  if (isPending) return <Skeleton linhas={4} />;
   return (
     <div className="flex flex-col items-start gap-3">
       <p

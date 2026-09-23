@@ -19,6 +19,7 @@ import { TarefaList } from '@/features/admin-tarefas/TarefaList';
 import { POSICAO_PRONTA, posicaoDe } from '@/features/funil/DialogoMover';
 import { GestaoEquipe } from '@/features/admin-detalhe/GestaoEquipe';
 import { EnviarLembreteDialog } from '@/features/admin-detalhe/EnviarLembreteDialog';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 /** Detalhe da equipe para admin e mentor (rotas /admin/equipes/:slug e /orientador/equipes/:slug). */
 export function DetalheEquipe({ slug }: { slug: string }) {
@@ -26,7 +27,7 @@ export function DetalheEquipe({ slug }: { slug: string }) {
   const usuario = useUsuario();
 
   if (consulta.isPending) {
-    return <p className="text-sm text-text-muted">Carregando…</p>;
+    return <Skeleton linhas={6} />;
   }
 
   if (consulta.isError) {

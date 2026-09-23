@@ -10,6 +10,7 @@ import { EmptyState } from '@/design-system/components/EmptyState';
 import { Button } from '@/design-system/components/Button';
 import { UsersIcon, ListChecksIcon, AlertIcon, CheckIcon } from '@/design-system/icons';
 import { FunilKanban } from '@/features/orientador/FunilKanban';
+import { Skeleton } from '@/design-system/components/Skeleton';
 
 function CarregandoOuErro({
   isPending,
@@ -20,7 +21,7 @@ function CarregandoOuErro({
   error: Error | null;
   refetch: () => void;
 }) {
-  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  if (isPending) return <Skeleton linhas={4} />;
   return (
     <div className="flex flex-col items-start gap-3">
       <p

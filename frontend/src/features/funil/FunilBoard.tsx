@@ -14,6 +14,7 @@ import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
 import { DialogoMover, posicaoDe } from '@/features/funil/DialogoMover';
 import { limparFiltros, useAdiado } from '@/features/funil/filtros';
+import { Skeleton } from '@/design-system/components/Skeleton';
 import { cn } from '@/design-system/cn';
 
 const TITULO_PRONTA = 'Pronta p/ InovAMF';
@@ -143,7 +144,7 @@ export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
           </Button>
         </div>
       ) : carregando ? (
-        <p className="px-1 py-10 text-center text-sm text-text-muted">Carregando…</p>
+        <Skeleton linhas={5} className="px-1 py-6" />
       ) : (
         <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
           {colunas.map((col) => (
