@@ -3,7 +3,13 @@
 import { useState, type FormEvent } from 'react';
 import type { TipoUsuario } from '@/domain/types';
 import type { UsuarioAdmin } from '@/data/api/tipos';
-import { useCriarUsuario, useEditarUsuario, useReenviarConvite, useUsuarios } from '@/data/api/consultas';
+import {
+  useCriarUsuario,
+  useEditarUsuario,
+  useGerarRedefinicao,
+  useReenviarConvite,
+  useUsuarios,
+} from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
 import { Button } from '@/design-system/components/Button';
@@ -13,6 +19,7 @@ import { FormField } from '@/design-system/components/FormField';
 import { Badge } from '@/design-system/components/Badge';
 import { CopiarLink } from '@/design-system/components/CopiarLink';
 import { EmptyState } from '@/design-system/components/EmptyState';
+import { useToast } from '@/design-system/components/Toast';
 
 type Papel = Extract<TipoUsuario, 'admin' | 'mentor'>;
 
@@ -26,6 +33,8 @@ export function ContasAdmin() {
   const criar = useCriarUsuario();
   const editar = useEditarUsuario();
   const reenviar = useReenviarConvite();
+  const gerarRedefinicao = useGerarRedefinicao();
+  const toast = useToast();
   // A própria conta não se desativa nem sai de admin (o backend também recusa).
   const eu = useUsuario();
 
@@ -41,6 +50,7 @@ export function ContasAdmin() {
 
   const [linkPendente, setLinkPendente] = useState<{ slug: string; url: string } | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [linkRedefinicao, setLinkRedefinicao] = useState<{ slug: string; url: string } | null>(null);
 
   const contas = (consulta.data ?? []).filter((u) => u.role === 'admin' || u.role === 'mentor');
 
@@ -121,6 +131,18 @@ export function ContasAdmin() {
     });
   }
 
+  function gerarLinkRedefinicao(u: UsuarioAdmin) {
+    setLinkRedefinicao(null);
+    setErroAcao(null);
+    gerarRedefinicao.mutate(u.slug, {
+      onSuccess: (r) => {
+        setLinkRedefinicao({ slug: u.slug, url: r.link });
+        toast.sucesso('Link de redefinição gerado — vale 24 h.');
+      },
+      onError: (err) => setErroAcao(err instanceof Error ? err.message : 'Não foi possível gerar o link.'),
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -190,12 +212,30 @@ export function ContasAdmin() {
                       Novo link
                     </Button>
                   )}
+                  {u.ativo && u.conviteAceito && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={gerarRedefinicao.isPending}
+                      onClick={() => gerarLinkRedefinicao(u)}
+                    >
+                      Redefinir senha
+                    </Button>
+                  )}
                 </div>
               </div>
               {linkPendente?.slug === u.slug && (
                 <div className="flex flex-col gap-1.5 border-t border-border pt-2">
                   <p className="text-xs text-text-muted">Envie este link para a pessoa definir a senha.</p>
                   <CopiarLink url={linkPendente.url} rotulo={`Link de convite de ${u.nome}`} />
+                </div>
+              )}
+              {linkRedefinicao?.slug === u.slug && (
+                <div className="flex flex-col gap-1.5 border-t border-border pt-2">
+                  <p className="text-xs text-text-muted">
+                    Envie este link para a pessoa definir uma senha nova (uso único, vale 24 h).
+                  </p>
+                  <CopiarLink url={linkRedefinicao.url} rotulo={`Link de redefinição de ${u.nome}`} />
                 </div>
               )}
             </li>
