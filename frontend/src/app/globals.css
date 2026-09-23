@@ -320,8 +320,9 @@ html {
 .veu-foto {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--hub-950) 8%, transparent) 15%,
-    color-mix(in srgb, var(--hub-950) 84%, transparent) 80%
+    transparent 10%,
+    color-mix(in srgb, var(--hub-950) 62%, transparent) 50%,
+    color-mix(in srgb, var(--hub-950) 88%, transparent) 85%
   );
 }
 

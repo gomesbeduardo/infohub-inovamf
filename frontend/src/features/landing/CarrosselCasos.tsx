@@ -6,11 +6,17 @@ import { cn } from '@/design-system/cn';
 
 const INTERVALO_MS = 5000;
 
-const POSICAO: Record<'-1' | '0' | '1' | 'longe', string> = {
-  '0': 'z-30 translate-x-0 scale-100 opacity-100',
-  '-1': 'z-20 -translate-x-[62%] scale-[0.84] opacity-50 blur-[3px] cursor-pointer',
-  '1': 'z-20 translate-x-[62%] scale-[0.84] opacity-50 blur-[3px] cursor-pointer',
-  longe: 'z-10 scale-[0.7] opacity-0 pointer-events-none',
+type Posicao = '-1' | '0' | '1' | 'fora-esq' | 'fora-dir';
+
+// Os vizinhos não ficam transparentes (o texto de um vazaria pelo outro na
+// troca): ficam menores, desfocados e sob um véu na cor do fundo da seção.
+const POSICAO: Record<Posicao, string> = {
+  '0': 'z-30 translate-x-0 scale-100',
+  '-1': 'z-20 -translate-x-[62%] scale-[0.84] blur-[3px] cursor-pointer',
+  '1': 'z-20 translate-x-[62%] scale-[0.84] blur-[3px] cursor-pointer',
+  // Quem sai continua para fora pelo mesmo lado; nunca cruza o card em foco.
+  'fora-esq': 'z-10 -translate-x-[110%] scale-[0.7] opacity-0 pointer-events-none',
+  'fora-dir': 'z-10 translate-x-[110%] scale-[0.7] opacity-0 pointer-events-none',
 };
 
 const BOTAO_REDONDO =
@@ -31,12 +37,15 @@ export function CarrosselCasos({
   rotulo: string;
 }) {
   const raiz = useRef<HTMLDivElement>(null);
-  const [atual, setAtual] = useState(0);
+  // `anterior` é o card em foco antes da última troca: diz de que lado cada
+  // card saiu (e se está entrando) sem guardar nada fora do estado.
+  const [{ atual, anterior }, setFoco] = useState({ atual: 0, anterior: 0 });
   const [pausado, setPausado] = useState(false);
   const [emUso, setEmUso] = useState(false);
   const [visivel, setVisivel] = useState(false);
   const total = itens.length;
-  const ir = (n: number) => setAtual(((n % total) + total) % total);
+  const ir = (n: number) =>
+    setFoco((f) => ({ atual: ((n % total) + total) % total, anterior: f.atual }));
 
   useEffect(() => {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) setPausado(true);
@@ -51,16 +60,28 @@ export function CarrosselCasos({
   useEffect(() => {
     if (!rodando) return;
     const id = window.setInterval(() => {
-      if (!document.hidden) setAtual((a) => (a + 1) % total);
+      if (!document.hidden) setFoco((f) => ({ atual: (f.atual + 1) % total, anterior: f.atual }));
     }, INTERVALO_MS);
     return () => window.clearInterval(id);
   }, [rodando, total]);
 
-  function posicao(i: number): keyof typeof POSICAO {
-    let d = i - atual;
+  // Distância de i até o card em foco, dando a volta (…, -1, 0, 1, …).
+  function distancia(i: number, foco: number) {
+    let d = i - foco;
     if (d > total / 2) d -= total;
     if (d < -total / 2) d += total;
-    return d === 0 ? '0' : d === -1 ? '-1' : d === 1 ? '1' : 'longe';
+    return d;
+  }
+
+  function posicao(i: number): Posicao {
+    const d = distancia(i, atual);
+    if (d === 0) return '0';
+    if (d === -1) return '-1';
+    if (d === 1) return '1';
+    // Fora de vista: do lado por onde saiu (ou do lado natural, se já estava fora).
+    const antes = distancia(i, anterior);
+    const lado = Math.abs(antes) <= 1 && antes !== 0 ? antes : d;
+    return lado < 0 ? 'fora-esq' : 'fora-dir';
   }
 
   return (
@@ -85,6 +106,9 @@ export function CarrosselCasos({
         <div aria-live={rodando ? 'off' : 'polite'} className="absolute inset-0">
           {itens.map((item, i) => {
             const pos = posicao(i);
+            const antes = Math.abs(distancia(i, anterior));
+            // Quem volta de fora só aparece no lugar (sem deslizar por trás do foco).
+            const entrando = antes > 1 && Math.abs(distancia(i, atual)) <= 1;
             return (
               <div
                 key={item.chave}
@@ -94,11 +118,21 @@ export function CarrosselCasos({
                 aria-hidden={pos !== '0'}
                 onClick={pos === '-1' || pos === '1' ? () => ir(i) : undefined}
                 className={cn(
-                  'absolute inset-y-0 left-0 right-0 mx-auto w-[min(28rem,82%)] ease-[cubic-bezier(0.16,1,0.3,1)] motion-safe:transition-[transform,opacity,filter] motion-safe:duration-[600ms]',
+                  'absolute inset-y-0 left-0 right-0 mx-auto w-[min(28rem,82%)] ease-[cubic-bezier(0.16,1,0.3,1)] motion-safe:duration-[600ms]',
+                  entrando
+                    ? 'motion-safe:transition-[opacity,filter]'
+                    : 'motion-safe:transition-[transform,opacity,filter]',
                   POSICAO[pos],
                 )}
               >
                 {item.conteudo}
+                <span
+                  aria-hidden
+                  className={cn(
+                    'pointer-events-none absolute inset-0 rounded-[1.25rem] bg-surface-sunken motion-safe:transition-opacity motion-safe:duration-[600ms]',
+                    pos === '0' ? 'opacity-0' : 'opacity-60',
+                  )}
+                />
               </div>
             );
           })}
