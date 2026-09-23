@@ -7,10 +7,12 @@ import {
   podeVerEquipe,
 } from "../utils/acesso.js";
 import { STATUS_TAREFA } from "../domain/enums.js";
+import { hojeISO, somarDias, statusEfetivo } from "../domain/atraso.js";
 import * as tarefaModel from "../models/tarefa.model.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as etapaModel from "../models/etapa.model.js";
 import * as emailModel from "../models/email.model.js";
+import * as modeloModel from "../models/modelo.model.js";
 
 function parseDataEntrega(v: unknown): Date {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
@@ -48,7 +50,7 @@ function mapTarefa(t: TarefaDetalhe) {
     descricao: t.descricao,
     obrigatoria: t.obrigatoria,
     dataEntrega: t.data_entrega,
-    status: t.status,
+    status: statusEfetivo(t.status, t.data_entrega, hojeISO()),
     etapa: { numero: t.etapas.numero, nome: t.etapas.nome },
     equipe: { slug: t.equipes.slug, nomeIdeia: t.equipes.nome_ideia },
     criadoEm: t.criado_em,
@@ -73,7 +75,10 @@ export async function index(req: Request, res: Response, next: NextFunction) {
         ? req.query.status
         : undefined;
 
-    const tarefas = await tarefaModel.listarPorEquipe(controle.id, { status });
+    const tarefas = await tarefaModel.listarPorEquipe(controle.id, {
+      status,
+      hoje: hojeISO(),
+    });
     res.json({ data: tarefas.map(mapTarefa) });
   } catch (err) {
     next(err);
@@ -83,20 +88,52 @@ export async function index(req: Request, res: Response, next: NextFunction) {
 // POST /equipes/:slug/tarefas — admin ou mentor da equipe cria tarefa (RF-11/12).
 export async function store(req: Request, res: Response, next: NextFunction) {
   try {
-    const { titulo, descricao, etapa, dataEntrega, obrigatoria } = req.body ?? {};
-    if (typeof titulo !== "string" || titulo.trim().length < 3) {
-      throw httpError(400, "INVALID_TITULO", "Título deve ter ao menos 3 caracteres");
-    }
-    const numero = Number(etapa);
-    if (!Number.isInteger(numero) || numero < 1 || numero > 6) {
-      throw httpError(400, "INVALID_ETAPA", "Etapa deve ser um número de 1 a 6");
-    }
-    const data = parseDataEntrega(dataEntrega);
-    if (descricao !== undefined && typeof descricao !== "string") {
-      throw httpError(400, "INVALID_DESCRICAO", "Descrição inválida");
-    }
-    if (obrigatoria !== undefined && typeof obrigatoria !== "boolean") {
-      throw httpError(400, "INVALID_OBRIGATORIA", "obrigatoria deve ser booleano");
+    const { titulo, descricao, etapa, dataEntrega, obrigatoria, modelo } = req.body ?? {};
+    let dados: {
+      titulo: string;
+      descricao: string | null;
+      etapaNumero: number;
+      obrigatoria: boolean;
+      data: Date;
+      modeloId: number | null;
+    };
+    if (modelo !== undefined) {
+      // RF-11: a tarefa nasce do modelo; só a data pode ser escolhida.
+      const m = Number.isInteger(modelo) ? await modeloModel.findAtivoById(modelo) : null;
+      if (!m) throw httpError(400, "INVALID_MODELO", "Modelo de tarefa inexistente");
+      dados = {
+        titulo: m.titulo,
+        descricao: m.descricao,
+        etapaNumero: m.etapas.numero,
+        obrigatoria: m.obrigatoria,
+        data:
+          dataEntrega !== undefined
+            ? parseDataEntrega(dataEntrega)
+            : somarDias(hojeISO(), m.prazo_padrao_dias ?? 7),
+        modeloId: m.id,
+      };
+    } else {
+      if (typeof titulo !== "string" || titulo.trim().length < 3) {
+        throw httpError(400, "INVALID_TITULO", "Título deve ter ao menos 3 caracteres");
+      }
+      const numero = Number(etapa);
+      if (!Number.isInteger(numero) || numero < 1 || numero > 6) {
+        throw httpError(400, "INVALID_ETAPA", "Etapa deve ser um número de 1 a 6");
+      }
+      if (descricao !== undefined && typeof descricao !== "string") {
+        throw httpError(400, "INVALID_DESCRICAO", "Descrição inválida");
+      }
+      if (obrigatoria !== undefined && typeof obrigatoria !== "boolean") {
+        throw httpError(400, "INVALID_OBRIGATORIA", "obrigatoria deve ser booleano");
+      }
+      dados = {
+        titulo: titulo.trim(),
+        descricao: typeof descricao === "string" ? descricao.trim() : null,
+        etapaNumero: numero,
+        obrigatoria: obrigatoria === undefined ? true : obrigatoria,
+        data: parseDataEntrega(dataEntrega),
+        modeloId: null,
+      };
     }
 
     const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
@@ -105,16 +142,17 @@ export async function store(req: Request, res: Response, next: NextFunction) {
       throw httpError(403, "FORBIDDEN", "Sem permissão para criar tarefas nesta equipe");
     }
 
-    const etapaRow = await etapaModel.findByNumero(numero);
+    const etapaRow = await etapaModel.findByNumero(dados.etapaNumero);
     if (!etapaRow) throw httpError(400, "INVALID_ETAPA", "Etapa inexistente");
 
     const tarefa = await tarefaModel.criar({
       equipe_id: controle.id,
       etapa_id: etapaRow.id,
-      titulo: titulo.trim(),
-      descricao: typeof descricao === "string" ? descricao.trim() : null,
-      obrigatoria: obrigatoria === undefined ? true : obrigatoria,
-      data_entrega: data,
+      modelo_id: dados.modeloId,
+      titulo: dados.titulo,
+      descricao: dados.descricao,
+      obrigatoria: dados.obrigatoria,
+      data_entrega: dados.data,
       criado_por: idDoChamador(req),
     });
 

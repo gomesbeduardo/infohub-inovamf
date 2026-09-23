@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { TipoUsuario } from '@/domain/types';
-import { useStore, useActions } from '@/data/store';
-import { getUsuarioAtual } from '@/data/session';
+import { useAtualizarMe, useMe, useTrocarSenha } from '@/data/api/consultas';
+import { ApiError } from '@/data/api/erro';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { FormField } from '@/design-system/components/FormField';
 import { Avatar } from '@/design-system/components/Avatar';
 import { Badge } from '@/design-system/components/Badge';
-import { EmptyState } from '@/design-system/components/EmptyState';
 import { AlertIcon, CheckIcon } from '@/design-system/icons';
 import { cn } from '@/design-system/cn';
 
@@ -39,57 +39,97 @@ function Aviso({ msg }: { msg: Msg }) {
 }
 
 export function ContaPerfil() {
-  const { state } = useStore();
-  const { editarConta, redefinir } = useActions();
-  const [montado, setMontado] = useState(false);
-  useEffect(() => setMontado(true), []);
-
-  const usuario = montado ? getUsuarioAtual(state) : null;
+  const consulta = useMe();
+  const atualizar = useAtualizarMe();
+  const trocarSenha = useTrocarSenha();
 
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
   const [msgDados, setMsgDados] = useState<Msg>(null);
 
+  const [atual, setAtual] = useState('');
   const [senha, setSenha] = useState('');
   const [confirma, setConfirma] = useState('');
   const [msgSenha, setMsgSenha] = useState<Msg>(null);
 
   useEffect(() => {
-    if (usuario) {
-      setNome(usuario.nome);
-      setTelefone(usuario.telefone);
+    if (consulta.data) {
+      setNome(consulta.data.nome);
+      setTelefone(consulta.data.telefone);
     }
-  }, [usuario?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [consulta.data?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!montado) return null;
-  if (!usuario) {
-    return <EmptyState title="Sessão não encontrada" description="Faça login novamente." />;
+  if (consulta.isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-6 py-10 text-center">
+        <p role="alert" className="text-sm font-medium text-danger-text">
+          {consulta.error.message}
+        </p>
+        <Button variant="secondary" size="sm" onClick={() => void consulta.refetch()}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
   }
 
-  function salvarDados(e: React.FormEvent) {
+  if (consulta.isPending || !consulta.data) {
+    return <p className="px-1 py-10 text-center text-sm text-text-muted">Carregando…</p>;
+  }
+
+  const usuario = consulta.data;
+
+  function salvarDados(e: FormEvent) {
     e.preventDefault();
     if (!nome.trim()) {
       setMsgDados({ ok: false, texto: 'Informe seu nome.' });
       return;
     }
-    editarConta(usuario!.id, { nome: nome.trim(), telefone: telefone.trim() });
-    setMsgDados({ ok: true, texto: 'Dados atualizados.' });
+    setMsgDados(null);
+    atualizar.mutate(
+      { nome: nome.trim(), telefone: telefone.trim() },
+      {
+        onSuccess: () => setMsgDados({ ok: true, texto: 'Dados atualizados.' }),
+        onError: (err) =>
+          setMsgDados({ ok: false, texto: err instanceof Error ? err.message : 'Não foi possível salvar.' }),
+      },
+    );
   }
 
-  function alterarSenha(e: React.FormEvent) {
+  function alterarSenha(e: FormEvent) {
     e.preventDefault();
-    if (senha.length < 6) {
-      setMsgSenha({ ok: false, texto: 'A nova senha deve ter ao menos 6 caracteres.' });
+    if (!atual) {
+      setMsgSenha({ ok: false, texto: 'Informe a senha atual.' });
+      return;
+    }
+    if (senha.length < 8) {
+      setMsgSenha({ ok: false, texto: 'A nova senha deve ter ao menos 8 caracteres.' });
       return;
     }
     if (senha !== confirma) {
       setMsgSenha({ ok: false, texto: 'As senhas não conferem.' });
       return;
     }
-    redefinir(usuario!.email, senha);
-    setSenha('');
-    setConfirma('');
-    setMsgSenha({ ok: true, texto: 'Senha alterada.' });
+    setMsgSenha(null);
+    trocarSenha.mutate(
+      { atual, nova: senha },
+      {
+        onSuccess: () => {
+          setAtual('');
+          setSenha('');
+          setConfirma('');
+          setMsgSenha({ ok: true, texto: 'Senha alterada.' });
+        },
+        onError: (err) => {
+          const texto =
+            err instanceof ApiError && err.code === 'SENHA_ATUAL_INVALIDA'
+              ? 'Senha atual incorreta.'
+              : err instanceof Error
+                ? err.message
+                : 'Não foi possível alterar a senha.';
+          setMsgSenha({ ok: false, texto });
+        },
+      },
+    );
   }
 
   return (
@@ -101,7 +141,7 @@ export function ContaPerfil() {
             <span className="font-semibold text-text">{usuario.nome}</span>
             <span className="flex items-center gap-2 text-xs text-text-muted">
               {usuario.email}
-              <Badge tone="brand">{TIPO_LABEL[usuario.tipo]}</Badge>
+              <Badge tone="brand">{TIPO_LABEL[usuario.role]}</Badge>
             </span>
           </div>
         </Card.Header>
@@ -123,7 +163,9 @@ export function ContaPerfil() {
             </div>
             <Aviso msg={msgDados} />
             <div className="flex justify-end">
-              <Button type="submit">Salvar dados</Button>
+              <Button type="submit" disabled={atualizar.isPending}>
+                {atualizar.isPending ? 'Salvando…' : 'Salvar dados'}
+              </Button>
             </div>
           </form>
         </Card.Body>
@@ -135,20 +177,26 @@ export function ContaPerfil() {
         </Card.Header>
         <Card.Body>
           <form onSubmit={alterarSenha} className="flex flex-col gap-4" noValidate>
+            <FormField label="Senha atual" htmlFor="conta-senha-atual">
+              <PasswordInput
+                id="conta-senha-atual"
+                autoComplete="current-password"
+                value={atual}
+                onChange={(e) => setAtual(e.target.value)}
+              />
+            </FormField>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Nova senha" htmlFor="conta-senha">
-                <Input
+              <FormField label="Nova senha" htmlFor="conta-senha" hint="Mínimo 8 caracteres">
+                <PasswordInput
                   id="conta-senha"
-                  type="password"
                   autoComplete="new-password"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                 />
               </FormField>
               <FormField label="Confirmar nova senha" htmlFor="conta-confirma">
-                <Input
+                <PasswordInput
                   id="conta-confirma"
-                  type="password"
                   autoComplete="new-password"
                   value={confirma}
                   onChange={(e) => setConfirma(e.target.value)}
@@ -157,7 +205,9 @@ export function ContaPerfil() {
             </div>
             <Aviso msg={msgSenha} />
             <div className="flex justify-end">
-              <Button type="submit">Alterar senha</Button>
+              <Button type="submit" disabled={trocarSenha.isPending}>
+                {trocarSenha.isPending ? 'Alterando…' : 'Alterar senha'}
+              </Button>
             </div>
           </form>
         </Card.Body>

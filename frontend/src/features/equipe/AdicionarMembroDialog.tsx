@@ -1,57 +1,62 @@
 'use client';
 
-import { useState } from 'react';
-import { useActions } from '@/data/store';
-import { CURSO_OPTIONS } from '@/domain/cursos';
-import { SEMESTRE_LABEL, SEMESTRE_OPTIONS } from '@/domain/semestres';
+import { useState, type FormEvent } from 'react';
+import type { ColegaCriado } from '@/data/api/tipos';
+import { useAdicionarMembro } from '@/data/api/consultas';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
-import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
+import { CopiarLink } from '@/design-system/components/CopiarLink';
 import { PlusIcon } from '@/design-system/icons';
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
- * Adiciona um integrante à equipe. Disponível para quem gerencia a equipe
- * (mentor/admin) e para o líder da própria equipe.
+ * Adiciona um integrante à equipe por nome + e-mail. Quem ainda não tem conta
+ * ganha um link de convite (72 h) para copiar e enviar; quem já tem conta
+ * entra direto (RN-03). Disponível para admin, mentor da equipe e o líder.
  */
-export function AdicionarMembroDialog({ equipeId }: { equipeId: string }) {
-  const { adicionarMembro } = useActions();
+export function AdicionarMembroDialog({ equipeSlug }: { equipeSlug: string }) {
+  const adicionar = useAdicionarMembro(equipeSlug);
   const [aberto, setAberto] = useState(false);
   const [nome, setNome] = useState('');
-  const [curso, setCurso] = useState('');
-  const [semestre, setSemestre] = useState('');
-  const [erro, setErro] = useState('');
+  const [email, setEmail] = useState('');
+  const [erroNome, setErroNome] = useState<string | null>(null);
+  const [erroEmail, setErroEmail] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [criado, setCriado] = useState<ColegaCriado | null>(null);
 
   function fechar() {
     setAberto(false);
     setNome('');
-    setCurso('');
-    setSemestre('');
-    setErro('');
+    setEmail('');
+    setErroNome(null);
+    setErroEmail(null);
+    setErro(null);
+    setCriado(null);
   }
 
-  function salvar() {
-    if (!nome.trim()) {
-      setErro('Informe o nome do integrante.');
-      return;
-    }
-    if (!curso) {
-      setErro('Escolha o curso.');
-      return;
-    }
-    adicionarMembro(equipeId, { nome, curso, semestre });
-    fechar();
+  function salvar(e: FormEvent) {
+    e.preventDefault();
+    const n = nome.trim();
+    const em = email.trim();
+    setErroNome(n ? null : 'Informe o nome do integrante.');
+    setErroEmail(!em ? 'Informe o e-mail.' : EMAIL.test(em) ? null : 'E-mail inválido.');
+    if (!n || !EMAIL.test(em)) return;
+    setErro(null);
+    adicionar.mutate(
+      { nome: n, email: em },
+      {
+        onSuccess: (r) => setCriado(r),
+        onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível adicionar o integrante.'),
+      },
+    );
   }
 
   return (
     <>
-      <Button
-        size="sm"
-        variant="secondary"
-        className="gap-1.5"
-        onClick={() => setAberto(true)}
-      >
+      <Button size="sm" variant="secondary" className="gap-1.5" onClick={() => setAberto(true)}>
         <PlusIcon size={16} />
         Adicionar integrante
       </Button>
@@ -60,54 +65,61 @@ export function AdicionarMembroDialog({ equipeId }: { equipeId: string }) {
         open={aberto}
         onOpenChange={(o) => (o ? setAberto(true) : fechar())}
         title="Adicionar integrante"
-        description="Inclua um novo membro na equipe."
+        description={criado ? undefined : 'Informe nome e e-mail. Quem ainda não tem conta recebe um link de convite.'}
       >
-        <div className="flex flex-col gap-4">
-          <FormField
-            label="Nome"
-            htmlFor="membro-nome"
-            error={erro && !nome.trim() ? erro : undefined}
-          >
-            <Input
-              id="membro-nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-            />
-          </FormField>
-          <FormField
-            label="Curso"
-            htmlFor="membro-curso"
-            error={erro && nome.trim() && !curso ? erro : undefined}
-          >
-            <Select
-              id="membro-curso"
-              placeholder="Selecione…"
-              options={CURSO_OPTIONS}
-              value={curso}
-              onChange={(e) => setCurso(e.target.value)}
-            />
-          </FormField>
-          <FormField
-            label={SEMESTRE_LABEL}
-            htmlFor="membro-semestre"
-            hint="Opcional"
-          >
-            <Select
-              id="membro-semestre"
-              placeholder="Selecione…"
-              options={SEMESTRE_OPTIONS}
-              value={semestre}
-              onChange={(e) => setSemestre(e.target.value)}
-            />
-          </FormField>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={fechar}>
-              Cancelar
-            </Button>
-            <Button onClick={salvar}>Adicionar</Button>
+        {criado ? (
+          <div className="flex flex-col gap-4">
+            {criado.conviteUrl ? (
+              <>
+                <p className="text-sm text-text-muted">
+                  <span className="font-medium text-text">{criado.nome}</span> foi adicionado. Envie este link
+                  (ex.: WhatsApp) — ele vale 72 h.
+                </p>
+                <CopiarLink url={criado.conviteUrl} rotulo={`Link de convite de ${criado.nome}`} />
+              </>
+            ) : (
+              <p className="text-sm text-text-muted">
+                <span className="font-medium text-text">{criado.nome}</span> já tem conta — adicionado à equipe.
+              </p>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={fechar}>Concluir</Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <form className="flex flex-col gap-4" onSubmit={salvar} noValidate>
+            <FormField label="Nome" htmlFor="membro-nome" error={erroNome ?? undefined}>
+              <Input id="membro-nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+            </FormField>
+            <FormField label="E-mail" htmlFor="membro-email" error={erroEmail ?? undefined}>
+              <Input
+                id="membro-email"
+                type="email"
+                autoComplete="off"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </FormField>
+
+            {erro && (
+              <p
+                role="alert"
+                className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+              >
+                {erro}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={fechar}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={adicionar.isPending}>
+                {adicionar.isPending ? 'Adicionando…' : 'Adicionar'}
+              </Button>
+            </div>
+          </form>
+        )}
       </Dialog>
     </>
   );

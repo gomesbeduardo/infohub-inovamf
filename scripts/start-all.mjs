@@ -38,6 +38,9 @@ function subir(nome, dir, env) {
 function derrubarTudo(codigo) {
   if (encerrando) return;
   encerrando = true;
+  // Se o outro filho sair antes do timer (que é unref), o Node termina sozinho
+  // com este código — senão sairia 0 depois de um crash.
+  process.exitCode = codigo;
   for (const { filho } of filhos) {
     if (filho.exitCode === null) filho.kill("SIGTERM");
   }

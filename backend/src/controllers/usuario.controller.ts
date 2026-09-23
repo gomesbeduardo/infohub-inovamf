@@ -5,6 +5,7 @@ import { hashSenha, tokenAleatorio } from "../utils/hash.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
 import { env } from "../env.js";
+import { linkConvite } from "../utils/convite.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
 import * as emailModel from "../models/email.model.js";
@@ -50,7 +51,7 @@ export async function store(req: Request, res: Response, next: NextFunction) {
       usuarioId: id,
       ttlHoras: env.inviteTtlHoras,
     });
-    const link = `${env.inviteUrlBase}?token=${encodeURIComponent(convite.tokenBruto)}`;
+    const link = linkConvite(convite.tokenBruto);
 
     await emailModel.enfileirar({
       tipo: "convite_conta",
@@ -71,6 +72,7 @@ export async function store(req: Request, res: Response, next: NextFunction) {
       email: emailNorm,
       telefone: tel,
       role: tipo,
+      conviteUrl: link,
       convite: {
         expira_em: convite.expiraEm.toISOString(),
         email_enfileirado: true,

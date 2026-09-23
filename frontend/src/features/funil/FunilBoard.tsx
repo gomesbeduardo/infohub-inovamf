@@ -1,55 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import type { AppState, Equipe, StatusTarefa } from '@/domain/types';
-import { useStore, useActions } from '@/data/store';
-import { getUsuarioAtual } from '@/data/session';
-import {
-  equipesVisiveis,
-  filtrarEquipes,
-  planejarMovimento,
-  type FiltrosFunil,
-  type MovimentoPlano,
-} from '@/data/repository';
+import type { StatusTarefa } from '@/domain/types';
+import type { EquipeResumo, FiltrosEquipes, Posicao } from '@/data/api/tipos';
+import { useEquipes, useEtapas } from '@/data/api/consultas';
+import { useUsuario } from '@/data/api/useSessao';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { Badge } from '@/design-system/components/Badge';
 import { Button } from '@/design-system/components/Button';
-import { EmptyState } from '@/design-system/components/EmptyState';
-import { Dialog } from '@/design-system/components/primitives/Dialog';
 import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
+import { DialogoMover, posicaoDe } from '@/features/funil/DialogoMover';
+import { limparFiltros, useAdiado } from '@/features/funil/filtros';
 import { cn } from '@/design-system/cn';
 
-type Destino = number | 'pronta';
-
-/** Quanto tempo o aviso de "Desfazer" fica visível após um movimento silenciado. */
-const DESFAZER_MS = 6000;
-/** Preferência do usuário: quando `silenciado`, o arraste move sem confirmar. */
-const PREF_KEY = 'infohub-kanban-confirmar';
-
-/** Lê se o usuário pediu para não confirmar mais os arrastes ("não mostrar novamente"). */
-function lerSilenciado(): boolean {
-  try {
-    return localStorage.getItem(PREF_KEY) === 'silenciado';
-  } catch {
-    return false;
-  }
-}
-
-function salvarSilenciado(silenciado: boolean) {
-  try {
-    if (silenciado) localStorage.setItem(PREF_KEY, 'silenciado');
-    else localStorage.removeItem(PREF_KEY);
-  } catch {
-    /* ignora */
-  }
-}
-
-function ehPronta(status: string) {
-  return status === 'pronta_inovamf' || status === 'encaminhada_inovamf';
-}
+const TITULO_PRONTA = 'Pronta p/ InovAMF';
 
 export interface FunilBoardProps {
   /** `admin` vê todas as equipes (com export e âncoras de coluna); `mentor` vê só as suas. */
@@ -58,310 +25,188 @@ export interface FunilBoardProps {
   statusPreset?: StatusTarefa;
 }
 
+interface Coluna {
+  key: string;
+  titulo: string;
+  cor: string;
+  destino: Posicao;
+  equipes: EquipeResumo[];
+}
+
+interface Movimento {
+  equipe: EquipeResumo;
+  destino: Posicao;
+  origemLabel: string;
+  destinoLabel: string;
+}
+
 /**
- * Funil por etapas com arraste (HTML5 drag-and-drop nativo): arrastar um card
- * para outra coluna move a equipe para aquela etapa (via `mover`, respeitando a
- * RN-01). Todo arraste pede confirmação por padrão — o usuário pode marcar "não
- * mostrar novamente" para silenciar; nesse modo, cada movimento oferece
- * "Desfazer" por alguns segundos (softlock contra arraste acidental). Usado pelo
- * admin e pelo mentor.
+ * Funil por etapas com arraste (HTML5 drag-and-drop nativo), na API real.
+ * Soltar um card em outra coluna abre o `DialogoMover` (RN-01 vem do backend).
+ * O escopo por papel também vem do backend (mentor recebe só as suas equipes).
  *
  * O caminho acessível por teclado continua sendo os botões Avançar/Retroceder
  * no detalhe da equipe.
  */
 export function FunilBoard({ modo, statusPreset }: FunilBoardProps) {
-  const { state, dispatch } = useStore();
-  const { mover } = useActions();
-  const [montado, setMontado] = useState(false);
-  const [filtros, setFiltros] = useState<FiltrosFunil>({});
-  const [arrastando, setArrastando] = useState<string | null>(null);
-  const [alvo, setAlvo] = useState<string | null>(null);
-  const [confirmacao, setConfirmacao] = useState<MovimentoPlano | null>(null);
-  const [naoMostrar, setNaoMostrar] = useState(false);
-  const [silenciado, setSilenciado] = useState(false);
-  const [desfazer, setDesfazer] = useState<{
-    plano: MovimentoPlano;
-    snapshot: AppState;
-  } | null>(null);
-  const undoTimer = useRef<number | null>(null);
-  const [saindo, setSaindo] = useState(false); // toca a saída do toast antes de desmontar
-  const saidaTimer = useRef<number | null>(null);
+  const usuario = useUsuario();
+  const ehAdmin = modo === 'admin';
+  // filtro de mentor só para quem é admin de fato (useUsuarios('mentor') é só admin)
+  const mostrarMentor = ehAdmin && usuario?.role === 'admin';
 
-  useEffect(() => {
-    setMontado(true);
-    setSilenciado(lerSilenciado());
-  }, []);
+  const [filtros, setFiltros] = useState<FiltrosEquipes>(() =>
+    statusPreset ? { statusTarefa: statusPreset } : {},
+  );
   useEffect(() => {
     if (statusPreset) setFiltros((f) => ({ ...f, statusTarefa: statusPreset }));
   }, [statusPreset]);
-  // limpa o timer do aviso de desfazer ao desmontar
-  useEffect(
-    () => () => {
-      if (undoTimer.current) window.clearTimeout(undoTimer.current);
-      if (saidaTimer.current) window.clearTimeout(saidaTimer.current);
-    },
-    [],
+
+  const qAdiado = useAdiado(filtros.q);
+  const filtrosApi = useMemo(
+    () => limparFiltros({ ...filtros, q: qAdiado, mentor: mostrarMentor ? filtros.mentor : undefined }),
+    [filtros, qAdiado, mostrarMentor],
   );
 
-  if (!montado) return null;
+  const consulta = useEquipes(filtrosApi);
+  const etapasQ = useEtapas();
 
-  const ehAdmin = modo === 'admin';
-  const usuario = getUsuarioAtual(state);
-  if (!ehAdmin && !usuario) {
-    return <EmptyState title="Sessão não encontrada" description="Faça login novamente." />;
-  }
-  const autorId = usuario?.id ?? 'u-admin';
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const [alvo, setAlvo] = useState<string | null>(null);
+  const [movimento, setMovimento] = useState<Movimento | null>(null);
 
-  // escopo por perfil (RNF-03): mentor só vê as suas; admin vê todas
-  const scopeIds = usuario
-    ? new Set(equipesVisiveis(state, usuario).map((e) => e.id))
-    : null;
-  const equipes = filtrarEquipes(state, filtros).filter((e) =>
-    ehAdmin ? !scopeIds || scopeIds.has(e.id) : scopeIds!.has(e.id),
-  );
-
-  const etapas = [...state.etapas].sort((a, b) => a.numero - b.numero);
-  const colunas: { key: string; titulo: string; cor: string; destino: Destino; equipes: Equipe[] }[] = [
-    ...etapas.map((et) => ({
-      key: `etapa-${et.id}`,
-      titulo: `${et.numero}. ${et.nome}`,
-      cor: `var(--stage-${et.id})`,
-      destino: et.id as Destino,
-      equipes: equipes.filter((e) => !ehPronta(e.status) && e.etapaAtualId === et.id),
-    })),
-    {
-      key: 'pronta',
-      titulo: 'Pronta p/ InovAMF',
-      cor: 'var(--stage-pronta)',
-      destino: 'pronta' as Destino,
-      equipes: equipes.filter((e) => ehPronta(e.status)),
-    },
-  ];
+  const equipes = useMemo(() => consulta.data ?? [], [consulta.data]);
+  const colunas: Coluna[] = useMemo(() => {
+    const etapas = [...(etapasQ.data ?? [])].sort((a, b) => a.numero - b.numero);
+    return [
+      ...etapas.map((et) => ({
+        key: `etapa-${et.numero}`,
+        titulo: `${et.numero}. ${et.nome}`,
+        cor: `var(--stage-${et.numero})`,
+        destino: et.numero as Posicao,
+        equipes: equipes.filter((e) => posicaoDe(e) === et.numero),
+      })),
+      {
+        key: 'pronta',
+        titulo: TITULO_PRONTA,
+        cor: 'var(--stage-pronta)',
+        destino: 'pronta' as Posicao,
+        equipes: equipes.filter((e) => posicaoDe(e) === 7),
+      },
+    ];
+  }, [equipes, etapasQ.data]);
 
   const testidColuna = ehAdmin ? 'coluna-funil' : 'coluna-kanban';
   const basePath = ehAdmin ? '/admin/equipes' : '/orientador/equipes';
 
-  /** Aplica o movimento planejado; guarda o estado anterior p/ o "Desfazer" quando silenciado. */
-  function executarMovimento(plano: MovimentoPlano, comDesfazer: boolean) {
-    const snapshot = state; // estado imutável de antes do move → undo exato, sem resíduo no histórico
-    mover(plano.equipe.id, {
-      destino: plano.destino,
-      autorId,
-      forcar: plano.forcado,
-    });
-    if (comDesfazer) {
-      if (undoTimer.current) window.clearTimeout(undoTimer.current);
-      if (saidaTimer.current) window.clearTimeout(saidaTimer.current);
-      setSaindo(false);
-      setDesfazer({ plano, snapshot });
-      undoTimer.current = window.setTimeout(() => iniciarSaida(), DESFAZER_MS);
-    }
+  function rotulo(e: EquipeResumo) {
+    return posicaoDe(e) === 7 ? TITULO_PRONTA : `${e.etapa.numero}. ${e.etapa.nome}`;
   }
 
-  /** Toca a animação de saída do toast e só então o desmonta. */
-  function iniciarSaida() {
-    if (undoTimer.current) {
-      window.clearTimeout(undoTimer.current);
-      undoTimer.current = null;
-    }
-    setSaindo(true);
-    if (saidaTimer.current) window.clearTimeout(saidaTimer.current);
-    saidaTimer.current = window.setTimeout(() => {
-      setDesfazer(null);
-      setSaindo(false);
-      saidaTimer.current = null;
-    }, 180);
-  }
-
-  function soltarEm(destino: Destino) {
-    const equipeId = arrastando;
+  function soltarEm(col: Coluna) {
+    const slug = arrastando;
     setArrastando(null);
     setAlvo(null);
-    if (!equipeId) return;
-
-    const plano = planejarMovimento(state, equipeId, destino);
-    if (!plano) return; // soltar na mesma coluna → nada a fazer
-
-    if (silenciado) {
-      executarMovimento(plano, true); // sem modal; softlock via "Desfazer"
-    } else {
-      setNaoMostrar(false);
-      setConfirmacao(plano); // pede confirmação para qualquer movimento
-    }
+    const equipe = equipes.find((e) => e.slug === slug);
+    if (!equipe) return;
+    const destino = col.destino === 'pronta' ? 7 : col.destino;
+    if (destino === posicaoDe(equipe)) return; // mesma coluna → nada a fazer
+    setMovimento({ equipe, destino: col.destino, origemLabel: rotulo(equipe), destinoLabel: col.titulo });
   }
 
-  function confirmarMovimento() {
-    if (!confirmacao) return;
-    if (naoMostrar) {
-      salvarSilenciado(true);
-      setSilenciado(true);
-    }
-    executarMovimento(confirmacao, false);
-    setConfirmacao(null);
-  }
-
-  function desfazerMovimento() {
-    if (!desfazer) return;
-    dispatch({ type: 'SET_STATE', state: desfazer.snapshot });
-    iniciarSaida();
-  }
+  const carregando = consulta.isPending || etapasQ.isPending;
+  const erro = consulta.isError ? consulta.error : etapasQ.isError ? etapasQ.error : null;
 
   return (
     <div className="flex flex-col gap-4">
       {ehAdmin && (
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-text">Funil de equipes</h2>
-          <ExportarCSV equipes={equipes} />
+          <ExportarCSV filtros={filtrosApi} desabilitado={equipes.length === 0} />
         </div>
       )}
-      <FiltrosBar filtros={filtros} onChange={setFiltros} ocultarMentor={!ehAdmin} />
+      <FiltrosBar filtros={filtros} onChange={setFiltros} ocultarMentor={!mostrarMentor} />
 
-      <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
-        {colunas.map((col) => (
-          <section
-            key={col.key}
-            id={ehAdmin ? `col-${col.key}` : undefined}
-            data-testid={testidColuna}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (alvo !== col.key) setAlvo(col.key);
+      {erro ? (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border px-6 py-10 text-center">
+          <p role="alert" className="text-sm font-medium text-danger-text">
+            {erro.message}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              if (consulta.isError) void consulta.refetch();
+              if (etapasQ.isError) void etapasQ.refetch();
             }}
-            onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) setAlvo(null);
-            }}
-            onDrop={() => soltarEm(col.destino)}
-            className={cn(
-              'flex w-72 shrink-0 flex-col gap-3 overflow-hidden rounded-2xl border bg-surface-sunken transition-colors',
-              ehAdmin && 'scroll-mt-24',
-              alvo === col.key ? 'border-border-strong ring-2 ring-primary/40' : 'border-border',
-            )}
           >
-            <header className="flex items-center justify-between gap-2 border-b border-border px-3 pb-2.5 pt-3">
-              <span className="flex items-center gap-2">
-                <span className="h-4 w-1 rounded-full" style={{ background: col.cor }} aria-hidden />
-                <h3 className="text-sm font-semibold text-text">{col.titulo}</h3>
-              </span>
-              <span className="rounded-full bg-surface px-2 py-0.5 font-display text-xs text-text-muted">
-                {col.equipes.length}
-              </span>
-            </header>
-            <div className="flex min-h-[3rem] flex-col gap-2 px-3 pb-3">
-              {col.equipes.length === 0 ? (
-                <p className="px-1 py-4 text-center text-xs text-text-subtle">Arraste equipes para cá</p>
-              ) : (
-                col.equipes.map((e) => (
-                  <CardArrastavel
-                    key={e.id}
-                    equipe={e}
-                    basePath={basePath}
-                    arrastando={arrastando === e.id}
-                    onDragStart={() => setArrastando(e.id)}
-                    onDragEnd={() => {
-                      setArrastando(null);
-                      setAlvo(null);
-                    }}
-                  />
-                ))
-              )}
-            </div>
-          </section>
-        ))}
-      </div>
-
-      <Dialog
-        open={confirmacao !== null}
-        onOpenChange={(aberto) => {
-          if (!aberto) setConfirmacao(null);
-        }}
-        title={confirmacao?.forcado ? 'Mover com tarefas pendentes?' : 'Confirmar movimento'}
-      >
-        {confirmacao && (
-          <div className="flex flex-col gap-4">
-            {confirmacao.forcado ? (
-              <p className="text-sm text-text-muted">
-                <span className="font-medium text-text">{confirmacao.equipe.nomeIdeia}</span> tem{' '}
-                <span className="font-medium text-text">
-                  {confirmacao.pendentes} tarefa{confirmacao.pendentes > 1 ? 's' : ''} obrigatória
-                  {confirmacao.pendentes > 1 ? 's' : ''} pendente
-                  {confirmacao.pendentes > 1 ? 's' : ''}
-                </span>{' '}
-                na etapa atual. Mover para{' '}
-                <span className="font-medium text-text">{confirmacao.destinoLabel}</span> mesmo assim?
-                O avanço será registrado como <span className="font-medium text-text">forçado</span>.
-              </p>
-            ) : (
-              <p className="text-sm text-text-muted">
-                Mover <span className="font-medium text-text">{confirmacao.equipe.nomeIdeia}</span> de{' '}
-                <span className="font-medium text-text">{confirmacao.origemLabel}</span> para{' '}
-                <span className="font-medium text-text">{confirmacao.destinoLabel}</span>?
-              </p>
-            )}
-
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-text-muted">
-              <input
-                type="checkbox"
-                data-testid="nao-mostrar-novamente"
-                checked={naoMostrar}
-                onChange={(e) => setNaoMostrar(e.target.checked)}
-                className="h-4 w-4 shrink-0 accent-primary"
-              />
-              Não mostrar novamente
-            </label>
-            {naoMostrar && (
-              <p className="text-xs text-text-subtle">
-                Os próximos movimentos serão aplicados na hora, com a opção de desfazer por alguns
-                segundos.
-              </p>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                data-testid="cancelar-movimento"
-                onClick={() => setConfirmacao(null)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant={confirmacao.forcado ? 'danger' : 'primary'}
-                data-testid="confirmar-movimento"
-                onClick={confirmarMovimento}
-              >
-                {confirmacao.forcado ? 'Mover mesmo assim' : 'Mover'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Dialog>
-
-      {desfazer && (
-        <div
-          role="status"
-          aria-live="polite"
-          data-testid="toast-desfazer"
-          className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
-        >
-          <div
-            key={`${desfazer.plano.equipe.id}-${String(desfazer.plano.destino)}`}
-            className={cn(
-              'pointer-events-auto flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-lg',
-              saindo ? 'toast-out' : 'toast-in',
-            )}
-          >
-            <span className="text-sm text-text">
-              <span className="font-medium">{desfazer.plano.equipe.nomeIdeia}</span> movida para{' '}
-              <span className="font-medium">{desfazer.plano.destinoLabel}</span>.
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              data-testid="desfazer-movimento"
-              onClick={desfazerMovimento}
-            >
-              Desfazer
-            </Button>
-          </div>
+            Tentar de novo
+          </Button>
         </div>
+      ) : carregando ? (
+        <p className="px-1 py-10 text-center text-sm text-text-muted">Carregando…</p>
+      ) : (
+        <div className="scroll-suave flex gap-4 overflow-x-auto pb-4">
+          {colunas.map((col) => (
+            <section
+              key={col.key}
+              id={ehAdmin ? `col-${col.key}` : undefined}
+              data-testid={testidColuna}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (alvo !== col.key) setAlvo(col.key);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setAlvo(null);
+              }}
+              onDrop={() => soltarEm(col)}
+              className={cn(
+                'flex w-72 shrink-0 flex-col gap-3 overflow-hidden rounded-2xl border bg-surface-sunken transition-colors',
+                ehAdmin && 'scroll-mt-24',
+                alvo === col.key ? 'border-border-strong ring-2 ring-primary/40' : 'border-border',
+              )}
+            >
+              <header className="flex items-center justify-between gap-2 border-b border-border px-3 pb-2.5 pt-3">
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-1 rounded-full" style={{ background: col.cor }} aria-hidden />
+                  <h3 className="text-sm font-semibold text-text">{col.titulo}</h3>
+                </span>
+                <span className="rounded-full bg-surface px-2 py-0.5 font-display text-xs text-text-muted">
+                  {col.equipes.length}
+                </span>
+              </header>
+              <div className="flex min-h-[3rem] flex-col gap-2 px-3 pb-3">
+                {col.equipes.length === 0 ? (
+                  <p className="px-1 py-4 text-center text-xs text-text-subtle">Arraste equipes para cá</p>
+                ) : (
+                  col.equipes.map((e) => (
+                    <CardArrastavel
+                      key={e.slug}
+                      equipe={e}
+                      basePath={basePath}
+                      arrastando={arrastando === e.slug}
+                      onDragStart={() => setArrastando(e.slug)}
+                      onDragEnd={() => {
+                        setArrastando(null);
+                        setAlvo(null);
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {movimento && (
+        <DialogoMover
+          key={`${movimento.equipe.slug}-${String(movimento.destino)}`}
+          equipe={movimento.equipe}
+          destino={movimento.destino}
+          origemLabel={movimento.origemLabel}
+          destinoLabel={movimento.destinoLabel}
+          onClose={() => setMovimento(null)}
+        />
       )}
     </div>
   );
@@ -374,24 +219,20 @@ function CardArrastavel({
   onDragStart,
   onDragEnd,
 }: {
-  equipe: Equipe;
+  equipe: EquipeResumo;
   basePath: string;
   arrastando: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
-  const { state } = useStore();
-  const area = state.areas.find((a) => a.id === equipe.areaId);
-  const atrasadas = state.tarefas.filter(
-    (t) => t.equipeId === equipe.id && t.status === 'atrasada',
-  ).length;
+  const atrasadas = equipe.tarefasAtrasadas;
 
   return (
     <div
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', equipe.id);
+        e.dataTransfer.setData('text/plain', equipe.slug);
         // fixa a imagem de arraste no próprio card — evita o "fantasma" que
         // arrastava o card vizinho junto (default do browser em alguns casos)
         const node = e.currentTarget;
@@ -415,10 +256,10 @@ function CardArrastavel({
         >
           {equipe.nomeIdeia}
         </Link>
-        <StageTag etapaId={equipe.etapaAtualId} />
+        <StageTag etapaId={equipe.etapa.numero} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {area && <Badge tone="brand">{area.nome}</Badge>}
+        {equipe.area && <Badge tone="brand">{equipe.area}</Badge>}
       </div>
       {atrasadas > 0 && (
         <div className="flex items-center gap-1">

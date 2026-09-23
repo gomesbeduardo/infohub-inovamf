@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useStore, useActions } from '@/data/store';
-import { setUsuarioAtual } from '@/data/session';
-import { validarCadastro, type DadosCadastro } from '@/data/repository';
+import { useAreas, useInscricao } from '@/data/api/consultas';
+import { ApiError } from '@/data/api/erro';
 import { ESTAGIO_LABEL } from '@/domain/labels';
 import { CURSO_OPTIONS } from '@/domain/cursos';
 import { SEMESTRE_LABEL, SEMESTRE_OPTIONS } from '@/domain/semestres';
@@ -12,11 +10,15 @@ import type { EstagioIdeia } from '@/domain/types';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
+import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
+import { OpcoesSegmentadas } from '@/design-system/components/OpcoesSegmentadas';
+import { AlertIcon } from '@/design-system/icons';
+import { LinksConvite } from './LinksConvite';
 
-type Integrante = { nome: string; curso: string; semestre: string };
+type Colega = { nome: string; email: string };
 
 const ESTAGIOS: EstagioIdeia[] = [
   'ideia',
@@ -25,58 +27,112 @@ const ESTAGIOS: EstagioIdeia[] = [
   'mvp_pronto',
 ];
 
+const ESTAGIO_DESCRICAO: Record<EstagioIdeia, string> = {
+  ideia: 'Ainda no papel',
+  prototipo: 'Algo testável, mesmo simples',
+  mvp_desenvolvimento: 'Produto mínimo sendo construído',
+  mvp_pronto: 'Já usado por pessoas reais',
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function vazio(v?: string): boolean {
+  return !v || v.trim() === '';
+}
+
 export function CadastroForm() {
-  const router = useRouter();
-  const { state } = useStore();
-  const { cadastrar } = useActions();
+  const { data: areas } = useAreas();
+  const inscricao = useInscricao();
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
   const [telefone, setTelefone] = useState('');
   const [curso, setCurso] = useState('');
   const [semestre, setSemestre] = useState('');
+  const [matricula, setMatricula] = useState('');
   const [nomeIdeia, setNomeIdeia] = useState('');
   const [descricaoIdeia, setDescricaoIdeia] = useState('');
-  const [areaId, setAreaId] = useState('');
+  const [area, setArea] = useState('');
   const [estagioIdeia, setEstagioIdeia] = useState<EstagioIdeia>('ideia');
   const [origemDivulgacao, setOrigemDivulgacao] = useState('');
-  const [integrantes, setIntegrantes] = useState<Integrante[]>([]);
+  const [colegas, setColegas] = useState<Colega[]>([]);
   const [erros, setErros] = useState<Record<string, string>>({});
 
-  function montarDados(): DadosCadastro {
-    return {
-      nome,
-      email,
-      senha,
-      telefone,
-      curso,
-      semestre,
-      integrantes,
-      nomeIdeia,
-      descricaoIdeia,
-      areaId: areaId ? Number(areaId) : NaN,
-      estagioIdeia,
-      origemDivulgacao: origemDivulgacao || undefined,
-    };
+  const apiError = inscricao.error instanceof ApiError ? inscricao.error : null;
+  const colegaErroIndex =
+    apiError && (apiError.code === 'RN03_EQUIPE_ATIVA' || apiError.code === 'EMAIL_NAO_ALUNO')
+      ? colegas.findIndex((c) => c.email.trim() && apiError.message.includes(c.email.trim()))
+      : -1;
+  const erroGeral = apiError && colegaErroIndex < 0 ? apiError.message : null;
+
+  function validar(): Record<string, string> {
+    const e: Record<string, string> = {};
+    if (vazio(nome)) e.nome = 'Informe seu nome.';
+
+    if (vazio(email)) e.email = 'Informe seu e-mail.';
+    else if (!EMAIL_RE.test(email.trim())) e.email = 'E-mail inválido.';
+
+    if (vazio(senha)) e.senha = 'Crie uma senha.';
+    else if (senha.length < 8) e.senha = 'A senha deve ter ao menos 8 caracteres.';
+
+    if (vazio(confirmarSenha) || confirmarSenha !== senha) e.confirmarSenha = 'As senhas não coincidem.';
+
+    if (vazio(telefone)) e.telefone = 'Informe um telefone.';
+    if (vazio(curso)) e.curso = 'Informe seu curso.';
+    if (vazio(semestre)) e.semestre = 'Selecione o semestre/módulo.';
+    if (vazio(nomeIdeia)) e.nomeIdeia = 'Dê um nome à ideia.';
+    if (vazio(descricaoIdeia)) e.descricaoIdeia = 'Descreva a ideia.';
+    if (vazio(area)) e.area = 'Escolha uma área.';
+    if (!estagioIdeia) e.estagioIdeia = 'Selecione o estágio da ideia.';
+
+    colegas.forEach((c, i) => {
+      if (vazio(c.nome)) e[`colega-${i}-nome`] = 'Informe o nome.';
+      if (vazio(c.email)) e[`colega-${i}-email`] = 'Informe o e-mail.';
+      else if (!EMAIL_RE.test(c.email.trim())) e[`colega-${i}-email`] = 'E-mail inválido.';
+    });
+
+    return e;
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const dados = montarDados();
-    const validacao = validarCadastro(dados, state);
+    const validacao = validar();
     setErros(validacao);
     if (Object.keys(validacao).length > 0) return;
 
-    const { usuario } = cadastrar(dados);
-    setUsuarioAtual(usuario);
-    router.push('/aluno');
+    inscricao.mutate({
+      lider: {
+        nome,
+        email,
+        senha,
+        telefone,
+        curso,
+        semestre,
+        matricula: matricula.trim() || undefined,
+      },
+      ideia: {
+        nome: nomeIdeia,
+        descricao: descricaoIdeia,
+        estagio: estagioIdeia,
+        area,
+        origem: origemDivulgacao.trim() || undefined,
+      },
+      colegas: colegas.map((c) => ({ nome: c.nome, email: c.email })),
+    });
   }
 
-  const areaOptions = state.areas.map((a) => ({
-    value: String(a.id),
-    label: a.nome,
-  }));
+  if (inscricao.isSuccess) {
+    return (
+      <LinksConvite
+        nomeIdeia={inscricao.data.equipe.nomeIdeia}
+        colegas={inscricao.data.colegas}
+      />
+    );
+  }
+
+  const areaOptions = (areas ?? []).map((a) => ({ value: a.nome, label: a.nome }));
 
   return (
     <Card className="w-full overflow-hidden shadow-md">
@@ -101,7 +157,15 @@ export function CadastroForm() {
                 <Input id="email" type="email" autoComplete="email" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} />
               </FormField>
               <FormField label="Senha" htmlFor="senha" error={erros.senha}>
-                <Input id="senha" type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+                <PasswordInput id="senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+              </FormField>
+              <FormField label="Confirmar senha" htmlFor="confirmarSenha" error={erros.confirmarSenha}>
+                <PasswordInput
+                  id="confirmarSenha"
+                  autoComplete="new-password"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                />
               </FormField>
               <FormField label="Telefone" htmlFor="telefone" error={erros.telefone}>
                 <Input id="telefone" type="tel" autoComplete="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
@@ -115,7 +179,7 @@ export function CadastroForm() {
                   onChange={(e) => setCurso(e.target.value)}
                 />
               </FormField>
-              <FormField label={SEMESTRE_LABEL} htmlFor="semestre" hint="Opcional">
+              <FormField label={SEMESTRE_LABEL} htmlFor="semestre" error={erros.semestre}>
                 <Select
                   id="semestre"
                   options={SEMESTRE_OPTIONS}
@@ -123,6 +187,9 @@ export function CadastroForm() {
                   value={semestre}
                   onChange={(e) => setSemestre(e.target.value)}
                 />
+              </FormField>
+              <FormField label="Matrícula" htmlFor="matricula" hint="Opcional">
+                <Input id="matricula" value={matricula} onChange={(e) => setMatricula(e.target.value)} />
               </FormField>
             </div>
           </section>
@@ -137,71 +204,70 @@ export function CadastroForm() {
                 variant="ghost"
                 size="sm"
                 onClick={() =>
-                  setIntegrantes((xs) => [
-                    ...xs,
-                    { nome: '', curso: '', semestre: '' },
-                  ])
+                  setColegas((xs) => [...xs, { nome: '', email: '' }])
                 }
               >
                 Adicionar integrante
               </Button>
             </div>
-            {integrantes.length === 0 && (
+            {colegas.length === 0 && (
               <p className="text-sm text-text-muted">
                 Você é o líder. Adicione os demais integrantes, se houver.
               </p>
             )}
-            {integrantes.map((it, i) => (
-              <div
-                key={i}
-                className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
-              >
-                <Input
-                  aria-label={`Nome do integrante ${i + 1}`}
-                  placeholder="Nome"
-                  value={it.nome}
-                  onChange={(e) =>
-                    setIntegrantes((xs) =>
-                      xs.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)),
-                    )
-                  }
-                />
-                <Select
-                  aria-label={`Curso do integrante ${i + 1}`}
-                  options={CURSO_OPTIONS}
-                  placeholder="Curso"
-                  value={it.curso}
-                  onChange={(e) =>
-                    setIntegrantes((xs) =>
-                      xs.map((x, j) => (j === i ? { ...x, curso: e.target.value } : x)),
-                    )
-                  }
-                />
-                <Select
-                  aria-label={`${SEMESTRE_LABEL} do integrante ${i + 1}`}
-                  options={SEMESTRE_OPTIONS}
-                  placeholder={SEMESTRE_LABEL}
-                  value={it.semestre}
-                  onChange={(e) =>
-                    setIntegrantes((xs) =>
-                      xs.map((x, j) =>
-                        j === i ? { ...x, semestre: e.target.value } : x,
-                      ),
-                    )
-                  }
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setIntegrantes((xs) => xs.filter((_, j) => j !== i))
-                  }
-                >
-                  Remover
-                </Button>
-              </div>
-            ))}
+            {colegas.map((c, i) => {
+              const erroApiColega = colegaErroIndex === i ? apiError!.message : undefined;
+              const erroCampo =
+                erros[`colega-${i}-nome`] ?? erros[`colega-${i}-email`] ?? erroApiColega;
+              return (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <Input
+                      aria-label={`Nome do integrante ${i + 1}`}
+                      aria-invalid={erros[`colega-${i}-nome`] ? true : undefined}
+                      placeholder="Nome"
+                      value={c.nome}
+                      onChange={(e) =>
+                        setColegas((xs) =>
+                          xs.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <Input
+                      aria-label={`E-mail do integrante ${i + 1}`}
+                      aria-invalid={erros[`colega-${i}-email`] || erroApiColega ? true : undefined}
+                      type="email"
+                      placeholder="E-mail"
+                      value={c.email}
+                      onChange={(e) =>
+                        setColegas((xs) =>
+                          xs.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)),
+                        )
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setColegas((xs) => xs.filter((_, j) => j !== i))
+                      }
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                  {erroCampo && (
+                    <p
+                      role="alert"
+                      className="flex items-center gap-1.5 text-xs font-medium text-danger-text"
+                    >
+                      <AlertIcon size={14} className="shrink-0" />
+                      {erroCampo}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </section>
 
           <section className="flex flex-col gap-4">
@@ -224,13 +290,13 @@ export function CadastroForm() {
               />
             </FormField>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Área" htmlFor="areaId" error={erros.areaId}>
+              <FormField label="Área" htmlFor="area" error={erros.area}>
                 <Select
-                  id="areaId"
+                  id="area"
                   options={areaOptions}
                   placeholder="Selecione…"
-                  value={areaId}
-                  onChange={(e) => setAreaId(e.target.value)}
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
                 />
               </FormField>
               <FormField label="Origem da divulgação" htmlFor="origem" hint="Opcional">
@@ -242,33 +308,41 @@ export function CadastroForm() {
               </FormField>
             </div>
 
-            <fieldset className="flex flex-col gap-2">
-              <legend className="text-sm font-medium text-text">
-                Estágio da ideia
-              </legend>
-              <div className="flex flex-wrap gap-3">
-                {ESTAGIOS.map((es) => (
-                  <label key={es} className="flex items-center gap-2 text-sm text-text">
-                    <input
-                      type="radio"
-                      name="estagio"
-                      value={es}
-                      checked={estagioIdeia === es}
-                      onChange={() => setEstagioIdeia(es)}
-                    />
-                    {ESTAGIO_LABEL[es]}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <OpcoesSegmentadas
+              name="estagio"
+              legenda="Estágio da ideia"
+              opcoes={ESTAGIOS.map((es) => ({
+                value: es,
+                label: ESTAGIO_LABEL[es],
+                descricao: ESTAGIO_DESCRICAO[es],
+              }))}
+              value={estagioIdeia}
+              onChange={setEstagioIdeia}
+              error={erros.estagioIdeia}
+            />
           </section>
+
+          {erroGeral && (
+            <p
+              role="alert"
+              className="flex items-center gap-2 rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+            >
+              <AlertIcon size={16} className="shrink-0" />
+              {erroGeral}
+              {apiError?.code === 'EMAIL_TAKEN' && (
+                <a href="/login" className="font-medium underline">
+                  Entrar
+                </a>
+              )}
+            </p>
+          )}
 
           <div className="flex items-center justify-between">
             <a href="/login" className="text-sm text-text-muted hover:text-text">
               Já tenho conta
             </a>
-            <Button type="submit" size="lg">
-              Cadastrar
+            <Button type="submit" size="lg" disabled={inscricao.isPending}>
+              {inscricao.isPending ? 'Cadastrando…' : 'Cadastrar'}
             </Button>
           </div>
         </form>

@@ -164,6 +164,20 @@ Três armadilhas que já custaram tempo:
 No resource do Coolify: **Ports Exposes = `3000`** (é para lá que o Traefik
 manda o tráfego) e **sem Port Mapping** — o servidor é compartilhado e não há
 motivo para publicar a porta no host. Healthcheck, se ligado: `/api/v1/health`.
+Deixe o healthcheck **desligado**, ou com start period **≥ 90 s**: o boot roda
+migrate + seed antes da API subir, e com o padrão do Coolify o container é
+marcado unhealthy e o deploy volta atrás.
 
 As variáveis de ambiente vão todas numa lista só, no resource — ver
-[.env.example](.env.example).
+[.env.example](.env.example). Para o G1: `SEED_DEMO=true` e `INVITE_URL_BASE`
+sem definir (os links de convite saem relativos e o front completa o domínio).
+
+### Seed (G1)
+O `npm start` roda `prisma migrate deploy` → **seed** → servidor. O seed nunca
+derruba nem trava o boot: falha é logada e o deploy segue; se passar de 60s
+(ex.: banco lento), o boot também segue sem esperar o seed terminar.
+- **Base** (sempre): ciclo 2026/2, modelos de tarefa por etapa e o admin inicial `admin@infohub.dev` / `admin123`.
+- **Demo** (`SEED_DEMO=true`): cenário do G1 com contas `@demo.infohub.dev` — 4 mentores `mentor1..4` / `mentor123` + 13 alunos `<nome.sobrenome>` / `aluno123` (ex.: `bruna.lopes@demo.infohub.dev`), total **17 contas demo**. Cada equipe tem líder + 3 integrantes ativos; a equipe C tem ainda um 5º integrante (Letícia) com convite pendente. Roda uma vez; o link de convite pendente da Letícia sai no log do deploy.
+- Remover a demo quando o sistema entrar em uso real: `npm --prefix backend run seed:demo:purge` (log: `removidas 3 equipes e 17 contas demo`).
+
+**Dia da demo:** antes de apresentar o G1, rode `npm --prefix backend run seed:demo:purge` e reinicie/reimplante o resource, para o cenário ser reconstruído do zero (prazos e status sempre frescos). Nunca ensaie a demo em produção — ensaie localmente, ou rode o purge logo depois de ensaiar em produção.

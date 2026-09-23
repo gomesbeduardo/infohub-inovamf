@@ -1,50 +1,65 @@
 'use client';
 
 import { useState } from 'react';
-import type { Entrega, Tarefa } from '@/domain/types';
-import { useStore, useActions } from '@/data/store';
-import { getUsuarioAtual } from '@/data/session';
+import type { Entrega, Tarefa } from '@/data/api/tipos';
+import { useAvaliar } from '@/data/api/consultas';
 import { Button } from '@/design-system/components/Button';
 import { Textarea } from '@/design-system/components/Textarea';
 
+/** Avalia (aprova ou pede ajustes) só a última entrega, e só com a tarefa "entregue". */
 export function AvaliarEntrega({
   tarefa,
   entrega,
+  equipeSlug,
 }: {
   tarefa: Tarefa;
   entrega: Entrega;
+  equipeSlug: string;
 }) {
-  const { state } = useStore();
-  const { avaliar } = useActions();
+  const avaliar = useAvaliar(tarefa.slug, equipeSlug);
   const [ajustando, setAjustando] = useState(false);
   const [comentario, setComentario] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
 
-  const avaliadorId = getUsuarioAtual(state)?.id ?? 'u-admin';
+  if (tarefa.status !== 'entregue') return null;
 
   function aprovar() {
-    avaliar(entrega.id, { resultado: 'aprovada', avaliadorId });
+    setErro(null);
+    avaliar.mutate(
+      { entregaSlug: entrega.slug, resultado: 'aprovada' },
+      { onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível avaliar a entrega.') },
+    );
   }
 
   function solicitarAjustes() {
-    avaliar(entrega.id, {
-      resultado: 'ajustar',
-      comentario: comentario || undefined,
-      avaliadorId,
-    });
-    setAjustando(false);
-    setComentario('');
+    const texto = comentario.trim();
+    if (!texto) return;
+    setErro(null);
+    avaliar.mutate(
+      { entregaSlug: entrega.slug, resultado: 'ajustar', comentario: texto },
+      {
+        onSuccess: () => {
+          setAjustando(false);
+          setComentario('');
+        },
+        onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível avaliar a entrega.'),
+      },
+    );
   }
-
-  if (tarefa.status !== 'entregue') return null;
 
   return (
     <div className="flex flex-col gap-2">
       {!ajustando ? (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={aprovar}>
+          <Button size="sm" disabled={avaliar.isPending} onClick={aprovar}>
             Aprovar
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => setAjustando(true)}>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={avaliar.isPending}
+            onClick={() => setAjustando(true)}
+          >
             Solicitar ajustes
           </Button>
         </div>
@@ -58,14 +73,31 @@ export function AvaliarEntrega({
             onChange={(e) => setComentario(e.target.value)}
           />
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setAjustando(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setAjustando(false);
+                setComentario('');
+                setErro(null);
+              }}
+            >
               Cancelar
             </Button>
-            <Button size="sm" onClick={solicitarAjustes}>
+            <Button size="sm" disabled={!comentario.trim() || avaliar.isPending} onClick={solicitarAjustes}>
               Enviar avaliação
             </Button>
           </div>
         </div>
+      )}
+
+      {erro && (
+        <p
+          role="alert"
+          className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+        >
+          {erro}
+        </p>
       )}
     </div>
   );

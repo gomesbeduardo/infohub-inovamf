@@ -2,46 +2,41 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useActions } from '@/data/store';
-import { setUsuarioAtual } from '@/data/session';
+import { sessao } from '@/data/api/sessao';
+import { ApiError } from '@/data/api/erro';
 import { Card } from '@/design-system/components/Card';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
-import { Select } from '@/design-system/components/Select';
+import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
 import { homeFor } from '@/features/shell/nav';
 
-// Contas de demonstração (mock) — facilitam testar cada perfil.
-const SENHA_DEMO = '123456';
-const DEMOS: { rotulo: string; email: string }[] = [
-  { rotulo: 'Admin', email: 'admin@infohub.dev' },
-  { rotulo: 'Mentor', email: 'mentor@infohub.dev' },
-  { rotulo: 'Aluno', email: 'aluno@infohub.dev' },
-];
-
 export function LoginForm() {
   const router = useRouter();
-  const { login } = useActions();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
-  function preencher(emailDemo: string) {
-    setEmail(emailDemo);
-    setSenha(SENHA_DEMO);
-    setErro('');
-  }
-
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const usuario = login(email, senha);
-    if (!usuario) {
-      setErro('Credenciais inválidas');
-      return;
+    setErro('');
+    setEnviando(true);
+    try {
+      const usuario = await sessao.entrar(email.trim(), senha);
+      router.push(homeFor(usuario.role));
+    } catch (err) {
+      setErro(
+        err instanceof ApiError && err.status === 401
+          ? 'Credenciais inválidas'
+          : err instanceof ApiError
+            ? err.message
+            : 'Não foi possível entrar. Tente de novo.',
+      );
+    } finally {
+      setEnviando(false);
     }
-    setUsuarioAtual(usuario);
-    router.push(homeFor(usuario.tipo));
   }
 
   return (
@@ -68,12 +63,11 @@ export function LoginForm() {
           </FormField>
 
           <FormField label="Senha" htmlFor="senha">
-            <Input
+            <PasswordInput
               id="senha"
-              type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              placeholder="••••••"
+              placeholder="••••••••"
               autoComplete="current-password"
             />
           </FormField>
@@ -88,8 +82,8 @@ export function LoginForm() {
             </p>
           )}
 
-          <Button type="submit" size="lg" className="mt-1 w-full">
-            Entrar
+          <Button type="submit" size="lg" className="mt-1 w-full" disabled={enviando}>
+            {enviando ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
 
@@ -104,19 +98,6 @@ export function LoginForm() {
             Criar conta
           </a>
         </div>
-
-        <Select
-          aria-label="Preencher com uma conta de demonstração"
-          placeholder={`Conta de demonstração (senha ${SENHA_DEMO})…`}
-          options={DEMOS.map((d) => ({
-            value: d.email,
-            label: `${d.rotulo} · ${d.email}`,
-          }))}
-          value=""
-          onChange={(e) => {
-            if (e.target.value) preencher(e.target.value);
-          }}
-        />
       </Card.Body>
     </Card>
   );

@@ -1,41 +1,37 @@
 'use client';
 
-import { useState } from 'react';
-import type { Equipe } from '@/domain/types';
-import { useStore, useActions } from '@/data/store';
-import { getUsuarioAtual } from '@/data/session';
+import { useState, type FormEvent } from 'react';
+import { useAnotacoes, useAnotar } from '@/data/api/consultas';
+import { formatarDataHora } from '@/domain/labels';
 import { Textarea } from '@/design-system/components/Textarea';
 import { Button } from '@/design-system/components/Button';
 import { EmptyState } from '@/design-system/components/EmptyState';
 
-export function AnotacoesInternas({ equipe }: { equipe: Equipe }) {
-  const { state } = useStore();
-  const { anotar } = useActions();
+/** RF-10: anotações internas da coordenação/mentor sobre a equipe. */
+export function AnotacoesInternas({ equipeSlug }: { equipeSlug: string }) {
+  const consulta = useAnotacoes(equipeSlug);
+  const anotar = useAnotar(equipeSlug);
   const [texto, setTexto] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
 
-  const autorId = getUsuarioAtual(state)?.id ?? 'u-admin';
-  const itens = state.anotacoes
-    .filter((a) => a.equipeId === equipe.id)
-    .slice()
-    .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
-
-  function salvar() {
-    if (!texto.trim()) return;
-    anotar(equipe.id, { conteudo: texto.trim(), autorId });
-    setTexto('');
+  function salvar(e: FormEvent) {
+    e.preventDefault();
+    const conteudo = texto.trim();
+    if (!conteudo) return;
+    setErro(null);
+    anotar.mutate(conteudo, {
+      onSuccess: () => setTexto(''),
+      onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível salvar a anotação.'),
+    });
   }
 
-  function nomeAutor(id: string) {
-    return state.usuarios.find((u) => u.id === id)?.nome ?? 'Mentor';
-  }
+  const itens = [...(consulta.data ?? [])].sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-xs text-text-muted">
-        Anotações internas do mentor — não visíveis ao aluno.
-      </p>
+      <p className="text-xs text-text-muted">Visível só para a coordenação e o mentor.</p>
 
-      <div className="flex flex-col gap-2">
+      <form className="flex flex-col gap-2" onSubmit={salvar}>
         <Textarea
           aria-label="Nova anotação"
           placeholder="Registrar uma observação do encontro…"
@@ -43,25 +39,44 @@ export function AnotacoesInternas({ equipe }: { equipe: Equipe }) {
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
         />
+        {erro && (
+          <p
+            role="alert"
+            className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+          >
+            {erro}
+          </p>
+        )}
         <div className="flex justify-end">
-          <Button size="sm" onClick={salvar} disabled={!texto.trim()}>
-            Adicionar anotação
+          <Button type="submit" size="sm" disabled={!texto.trim() || anotar.isPending}>
+            {anotar.isPending ? 'Salvando…' : 'Adicionar anotação'}
           </Button>
         </div>
-      </div>
+      </form>
 
-      {itens.length === 0 ? (
+      {consulta.isPending ? (
+        <p className="text-sm text-text-muted">Carregando…</p>
+      ) : consulta.isError ? (
+        <div className="flex flex-col items-start gap-2">
+          <p
+            role="alert"
+            className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+          >
+            {consulta.error.message}
+          </p>
+          <Button size="sm" variant="secondary" onClick={() => void consulta.refetch()}>
+            Tentar de novo
+          </Button>
+        </div>
+      ) : itens.length === 0 ? (
         <EmptyState title="Sem anotações" />
       ) : (
         <ul className="flex flex-col gap-2">
           {itens.map((a) => (
-            <li
-              key={a.id}
-              className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-3"
-            >
-              <span className="text-sm text-text">{a.conteudo}</span>
+            <li key={a.slug} className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-3">
+              <span className="whitespace-pre-line text-sm text-text">{a.conteudo}</span>
               <span className="text-xs text-text-muted">
-                {nomeAutor(a.autorId)}
+                {a.autor.nome} · {formatarDataHora(a.criadoEm)}
               </span>
             </li>
           ))}

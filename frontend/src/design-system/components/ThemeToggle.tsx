@@ -14,8 +14,14 @@ const ROTULO = {
 export function ThemeToggle({ className }: { className?: string }) {
   const { preference, theme, cycle } = useTheme();
 
-  const Icone =
-    preference === 'system' ? MonitorIcon : preference === 'dark' ? SunIcon : MoonIcon;
+  // O ícone mostra o tema ATUAL (como o rótulo acessível), não o próximo: o
+  // ciclo tem três estados, então "o oposto" nem sempre é para onde o clique leva.
+  const [Icone, nomeIcone] =
+    preference === 'system'
+      ? [MonitorIcon, 'sistema']
+      : preference === 'dark'
+        ? [MoonIcon, 'lua']
+        : [SunIcon, 'sol'];
 
   return (
     <button
@@ -30,7 +36,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         className,
       )}
     >
-      <Icone size={18} />
+      <Icone size={18} data-icone={nomeIcone} />
     </button>
   );
 }

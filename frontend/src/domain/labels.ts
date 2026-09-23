@@ -45,6 +45,21 @@ export function formatarData(iso: string): string {
   return FMT_DATA.format(new Date(Date.UTC(y, m - 1, d)));
 }
 
+const FMT_DATA_HORA = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'America/Sao_Paulo',
+});
+
+/** Formata um instante ISO (`criadoEm`, `em`…) como `dd/mm/aaaa, hh:mm` no horário de Brasília. */
+export function formatarDataHora(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : FMT_DATA_HORA.format(d);
+}
+
 /**
  * Nomes curtos das 6 etapas do funil, indexados pelo número da etapa (1..6).
  * A posição 0 fica vazia para o índice bater com `numero`.

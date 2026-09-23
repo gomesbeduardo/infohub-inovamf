@@ -1,10 +1,11 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useStore } from '@/data/store';
-import { getUsuarioAtual, logout } from '@/data/session';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUsuario } from '@/data/api/useSessao';
+import { sessao } from '@/data/api/sessao';
 import { Logo } from '@/design-system/Logo';
 import { Button } from '@/design-system/components/Button';
 import { ThemeToggle } from '@/design-system/components/ThemeToggle';
@@ -48,17 +49,15 @@ export interface AppShellProps {
 export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { state } = useStore();
-  const [montado, setMontado] = useState(false);
-  useEffect(() => setMontado(true), []);
-
-  const usuario = montado ? getUsuarioAtual(state) : null;
-  const itens = usuario ? navFor(usuario.tipo) : [];
+  const usuario = useUsuario();
+  const cliente = useQueryClient();
+  const itens = usuario ? navFor(usuario.role) : [];
   const ativo = itemAtivo(itens, pathname);
   const mostrarNav = itens.length >= 2;
 
-  function sair() {
-    logout();
+  async function sair() {
+    await sessao.sair();
+    cliente.clear();
     router.replace('/login');
   }
 
@@ -67,7 +66,7 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
       <div className="sticky top-0 z-30">
         <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 py-3 backdrop-blur sm:px-6">
           <Link
-            href={usuario ? homeFor(usuario.tipo) : '/login'}
+            href={usuario ? homeFor(usuario.role) : '/login'}
             aria-label="InfoHub — início"
             className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]"
           >

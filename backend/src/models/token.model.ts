@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import { newId } from "../utils/slug.js";
 import { hashTokenSenha, sha256, tokenAleatorio } from "../utils/hash.js";
@@ -143,9 +144,11 @@ export function consumirConvite(params: {
   usuarioId: string;
   senhaHash: string;
   perfil?: { nome?: string; telefone?: string };
+  // Aluno completa os próprios dados ao aceitar (RN-02: dados de todos os integrantes).
+  aluno?: { curso: string; semestre: string; matricula: string | null };
 }) {
   const agora = new Date();
-  return prisma.$transaction([
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.usuarios.update({
       where: { id: params.usuarioId },
       data: {
@@ -160,5 +163,15 @@ export function consumirConvite(params: {
       where: { id: params.conviteId },
       data: { usado_em: agora },
     }),
-  ]);
+  ];
+  if (params.aluno) {
+    ops.push(
+      prisma.alunos.upsert({
+        where: { usuario_id: params.usuarioId },
+        create: { usuario_id: params.usuarioId, ...params.aluno },
+        update: params.aluno,
+      }),
+    );
+  }
+  return prisma.$transaction(ops);
 }

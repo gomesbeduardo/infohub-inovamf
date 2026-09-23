@@ -5,82 +5,170 @@ import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
-import { idDoChamador } from "../utils/acesso.js";
+import { escopoDo, idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
   STATUS_EQUIPE,
+  STATUS_TAREFA,
   type EstagioIdeia,
   type StatusEquipe,
 } from "../domain/enums.js";
+import { POSICAO_PRONTA } from "../domain/transicao.js";
+import { classificarColega } from "../domain/membros.js";
+import { hojeISO } from "../domain/atraso.js";
+import { linkConvite } from "../utils/convite.js";
+import { equipesCSV } from "../domain/csv.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as areaModel from "../models/area.model.js";
-import * as etapaModel from "../models/etapa.model.js";
+import * as cicloModel from "../models/ciclo.model.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as emailModel from "../models/email.model.js";
+import * as tokenModel from "../models/token.model.js";
 
 const MAX_COLEGAS = 9; // Q5 (máx integrantes) em aberto — teto p/ conter abuso no endpoint público.
 
-function escopoDo(req: Request): equipeModel.Escopo {
-  if (req.auth.role === "admin") return { tipo: "admin" };
-  if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: idDoChamador(req) };
-  return { tipo: "aluno", usuarioId: idDoChamador(req) };
+const MSG_RECUSA = {
+  RN03_EQUIPE_ATIVA: (e: string) => `${e} já participa de uma equipe ativa`,
+  EMAIL_NAO_ALUNO: (e: string) => `${e} pertence a uma conta de mentor/admin`,
+} as const;
+
+// Prepara (hashes prontos) o vínculo de UMA pessoa a uma equipe — RN-03 decide
+// entre criar, reaproveitar ou recusar. Usado pela inscrição e por "adicionar membro".
+async function prepararColega(
+  c: { nome: string; email: string; telefone: string },
+  existente: Awaited<ReturnType<typeof usuarioModel.findParaVinculo>>[number] | null,
+  expiraConvite: Date,
+) {
+  const v = classificarColega(existente);
+  if (v.acao === "recusar") throw httpError(409, v.codigo, MSG_RECUSA[v.codigo](c.email));
+
+  const precisaConvite = v.acao === "criar" || v.comConvite;
+  const segredo = tokenAleatorio(24);
+  const conviteId = newId();
+  const convite = precisaConvite
+    ? { id: conviteId, hash: await hashTokenSenha(segredo), expiraEm: expiraConvite }
+    : null;
+
+  if (v.acao === "criar") {
+    const ids = novoIdComSlug();
+    return {
+      usuarioId: ids.id,
+      slug: ids.slug,
+      nome: c.nome,
+      email: c.email,
+      criar: {
+        slug: ids.slug,
+        nome: c.nome,
+        email: c.email,
+        telefone: c.telefone,
+        senhaHash: await hashSenha(tokenAleatorio(32)),
+      },
+      convite,
+      conviteToken: `${conviteId}.${segredo}`,
+    };
+  }
+  return {
+    usuarioId: existente!.id,
+    slug: existente!.slug,
+    nome: c.nome, // o digitado: nunca expor o nome cadastrado de quem já tem conta
+    email: c.email,
+    criar: null,
+    convite,
+    conviteToken: convite ? `${conviteId}.${segredo}` : null,
+  };
+}
+
+// Filtros do funil (RF-07) a partir da query — compartilhado pela lista e pelo CSV.
+async function lerFiltros(req: Request) {
+  let areaId: number | undefined;
+  if (typeof req.query.area === "string" && req.query.area.trim()) {
+    const area = await areaModel.findIdByNome(req.query.area.trim());
+    if (!area) throw httpError(400, "INVALID_AREA", "Área desconhecida");
+    areaId = area.id;
+  }
+  let cicloId: number | undefined;
+  if (typeof req.query.ciclo === "string" && req.query.ciclo.trim()) {
+    const ciclo = await cicloModel.findIdByNome(req.query.ciclo.trim());
+    if (!ciclo) throw httpError(400, "INVALID_CICLO", "Ciclo desconhecido");
+    cicloId = ciclo.id;
+  }
+  const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  const etapaNumero = req.query.etapa !== undefined ? Number(req.query.etapa) : undefined;
+  const status = texto(req.query.status);
+  const statusTarefa = texto(req.query.statusTarefa);
+  const mentor = texto(req.query.mentor);
+  return {
+    escopo: escopoDo(req),
+    etapaNumero: etapaNumero && etapaNumero >= 1 ? etapaNumero : undefined,
+    areaId,
+    cicloId,
+    status: status && (STATUS_EQUIPE as string[]).includes(status) ? status : undefined,
+    statusTarefa:
+      statusTarefa && (STATUS_TAREFA as string[]).includes(statusTarefa) ? statusTarefa : undefined,
+    mentorId: mentor ? (fromSlug(mentor) ?? undefined) : undefined,
+    q: texto(req.query.q),
+    curso: texto(req.query.curso),
+    hoje: hojeISO(),
+  };
+}
+
+type LinhaResumo = Awaited<ReturnType<typeof equipeModel.listar>>[number];
+
+// Linha do funil/lista (RF-06). Exportada para o CSV (Task 6) reusar.
+export function mapResumo(e: LinhaResumo) {
+  const lider = e.equipe_membros[0]?.usuarios ?? null;
+  return {
+    slug: e.slug,
+    nomeIdeia: e.nome_ideia,
+    descricaoIdeia: e.descricao_ideia,
+    status: e.status,
+    estagio: e.estagio_ideia,
+    etapa: { numero: e.etapas.numero, nome: e.etapas.nome },
+    area: e.areas_ideia?.nome ?? null,
+    ciclo: e.ciclos?.nome ?? null,
+    mentor: e.usuarios ? { slug: e.usuarios.slug, nome: e.usuarios.nome } : null,
+    lider: lider ? { slug: lider.slug, nome: lider.nome, curso: lider.alunos?.curso ?? null } : null,
+    membrosCount: e._count.equipe_membros,
+    tarefasAtrasadas: e._count.tarefas,
+    criadoEm: e.criado_em,
+  };
+}
+
+// GET /equipes/export.csv — RF-23, com os mesmos filtros e escopo da lista.
+export async function exportarCSV(req: Request, res: Response, next: NextFunction) {
+  try {
+    const filtros = await lerFiltros(req);
+    const linhas = (await equipeModel.listarTodas(filtros)).map(mapResumo);
+    const csv = equipesCSV(
+      linhas.map((e) => ({
+        nomeIdeia: e.nomeIdeia,
+        area: e.area,
+        etapa: e.etapa,
+        status: e.status,
+        mentor: e.mentor?.nome ?? null,
+        cursoLider: e.lider?.curso ?? null,
+        tarefasAtrasadas: e.tarefasAtrasadas,
+      })),
+    );
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="equipes-infohub.csv"');
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
 }
 
 // GET /equipes — funil/lista com escopo por papel (RF-06, RNF-03).
 export async function index(req: Request, res: Response, next: NextFunction) {
   try {
     const { page, perPage, skip } = paginacao(req);
-
-    let areaId: number | undefined;
-    if (typeof req.query.area === "string" && req.query.area.trim()) {
-      const area = await areaModel.findIdByNome(req.query.area.trim());
-      if (!area) throw httpError(400, "INVALID_AREA", "Área desconhecida");
-      areaId = area.id;
-    }
-
-    const etapaNumero =
-      req.query.etapa !== undefined ? Number(req.query.etapa) : undefined;
-    const status =
-      typeof req.query.status === "string" &&
-      (STATUS_EQUIPE as string[]).includes(req.query.status)
-        ? req.query.status
-        : undefined;
-    const mentorId =
-      typeof req.query.mentor === "string" && req.query.mentor.trim()
-        ? (fromSlug(req.query.mentor.trim()) ?? undefined)
-        : undefined;
-    const q = typeof req.query.q === "string" ? req.query.q.trim() || undefined : undefined;
-
-    const filtros = {
-      escopo: escopoDo(req),
-      etapaNumero: etapaNumero && etapaNumero >= 1 ? etapaNumero : undefined,
-      areaId,
-      status,
-      mentorId,
-      q,
-    };
-
+    const filtros = await lerFiltros(req);
     const [linhas, total] = await Promise.all([
       equipeModel.listar({ skip, take: perPage, ...filtros }),
       equipeModel.contar(filtros),
     ]);
-
-    res.json({
-      data: linhas.map((e) => ({
-        slug: e.slug,
-        nomeIdeia: e.nome_ideia,
-        status: e.status,
-        estagio: e.estagio_ideia,
-        etapa: { numero: e.etapas.numero, nome: e.etapas.nome },
-        area: e.areas_ideia?.nome ?? null,
-        mentor: e.usuarios ? { slug: e.usuarios.slug, nome: e.usuarios.nome } : null,
-        criadoEm: e.criado_em,
-      })),
-      page,
-      perPage,
-      total,
-    });
+    res.json({ data: linhas.map(mapResumo), page, perPage, total });
   } catch (err) {
     next(err);
   }
@@ -104,6 +192,8 @@ export async function show(req: Request, res: Response, next: NextFunction) {
       throw httpError(403, "NOT_TEAM_MEMBER", "Você não participa desta equipe");
     }
 
+    const pendencias = await equipeModel.pendenciasParaAvancar(equipe.id);
+
     res.json({
       slug: equipe.slug,
       nomeIdeia: equipe.nome_ideia,
@@ -124,12 +214,20 @@ export async function show(req: Request, res: Response, next: NextFunction) {
         nome: m.usuarios.nome,
         papel: m.papel,
         tipo: m.usuarios.tipo_usuario,
+        pendente: m.usuarios.convite_aceito_em === null,
+        curso: m.usuarios.alunos?.curso ?? null,
+        semestre: m.usuarios.alunos?.semestre ?? null,
       })),
+      pendenciasParaAvancar: pendencias,
       historico: equipe.historico_etapas.map((h) => ({
-        de: h.etapas_historico_etapas_etapa_origem_idToetapas
-          ? h.etapas_historico_etapas_etapa_origem_idToetapas.numero
-          : null,
-        para: h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+        de:
+          h.status_origem === "pronta_inovamf"
+            ? "pronta"
+            : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+        para:
+          h.status_destino === "pronta_inovamf"
+            ? "pronta"
+            : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
         forcado: h.forcado,
         observacao: h.observacao,
         por: h.usuarios ? { slug: h.usuarios.slug, nome: h.usuarios.nome } : null,
@@ -219,10 +317,14 @@ export async function update(req: Request, res: Response, next: NextFunction) {
       if (typeof status !== "string" || !(STATUS_EQUIPE as string[]).includes(status)) {
         throw httpError(400, "INVALID_STATUS", "Status inválido");
       }
-      data.status = status;
       if ((status as StatusEquipe) === "pronta_inovamf") {
-        data.pronta_inovamf_em = new Date();
+        throw httpError(
+          400,
+          "USE_TRANSICAO",
+          "Use POST /equipes/:slug/etapa com etapa 'pronta' (RN-02)",
+        );
       }
+      data.status = status;
     }
     if (origem !== undefined) {
       data.origem_divulgacao = typeof origem === "string" ? origem.trim() : null;
@@ -271,42 +373,52 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// POST /equipes/:slug/etapa — avançar/retroceder (RF-09). Admin ou mentor da equipe.
+const MENSAGEM_INVALIDA: Record<string, string> = {
+  MESMA_POSICAO: "A equipe já está nessa etapa",
+  OBSERVACAO_OBRIGATORIA: "Para forçar, explique o motivo na observação",
+  POSICAO_INVALIDA: "Etapa deve ser um número de 1 a 6 ou 'pronta'",
+};
+
+// POST /equipes/:slug/etapa — avançar/retroceder (RF-09, RN-01, RN-02).
 export async function moverEtapa(req: Request, res: Response, next: NextFunction) {
   try {
     const { etapa, observacao, forcado } = req.body ?? {};
-    const numero = Number(etapa);
-    if (!Number.isInteger(numero) || numero < 1 || numero > 6) {
-      throw httpError(400, "INVALID_ETAPA", "Etapa deve ser um número de 1 a 6");
+    const destino = etapa === "pronta" ? POSICAO_PRONTA : Number(etapa);
+    if (!Number.isInteger(destino) || destino < 1 || destino > POSICAO_PRONTA) {
+      throw httpError(400, "INVALID_ETAPA", MENSAGEM_INVALIDA.POSICAO_INVALIDA ?? "");
+    }
+    if (forcado !== undefined && typeof forcado !== "boolean") {
+      throw httpError(400, "INVALID_FORCADO", "forcado deve ser booleano");
     }
 
     const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
     if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
-
-    if (req.auth.role === "mentor" && controle.mentor_id !== idDoChamador(req)) {
+    if (!podeGerirEquipe(req, controle.mentor_id)) {
       throw httpError(403, "NOT_TEAM_MENTOR", "Equipe fora do seu escopo");
     }
-    if (req.auth.role === "aluno") {
-      throw httpError(403, "FORBIDDEN", "Aluno não move etapas");
-    }
 
-    const destino = await etapaModel.findByNumero(numero);
-    if (!destino) throw httpError(400, "INVALID_ETAPA", "Etapa inexistente");
-
-    const atualizada = await equipeModel.moverEtapa({
+    const r = await equipeModel.transicionar({
       equipeId: controle.id,
-      etapaOrigemId: controle.etapa_atual_id,
-      etapaDestinoId: destino.id,
+      destino,
       movidoPor: idDoChamador(req),
       forcado: forcado === true,
-      observacao: typeof observacao === "string" ? observacao.trim() : null,
+      observacao: typeof observacao === "string" && observacao.trim() ? observacao.trim() : null,
     });
 
-    res.json({
-      slug: atualizada.slug,
-      status: atualizada.status,
-      etapa: { numero: atualizada.etapas.numero, nome: atualizada.etapas.nome },
-    });
+    if (r.tipo === "rejeitada") {
+      if (r.decisao.tipo === "invalida") {
+        throw httpError(400, r.decisao.codigo, MENSAGEM_INVALIDA[r.decisao.codigo] ?? "");
+      }
+      throw httpError(
+        409,
+        r.decisao.motivo === "salto" ? "RN01_SALTO" : "RN01_PENDENCIAS",
+        r.decisao.motivo === "salto"
+          ? "Pular etapas exige forçar com observação"
+          : "Há pendências obrigatórias nesta etapa",
+        { pendencias: r.decisao.pendencias },
+      );
+    }
+    res.json(r.equipe);
   } catch (err) {
     next(err);
   }
@@ -386,10 +498,12 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     if (new Set(todosEmails).size !== todosEmails.length) {
       throw httpError(400, "DUP_EMAIL", "E-mails repetidos na inscrição");
     }
-    const jaExistem = await usuarioModel.findEmailsExistentes(todosEmails);
-    if (jaExistem.length > 0) {
-      throw httpError(409, "EMAIL_TAKEN", `E-mail já cadastrado: ${jaExistem[0]}`);
+    if (await usuarioModel.findAnyByEmail(emailLider)) {
+      throw httpError(409, "EMAIL_TAKEN", "Você já tem conta: entre com seu e-mail e senha");
     }
+    const existentes = new Map(
+      (await usuarioModel.findParaVinculo(listaColegas.map((c) => c.email))).map((u) => [u.email, u]),
+    );
 
     // Preparar dados (hashes prontos; model só grava)
     const liderIds = novoIdComSlug();
@@ -397,24 +511,10 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     const expiraConvite = new Date(Date.now() + env.inviteTtlHoras * 3_600_000);
 
     const colegasPrep = await Promise.all(
-      listaColegas.map(async (c) => {
-        const ids = novoIdComSlug();
-        const conviteId = newId();
-        const segredo = tokenAleatorio(24);
-        return {
-          id: ids.id,
-          slug: ids.slug,
-          nome: c.nome,
-          email: c.email,
-          telefone: c.telefone,
-          senhaHash: await hashSenha(tokenAleatorio(32)),
-          conviteId,
-          conviteHash: await hashTokenSenha(segredo),
-          conviteExpiraEm: expiraConvite,
-          conviteToken: `${conviteId}.${segredo}`,
-        };
-      }),
+      listaColegas.map((c) => prepararColega(c, existentes.get(c.email) ?? null, expiraConvite)),
     );
+
+    const cicloAtual = await cicloModel.findAtual();
 
     await equipeModel.inscrever({
       lider: {
@@ -439,15 +539,14 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
         descricao_ideia: ideia.descricao.trim(),
         estagio_ideia: estagioIdeia,
         area_id: areaId,
+        ciclo_id: cicloAtual?.id ?? null,
         origem_divulgacao:
           typeof ideia.origem === "string" ? ideia.origem.trim() : null,
       },
-      colegas: colegasPrep,
+      colegas: colegasPrep.map((c) => ({ usuarioId: c.usuarioId, criar: c.criar, convite: c.convite })),
     });
 
     // E-mails (best-effort; não derruba a inscrição já gravada).
-    const link = (token: string) =>
-      `${env.inviteUrlBase}?token=${encodeURIComponent(token)}`;
     const admins = await usuarioModel.listarEmailsAdminsAtivos().catch(() => []);
     await emailModel.enfileirarLote(
       admins.map((a) => ({
@@ -464,15 +563,15 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
         equipeId: equipeIds.id,
       })),
     );
-    for (const c of colegasPrep) {
+    for (const c of colegasPrep.filter((x) => x.conviteToken)) {
       try {
         await emailModel.enfileirar({
           tipo: "convite_conta",
-          destinatarioId: c.id,
+          destinatarioId: c.usuarioId,
           destinatarioEmail: c.email,
           assunto: "Você foi adicionado a uma equipe no InfoHub",
           template: "convite_conta",
-          dadosTemplate: { nome: c.nome, link: link(c.conviteToken) },
+          dadosTemplate: { nome: c.nome, link: linkConvite(c.conviteToken!) },
           equipeId: equipeIds.id,
         });
       } catch (e) {
@@ -497,9 +596,96 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
       equipe: { slug: equipeIds.slug, nomeIdeia: ideia.nome.trim() },
       colegas: colegasPrep.map((c) => ({
         slug: c.slug,
+        nome: c.nome,
         email: c.email,
-        ...(env.nodeEnv !== "production" ? { token_dev: c.conviteToken } : {}),
+        conviteUrl: c.conviteToken ? linkConvite(c.conviteToken) : null,
+        ...(env.nodeEnv !== "production" && c.conviteToken ? { token_dev: c.conviteToken } : {}),
       })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /equipes/:slug/membros/:membro/convite — gera um link NOVO para um
+// integrante que ainda não aceitou (o anterior é invalidado). Líder da equipe,
+// mentor da equipe ou admin. Sem e-mail configurado, quem pede copia o link.
+export async function gerarConviteMembro(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+
+    const eu = idDoChamador(req);
+    const ehLider = controle.equipe_membros.some((m) => m.usuario_id === eu && m.papel === "lider");
+    if (!podeGerirEquipe(req, controle.mentor_id) && !(req.auth.role === "aluno" && ehLider)) {
+      throw httpError(403, "FORBIDDEN", "Só o líder, o mentor ou o admin geram convites");
+    }
+
+    const membroId = fromSlug(req.params.membro ?? "");
+    if (!membroId || !controle.equipe_membros.some((m) => m.usuario_id === membroId)) {
+      throw httpError(404, "MEMBRO_NOT_FOUND", "Integrante não encontrado nesta equipe");
+    }
+    const dados = await usuarioModel.findDadosConvite(membroId);
+    if (!dados) throw httpError(404, "MEMBRO_NOT_FOUND", "Integrante não encontrado");
+    if (dados.convite_aceito_em) {
+      throw httpError(409, "ALREADY_ACCEPTED", "Esta pessoa já ativou a conta");
+    }
+
+    await tokenModel.invalidarConvitesAtivos(membroId);
+    const convite = await tokenModel.criarConvite({ usuarioId: membroId, ttlHoras: env.inviteTtlHoras });
+    res.status(201).json({
+      conviteUrl: linkConvite(convite.tokenBruto),
+      expiraEm: convite.expiraEm.toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /equipes/:slug/membros — líder, mentor da equipe ou admin adicionam um
+// integrante por nome + e-mail. RN-03 igual à inscrição; devolve o link.
+export async function adicionarMembro(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    const eu = idDoChamador(req);
+    const ehLider = controle.equipe_membros.some((m) => m.usuario_id === eu && m.papel === "lider");
+    if (!podeGerirEquipe(req, controle.mentor_id) && !(req.auth.role === "aluno" && ehLider)) {
+      throw httpError(403, "FORBIDDEN", "Só o líder, o mentor ou o admin adicionam integrantes");
+    }
+
+    const { nome, email } = req.body ?? {};
+    if (typeof nome !== "string" || nome.trim().length < 3) {
+      throw httpError(400, "INVALID_NOME", "Nome deve ter ao menos 3 caracteres");
+    }
+    if (typeof email !== "string" || !EMAIL_RE.test(email.trim())) {
+      throw httpError(400, "INVALID_EMAIL", "E-mail inválido");
+    }
+    const emailNorm = email.toLowerCase().trim();
+    const [existente] = await usuarioModel.findParaVinculo([emailNorm]);
+    const expira = new Date(Date.now() + env.inviteTtlHoras * 3_600_000);
+    const c = await prepararColega({ nome: nome.trim(), email: emailNorm, telefone: "" }, existente ?? null, expira);
+
+    await equipeModel.adicionarMembro(controle.id, { usuarioId: c.usuarioId, criar: c.criar, convite: c.convite });
+    if (c.conviteToken) {
+      await emailModel
+        .enfileirar({
+          tipo: "convite_conta",
+          destinatarioId: c.usuarioId,
+          destinatarioEmail: c.email,
+          assunto: "Você foi adicionado a uma equipe no InfoHub",
+          template: "convite_conta",
+          dadosTemplate: { nome: c.nome, link: linkConvite(c.conviteToken) },
+          equipeId: controle.id,
+        })
+        .catch((e) => console.error("[adicionarMembro] falha ao enfileirar convite", e));
+    }
+    res.status(201).json({
+      slug: c.slug,
+      nome: c.nome,
+      email: c.email,
+      conviteUrl: c.conviteToken ? linkConvite(c.conviteToken) : null,
+      pendente: c.conviteToken !== null,
     });
   } catch (err) {
     next(err);

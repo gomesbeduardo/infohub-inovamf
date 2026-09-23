@@ -1,47 +1,67 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { StatusTarefa } from '@/domain/types';
-import { useStore } from '@/data/store';
-import { semestreDoMembro } from '@/data/repository';
-import { getUsuarioAtual } from '@/data/session';
+import { useEquipe, useEquipes, useEtapas, useTarefas } from '@/data/api/consultas';
+import { useUsuario } from '@/data/api/useSessao';
 import {
   ESTAGIO_LABEL,
   STATUS_EQUIPE_LABEL,
   formatarData,
 } from '@/domain/labels';
-import { semestreCurto } from '@/domain/semestres';
 import { Card } from '@/design-system/components/Card';
 import { Badge } from '@/design-system/components/Badge';
-import { Avatar } from '@/design-system/components/Avatar';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StageProgress } from '@/design-system/components/StageProgress';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { Button } from '@/design-system/components/Button';
 import { ChevronRightIcon } from '@/design-system/icons';
 import { AdicionarMembroDialog } from '@/features/equipe/AdicionarMembroDialog';
+import { MembrosLista } from '@/features/equipe/MembrosLista';
+import { POSICAO_PRONTA } from '@/features/funil/DialogoMover';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
 
+function CarregandoOuErro({
+  isPending,
+  error,
+  refetch,
+}: {
+  isPending: boolean;
+  error: Error | null;
+  refetch: () => void;
+}) {
+  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p
+        role="alert"
+        className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+      >
+        {error?.message}
+      </p>
+      <Button variant="secondary" onClick={() => refetch()}>
+        Tentar de novo
+      </Button>
+    </div>
+  );
+}
+
 export function MinhaEquipe() {
-  const { state } = useStore();
-  const [montado, setMontado] = useState(false);
-  useEffect(() => setMontado(true), []);
+  const equipesConsulta = useEquipes();
 
-  if (!montado) return null;
-
-  const usuario = getUsuarioAtual(state);
-  if (!usuario) {
+  if (equipesConsulta.isPending || equipesConsulta.isError) {
     return (
-      <EmptyState title="Sessão não encontrada" description="Faça login novamente." />
+      <CarregandoOuErro
+        isPending={equipesConsulta.isPending}
+        error={equipesConsulta.error}
+        refetch={() => void equipesConsulta.refetch()}
+      />
     );
   }
 
-  const equipe = state.equipes.find((e) =>
-    e.membros.some((m) => m.usuarioId === usuario.id),
-  );
-  if (!equipe) {
+  const resumo = equipesConsulta.data[0];
+  if (!resumo) {
     return (
       <EmptyState
         title="Você ainda não faz parte de uma equipe"
@@ -55,20 +75,55 @@ export function MinhaEquipe() {
     );
   }
 
-  const area = state.areas.find((a) => a.id === equipe.areaId);
-  const mentor = state.usuarios.find((u) => u.id === equipe.mentorId);
-  const tarefas = state.tarefas.filter((t) => t.equipeId === equipe.id);
+  return <MinhaEquipeConteudo slug={resumo.slug} />;
+}
+
+function MinhaEquipeConteudo({ slug }: { slug: string }) {
+  const usuario = useUsuario();
+  const equipeConsulta = useEquipe(slug);
+  const etapasConsulta = useEtapas();
+  const tarefasConsulta = useTarefas(slug);
+
+  if (equipeConsulta.isPending || etapasConsulta.isPending) {
+    return (
+      <CarregandoOuErro
+        isPending
+        error={null}
+        refetch={() => {}}
+      />
+    );
+  }
+  if (equipeConsulta.isError) {
+    return (
+      <CarregandoOuErro
+        isPending={false}
+        error={equipeConsulta.error}
+        refetch={() => void equipeConsulta.refetch()}
+      />
+    );
+  }
+  if (etapasConsulta.isError) {
+    return (
+      <CarregandoOuErro
+        isPending={false}
+        error={etapasConsulta.error}
+        refetch={() => void etapasConsulta.refetch()}
+      />
+    );
+  }
+
+  const equipe = equipeConsulta.data;
+  const etapas = etapasConsulta.data.map((e) => ({ id: e.numero, numero: e.numero, nome: e.nome }));
+  const tarefas = tarefasConsulta.data ?? [];
   const pendentes = tarefas.filter((t) => PENDENTES.includes(t.status));
   const atrasadas = pendentes.filter((t) => t.status === 'atrasada').length;
   const proxima = pendentes
-    .map((t) => t.dataEntrega)
+    .map((t) => t.dataEntrega.slice(0, 10))
     .sort()
     .at(0);
-  const pronta =
-    equipe.status === 'pronta_inovamf' || equipe.status === 'encaminhada_inovamf';
-  const ehLider = equipe.membros.some(
-    (m) => m.usuarioId === usuario.id && m.papel === 'lider',
-  );
+  const pronta = equipe.status === 'pronta_inovamf' || equipe.status === 'encaminhada_inovamf';
+  const lider = equipe.membros.find((m) => m.papel === 'lider');
+  const ehLider = !!usuario && lider?.slug === usuario.slug;
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,16 +133,16 @@ export function MinhaEquipe() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-xs text-text-muted">Sua ideia</span>
-              <h2 className="text-2xl font-semibold text-text">
-                {equipe.nomeIdeia}
-              </h2>
+              <h2 className="text-2xl font-semibold text-text">{equipe.nomeIdeia}</h2>
             </div>
-            <StageTag etapaId={equipe.etapaAtualId} />
+            <StageTag etapaId={pronta ? POSICAO_PRONTA : equipe.etapa.numero}>
+              {pronta ? 'Pronta' : undefined}
+            </StageTag>
           </div>
           <p className="text-sm text-text-muted">{equipe.descricaoIdeia}</p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            {area && <Badge tone="brand">{area.nome}</Badge>}
-            <Badge>{ESTAGIO_LABEL[equipe.estagioIdeia]}</Badge>
+            {equipe.area && <Badge tone="brand">{equipe.area}</Badge>}
+            <Badge>{ESTAGIO_LABEL[equipe.estagio]}</Badge>
             <Badge>{STATUS_EQUIPE_LABEL[equipe.status]}</Badge>
           </div>
         </Card.Body>
@@ -121,11 +176,7 @@ export function MinhaEquipe() {
             <h3 className="text-sm font-semibold text-text">Progresso no funil</h3>
           </Card.Header>
           <Card.Body>
-            <StageProgress
-              etapas={state.etapas}
-              atualId={equipe.etapaAtualId}
-              pronta={pronta}
-            />
+            <StageProgress etapas={etapas} atualId={equipe.etapa.numero} pronta={pronta} />
           </Card.Body>
         </Card>
 
@@ -133,36 +184,13 @@ export function MinhaEquipe() {
         <Card>
           <Card.Header className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-text">Equipe</h3>
-            {mentor && (
-              <span className="text-xs text-text-muted">
-                Mentor: {mentor.nome}
-              </span>
+            {equipe.mentor && (
+              <span className="text-xs text-text-muted">Mentor: {equipe.mentor.nome}</span>
             )}
           </Card.Header>
-          <Card.Body>
-            <ul className="flex flex-col gap-3">
-              {equipe.membros.map((m) => (
-                <li key={m.usuarioId} className="flex items-center gap-3">
-                  <Avatar nome={m.nome} />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="flex items-center gap-2 text-sm text-text">
-                      {m.nome}
-                      {m.papel === 'lider' && <Badge tone="brand">líder</Badge>}
-                    </span>
-                    <span className="text-xs text-text-muted">
-                      {[m.curso, semestreCurto(semestreDoMembro(state, m))]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            {ehLider && (
-              <div className="mt-3">
-                <AdicionarMembroDialog equipeId={equipe.id} />
-              </div>
-            )}
+          <Card.Body className="flex flex-col gap-3">
+            <MembrosLista equipeSlug={equipe.slug} membros={equipe.membros} podeGerir={ehLider} />
+            {ehLider && <AdicionarMembroDialog equipeSlug={equipe.slug} />}
           </Card.Body>
         </Card>
       </div>

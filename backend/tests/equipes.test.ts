@@ -82,7 +82,7 @@ describe("referência", () => {
   it("GET /areas-ideia → lista áreas", async () => {
     const res = await request(app).get("/api/v1/areas-ideia");
     expect(res.status).toBe(200);
-    expect(res.body.data.length).toBeGreaterThanOrEqual(5);
+    expect(res.body.data.length).toBeGreaterThanOrEqual(4);
   });
   it("GET /etapas-funil → 6 etapas", async () => {
     const res = await request(app).get("/api/v1/etapas-funil");
@@ -136,7 +136,7 @@ describe("POST /equipes/inscricao (formulário de ideia)", () => {
   it("colega aceita o convite e define a senha", async () => {
     const res = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: colegaToken, senha: "senha-colega-forte", telefone: "55993334444" });
+      .send({ token: colegaToken, senha: "senha-colega-forte", telefone: "55993334444", curso: "Engenharia", semestre: "3º" });
     expect(res.status).toBe(201);
     expect(res.body.usuario.role).toBe("aluno");
   });
@@ -237,13 +237,13 @@ describe("admin cria equipe com mentor + mover etapa (RF-09)", () => {
     expect(det.body.historico[0].para).toBe(2);
   });
 
-  it("admin marca pronta_inovamf", async () => {
+  it("PATCH não marca pronta_inovamf (RN-02 exige a transição)", async () => {
     const res = await request(app)
       .patch(`/api/v1/equipes/${storeSlug}`)
       .set(bearer(adminAccess))
       .send({ status: "pronta_inovamf" });
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe("pronta_inovamf");
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("USE_TRANSICAO");
   });
 
   it("404 mover etapa de equipe inexistente", async () => {

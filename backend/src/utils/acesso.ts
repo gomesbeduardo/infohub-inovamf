@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import { fromSlug } from "./slug.js";
+import type { Escopo } from "../models/equipe.model.js";
 
 // Nosso slug é bijeção do UUID (slug = base64url(id)), então o id do chamador
 // sai direto do slug do token, sem ida ao banco.
@@ -25,4 +26,11 @@ export function podeGerirEquipe(req: Request, mentorId: string | null): boolean 
   if (req.auth.role === "admin") return true;
   if (req.auth.role === "mentor") return mentorId === idDoChamador(req);
   return false;
+}
+
+// Escopo de leitura por papel (RNF-03), usado por listas, dashboard e CSV.
+export function escopoDo(req: Request): Escopo {
+  if (req.auth.role === "admin") return { tipo: "admin" };
+  if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: idDoChamador(req) };
+  return { tipo: "aluno", usuarioId: idDoChamador(req) };
 }
