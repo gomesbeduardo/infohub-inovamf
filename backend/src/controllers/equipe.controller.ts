@@ -5,7 +5,13 @@ import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
-import { escopoDo, idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
+import {
+  escopoDo,
+  idDoChamador,
+  ipDoChamador,
+  podeGerirEquipe,
+  podeVerEquipe,
+} from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
@@ -14,7 +20,8 @@ import {
   type EstagioIdeia,
   type StatusEquipe,
 } from "../domain/enums.js";
-import { POSICAO_PRONTA } from "../domain/transicao.js";
+import { POSICAO_PRONTA, codigoBloqueio } from "../domain/transicao.js";
+import { LIMITE_LINHA_DO_TEMPO, montarLinhaDoTempo } from "../domain/linhaDoTempo.js";
 import { classificarColega } from "../domain/membros.js";
 import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
@@ -293,26 +300,42 @@ export async function store(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// PATCH /equipes/:slug — admin edita.
+// PATCH /equipes/:slug — admin edita e faz a gestão (A1): mentor e status.
+// "pronta_inovamf" só vem da transição (RN-02); "encaminhada_inovamf" só a
+// partir de "pronta_inovamf" (409). Mentor/status mudados são auditados (RNF-05).
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { nomeIdeia, descricaoIdeia, estagio, status, area, mentor, origem } =
       req.body ?? {};
-    const data: Record<string, unknown> = {};
+    const campos: Record<string, unknown> = {};
 
     if (nomeIdeia !== undefined) {
       if (typeof nomeIdeia !== "string" || nomeIdeia.trim().length < 3) {
         throw httpError(400, "INVALID_NOME", "Nome da ideia inválido");
       }
-      data.nome_ideia = nomeIdeia.trim();
+      campos.nome_ideia = nomeIdeia.trim();
     }
     if (descricaoIdeia !== undefined) {
       if (typeof descricaoIdeia !== "string" || descricaoIdeia.trim().length === 0) {
         throw httpError(400, "INVALID_DESCRICAO", "Descrição inválida");
       }
-      data.descricao_ideia = descricaoIdeia.trim();
+      campos.descricao_ideia = descricaoIdeia.trim();
     }
-    if (estagio !== undefined) data.estagio_ideia = validarEstagio(estagio);
+    if (estagio !== undefined) campos.estagio_ideia = validarEstagio(estagio);
+    if (origem !== undefined) {
+      campos.origem_divulgacao = typeof origem === "string" ? origem.trim() : null;
+    }
+    if (area !== undefined) {
+      if (typeof area === "string" && area.trim()) {
+        const a = await areaModel.findIdByNome(area.trim());
+        if (!a) throw httpError(400, "INVALID_AREA", "Área desconhecida");
+        campos.area_id = a.id;
+      } else {
+        campos.area_id = null;
+      }
+    }
+
+    let novoStatus: StatusEquipe | undefined;
     if (status !== undefined) {
       if (typeof status !== "string" || !(STATUS_EQUIPE as string[]).includes(status)) {
         throw httpError(400, "INVALID_STATUS", "Status inválido");
@@ -324,49 +347,55 @@ export async function update(req: Request, res: Response, next: NextFunction) {
           "Use POST /equipes/:slug/etapa com etapa 'pronta' (RN-02)",
         );
       }
-      data.status = status;
+      novoStatus = status as StatusEquipe;
     }
-    if (origem !== undefined) {
-      data.origem_divulgacao = typeof origem === "string" ? origem.trim() : null;
-    }
-    if (area !== undefined) {
-      if (typeof area === "string" && area.trim()) {
-        const a = await areaModel.findIdByNome(area.trim());
-        if (!a) throw httpError(400, "INVALID_AREA", "Área desconhecida");
-        data.area_id = a.id;
-      } else {
-        data.area_id = null;
-      }
-    }
+
+    // undefined = não mexe; null = "sem mentor".
+    let novoMentor: { id: string; nome: string } | null | undefined;
     if (mentor !== undefined) {
       if (typeof mentor === "string" && mentor.trim()) {
         const id = fromSlug(mentor.trim());
         const u = id ? await usuarioModel.findParaSessaoById(id) : null;
-        if (!u || (u.tipo_usuario !== "mentor" && u.tipo_usuario !== "admin")) {
+        if (!id || !u || (u.tipo_usuario !== "mentor" && u.tipo_usuario !== "admin")) {
           throw httpError(400, "INVALID_MENTOR", "Mentor inválido");
         }
-        data.mentor_id = id;
+        novoMentor = { id, nome: u.nome };
       } else {
-        data.mentor_id = null;
+        novoMentor = null;
       }
     }
 
-    if (Object.keys(data).length === 0) {
+    if (
+      Object.keys(campos).length === 0 &&
+      novoStatus === undefined &&
+      novoMentor === undefined
+    ) {
       throw httpError(400, "EMPTY_UPDATE", "Nada para atualizar");
     }
 
-    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
-    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
-
-    const atualizada = await equipeModel.atualizarPorSlug(
-      req.params.slug ?? "",
-      data,
-    );
+    const r = await equipeModel.atualizarGestao({
+      slug: req.params.slug ?? "",
+      campos,
+      status: novoStatus,
+      mentor: novoMentor,
+      por: idDoChamador(req),
+      ip: ipDoChamador(req),
+    });
+    if (r.tipo === "nao_encontrada") {
+      throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    }
+    if (r.tipo === "transicao_invalida") {
+      throw httpError(
+        409,
+        "TRANSICAO_INVALIDA",
+        "Só dá para encaminhar ao InovAMF uma equipe que está Pronta p/ InovAMF",
+      );
+    }
     res.json({
-      slug: atualizada.slug,
-      nomeIdeia: atualizada.nome_ideia,
-      status: atualizada.status,
-      estagio: atualizada.estagio_ideia,
+      slug: r.equipe.slug,
+      nomeIdeia: r.equipe.nome_ideia,
+      status: r.equipe.status,
+      estagio: r.equipe.estagio_ideia,
     });
   } catch (err) {
     next(err);
@@ -377,6 +406,12 @@ const MENSAGEM_INVALIDA: Record<string, string> = {
   MESMA_POSICAO: "A equipe já está nessa etapa",
   OBSERVACAO_OBRIGATORIA: "Para forçar, explique o motivo na observação",
   POSICAO_INVALIDA: "Etapa deve ser um número de 1 a 6 ou 'pronta'",
+};
+
+const MENSAGEM_BLOQUEIO: Record<ReturnType<typeof codigoBloqueio>, string> = {
+  RN01_SALTO: "Pular etapas exige forçar com observação",
+  RN01_PENDENCIAS: "Há pendências obrigatórias nesta etapa",
+  RN02_PENDENCIAS: "Faltam entregáveis finais ou dados de integrantes para ficar Pronta p/ InovAMF",
 };
 
 // POST /equipes/:slug/etapa — avançar/retroceder (RF-09, RN-01, RN-02).
@@ -403,20 +438,17 @@ export async function moverEtapa(req: Request, res: Response, next: NextFunction
       movidoPor: idDoChamador(req),
       forcado: forcado === true,
       observacao: typeof observacao === "string" && observacao.trim() ? observacao.trim() : null,
+      ip: ipDoChamador(req),
     });
 
     if (r.tipo === "rejeitada") {
       if (r.decisao.tipo === "invalida") {
         throw httpError(400, r.decisao.codigo, MENSAGEM_INVALIDA[r.decisao.codigo] ?? "");
       }
-      throw httpError(
-        409,
-        r.decisao.motivo === "salto" ? "RN01_SALTO" : "RN01_PENDENCIAS",
-        r.decisao.motivo === "salto"
-          ? "Pular etapas exige forçar com observação"
-          : "Há pendências obrigatórias nesta etapa",
-        { pendencias: r.decisao.pendencias },
-      );
+      const codigo = codigoBloqueio(r.origem, r.decisao.motivo);
+      throw httpError(409, codigo, MENSAGEM_BLOQUEIO[codigo], {
+        pendencias: r.decisao.pendencias,
+      });
     }
     res.json(r.equipe);
   } catch (err) {
@@ -687,6 +719,52 @@ export async function adicionarMembro(req: Request, res: Response, next: NextFun
       conviteUrl: c.conviteToken ? linkConvite(c.conviteToken) : null,
       pendente: c.conviteToken !== null,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /equipes/:slug/linha-do-tempo — A5 (RF-08, RNF-05 visível). Admin vê
+// tudo; mentor só as próprias equipes; aluno a própria, sem a observação de
+// movimento forçado. Nunca devolve UUID.
+export async function linhaDoTempo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    const membros = controle.equipe_membros.map((m) => m.usuario_id);
+    if (!podeVerEquipe(req, controle.mentor_id, membros)) {
+      throw httpError(403, "FORBIDDEN", "Equipe fora do seu escopo");
+    }
+
+    const { historico, auditoria } = await equipeModel.eventosLinhaDoTempo(
+      controle.id,
+      LIMITE_LINHA_DO_TEMPO,
+    );
+    const data = montarLinhaDoTempo({
+      paraAluno: req.auth.role === "aluno",
+      movimentos: historico.map((h) => ({
+        de:
+          h.status_origem === "pronta_inovamf"
+            ? "pronta"
+            : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+        para:
+          h.status_destino === "pronta_inovamf"
+            ? "pronta"
+            : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+        forcado: h.forcado,
+        observacao: h.observacao,
+        autor: h.usuarios?.nome ?? null,
+        em: h.criado_em,
+      })),
+      auditoria: auditoria.map((a) => ({
+        acao: a.acao,
+        antes: a.dados_anteriores,
+        depois: a.dados_novos,
+        autor: a.usuarios?.nome ?? null,
+        em: a.criado_em,
+      })),
+    });
+    res.json({ data });
   } catch (err) {
     next(err);
   }

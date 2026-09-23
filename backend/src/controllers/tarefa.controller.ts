@@ -258,3 +258,24 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     next(err);
   }
 }
+
+// POST /tarefas/:slug/iniciar — o aluno da equipe marca "Comecei" (RF-12).
+// Enviar a entrega continua levando a "entregue".
+export async function iniciar(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = fromSlug(req.params.slug ?? "");
+    const tarefa = id ? await tarefaModel.findById(id) : null;
+    if (!tarefa) throw httpError(404, "TAREFA_NOT_FOUND", "Tarefa não encontrada");
+    const membros = tarefa.equipes.equipe_membros.map((m) => m.usuario_id);
+    if (!membros.includes(idDoChamador(req))) {
+      throw httpError(403, "NOT_TEAM_MEMBER", "Você não participa desta equipe");
+    }
+    const iniciada = await tarefaModel.iniciar(tarefa.id);
+    if (!iniciada) {
+      throw httpError(409, "TAREFA_NAO_PENDENTE", "Só dá para começar uma tarefa pendente");
+    }
+    res.json(mapTarefa(iniciada));
+  } catch (err) {
+    next(err);
+  }
+}

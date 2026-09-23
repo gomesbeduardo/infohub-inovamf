@@ -101,12 +101,16 @@ describe("RN-01 — avançar etapa", () => {
 });
 
 describe("RN-02 — Pronta para o InovAMF", () => {
-  it("409 lista o integrante com convite pendente", async () => {
+  it("409 RN02_PENDENCIAS lista os entregáveis ausentes e o integrante com convite pendente", async () => {
     const r = await mover(final.slug, { etapa: "pronta" });
     expect(r.status).toBe(409);
-    expect(r.body.error.details.pendencias).toEqual([
-      expect.objectContaining({ tipo: "integrante", nome: "Pendente Silva", motivo: "convite_pendente" }),
-    ]);
+    expect(r.body.error.code).toBe("RN02_PENDENCIAS");
+    expect(r.body.error.details.pendencias).toEqual(
+      expect.arrayContaining([
+        { tipo: "entregavel", titulo: "Pitch vídeo" },
+        expect.objectContaining({ tipo: "integrante", nome: "Pendente Silva", motivo: "convite_pendente" }),
+      ]),
+    );
   });
 
   it("forçado vira pronta_inovamf; histórico mostra 6 → pronta", async () => {

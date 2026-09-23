@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import type { ResultadoAvaliacao } from "../domain/enums.js";
+import { registrarAuditoria } from "./auditoria.model.js";
 
 const LIST_SELECT = {
   id: true,
@@ -27,8 +29,10 @@ const DETALHE_SELECT = {
   tarefas: {
     select: {
       id: true,
+      titulo: true,
       equipes: {
         select: {
+          id: true,
           slug: true,
           mentor_id: true,
           equipe_membros: {
@@ -50,29 +54,39 @@ export async function proximaVersao(tarefaId: string): Promise<number> {
   return (ultima?.versao ?? 0) + 1;
 }
 
-// Cria a entrega e seus arquivos (todos tipo='link' na v1) numa transação.
-export function criarComArquivos(data: {
+// Entrega (links, v1) + tarefa "entregue" + auditoria numa transação (RNF-05).
+export function enviar(p: {
   tarefaId: string;
+  tarefaTitulo: string;
   versao: number;
   enviadoPor: string;
-  comentario?: string | null;
-  arquivos: Array<{ url: string; nome?: string | null }>;
+  comentario: string | null;
+  arquivos: Array<{ url: string; nome: string | null }>;
+  ip: string | null;
 }) {
-  return prisma.entregas.create({
-    data: {
-      tarefa_id: data.tarefaId,
-      versao: data.versao,
-      enviado_por: data.enviadoPor,
-      comentario: data.comentario ?? null,
-      arquivos_entrega: {
-        create: data.arquivos.map((a) => ({
-          tipo: "link",
-          url_externa: a.url,
-          nome_original: a.nome ?? null,
-        })),
+  return prisma.$transaction(async (tx) => {
+    const entrega = await tx.entregas.create({
+      data: {
+        tarefa_id: p.tarefaId,
+        versao: p.versao,
+        enviado_por: p.enviadoPor,
+        comentario: p.comentario,
+        arquivos_entrega: {
+          create: p.arquivos.map((a) => ({ tipo: "link", url_externa: a.url, nome_original: a.nome })),
+        },
       },
-    },
-    select: LIST_SELECT,
+      select: LIST_SELECT,
+    });
+    await tx.tarefas.update({ where: { id: p.tarefaId }, data: { status: "entregue" } });
+    await registrarAuditoria(tx, {
+      usuarioId: p.enviadoPor,
+      entidade: "entrega",
+      entidadeId: entrega.id,
+      acao: "entrega_enviada",
+      depois: { tarefa: p.tarefaTitulo, versao: p.versao },
+      ip: p.ip,
+    });
+    return entrega;
   });
 }
 
@@ -88,19 +102,41 @@ export function findById(id: string) {
   return prisma.entregas.findUnique({ where: { id }, select: DETALHE_SELECT });
 }
 
-export function criarAvaliacao(data: {
+// Avaliação + status da tarefa (RF-15) + auditoria numa transação (RNF-05).
+export function avaliar(p: {
   entregaId: string;
+  tarefaId: string;
+  tarefaTitulo: string;
   avaliadorId: string;
-  resultado: string;
-  comentario?: string | null;
+  resultado: ResultadoAvaliacao;
+  comentario: string | null;
+  ip: string | null;
 }) {
-  return prisma.avaliacoes_entrega.create({
-    data: {
-      entrega_id: data.entregaId,
-      avaliador_id: data.avaliadorId,
-      resultado: data.resultado,
-      comentario: data.comentario ?? null,
-    },
-    select: { resultado: true, comentario: true, criado_em: true },
+  return prisma.$transaction(async (tx) => {
+    const avaliacao = await tx.avaliacoes_entrega.create({
+      data: {
+        entrega_id: p.entregaId,
+        avaliador_id: p.avaliadorId,
+        resultado: p.resultado,
+        comentario: p.comentario,
+      },
+      select: { resultado: true, comentario: true, criado_em: true },
+    });
+    await tx.tarefas.update({
+      where: { id: p.tarefaId },
+      data: {
+        status: p.resultado,
+        concluida_em: p.resultado === "aprovada" ? new Date() : null,
+      },
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: p.avaliadorId,
+      entidade: "entrega",
+      entidadeId: p.entregaId,
+      acao: "entrega_avaliada",
+      depois: { tarefa: p.tarefaTitulo, resultado: p.resultado, comentario: p.comentario },
+      ip: p.ip,
+    });
+    return avaliacao;
   });
 }

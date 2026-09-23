@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { httpError } from "../utils/error.js";
-import { idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
+import { idDoChamador, ipDoChamador, podeGerirEquipe } from "../utils/acesso.js";
 import { paginacao } from "../utils/http.js";
 import { TIPOS_EMAIL, ehTipoEmail } from "../domain/enums.js";
 import * as preferenciaModel from "../models/preferencia.model.js";
@@ -70,7 +70,11 @@ export async function index(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+// Teto da mensagem do lembrete manual — o front usa o mesmo limite.
+const LIMITE_MENSAGEM = 500;
+
 // POST /equipes/:slug/lembrete — admin/mentor dispara lembrete manual (RF-20).
+// Fila de e-mails + auditoria na mesma transação (RNF-05).
 export async function lembrete(req: Request, res: Response, next: NextFunction) {
   try {
     const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
@@ -83,26 +87,36 @@ export async function lembrete(req: Request, res: Response, next: NextFunction) 
     if (mensagem !== undefined && typeof mensagem !== "string") {
       throw httpError(400, "INVALID_MENSAGEM", "Mensagem inválida");
     }
+    const texto = typeof mensagem === "string" ? mensagem.trim() : "";
+    if (texto.length > LIMITE_MENSAGEM) {
+      throw httpError(400, "MENSAGEM_LONGA", `A mensagem pode ter até ${LIMITE_MENSAGEM} caracteres`);
+    }
     const titulo =
       typeof assunto === "string" && assunto.trim()
         ? assunto.trim().slice(0, 255)
         : "Lembrete da equipe InfoHub";
 
     const membros = await equipeModel.listarEmailsMembros(controle.id);
-    const { enfileirados, total } = await emailModel.enfileirarLote(
+    const enfileirados = await emailModel.enfileirarComAuditoria(
       membros.map((m) => ({
         tipo: "lembrete_manual",
         destinatarioId: m.usuarios.id,
         destinatarioEmail: m.usuarios.email,
         assunto: titulo,
         template: "lembrete_manual",
-        dadosTemplate: {
-          mensagem: typeof mensagem === "string" ? mensagem.trim() : "",
-        },
+        dadosTemplate: { mensagem: texto },
         equipeId: controle.id,
       })),
+      {
+        usuarioId: idDoChamador(req),
+        entidade: "equipe",
+        entidadeId: controle.id,
+        acao: "lembrete_enviado",
+        depois: { mensagem: texto, destinatarios: membros.length },
+        ip: ipDoChamador(req),
+      },
     );
-    res.status(201).json({ enfileirados, total });
+    res.status(201).json({ enfileirados, total: membros.length });
   } catch (err) {
     next(err);
   }

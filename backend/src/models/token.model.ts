@@ -4,6 +4,7 @@ import { newId } from "../utils/slug.js";
 import { hashTokenSenha, sha256, tokenAleatorio } from "../utils/hash.js";
 import { DIA_MS } from "../utils/time.js";
 import type { MotivoRevogacao } from "../domain/enums.js";
+import { registrarAuditoria } from "./auditoria.model.js";
 
 // --- Sessão (par access + refresh em tokens_acesso) ---------------------------
 // access.token_pai_id → o refresh irmão (permite logout do par por jti).
@@ -174,4 +175,63 @@ export function consumirConvite(params: {
     );
   }
   return prisma.$transaction(ops);
+}
+
+// --- Redefinição de senha pelo admin (tokens_senha, finalidade='recuperacao') --
+// RF-01: link de uso único, 24 h. Um link novo invalida os anteriores; a
+// geração é auditada na mesma transação (RNF-05) — sem o segredo no log.
+export const RECUPERACAO_TTL_HORAS = 24;
+
+export async function emitirRecuperacao(p: {
+  usuarioId: string;
+  adminId: string;
+  ip: string | null;
+}): Promise<{ tokenBruto: string; expiraEm: Date }> {
+  const segredo = tokenAleatorio(24);
+  const hash = await hashTokenSenha(segredo); // bcrypt é caro: fora da transação
+  const expiraEm = new Date(Date.now() + RECUPERACAO_TTL_HORAS * 3_600_000);
+  const id = await prisma.$transaction(async (tx) => {
+    await tx.tokens_senha.updateMany({
+      where: { usuario_id: p.usuarioId, finalidade: "recuperacao", usado_em: null },
+      data: { usado_em: new Date() },
+    });
+    const row = await tx.tokens_senha.create({
+      data: { usuario_id: p.usuarioId, token_hash: hash, finalidade: "recuperacao", expira_em: expiraEm },
+      select: { id: true },
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: p.adminId,
+      entidade: "usuario",
+      entidadeId: p.usuarioId,
+      acao: "redefinicao_senha_gerada",
+      depois: { expiraEm: expiraEm.toISOString() },
+      ip: p.ip,
+    });
+    return row.id;
+  });
+  return { tokenBruto: `${id}.${segredo}`, expiraEm };
+}
+
+// Consome o link: queima o token (UPDATE condicional — dois envios simultâneos
+// não trocam a senha duas vezes), grava a senha e derruba as sessões vivas.
+// false = o token já tinha sido usado.
+export function consumirRecuperacao(p: {
+  tokenId: string;
+  usuarioId: string;
+  senhaHash: string;
+}): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const agora = new Date();
+    const queimado = await tx.tokens_senha.updateMany({
+      where: { id: p.tokenId, usado_em: null },
+      data: { usado_em: agora },
+    });
+    if (queimado.count === 0) return false;
+    await tx.usuarios.update({ where: { id: p.usuarioId }, data: { senha: p.senhaHash } });
+    await tx.tokens_acesso.updateMany({
+      where: { usuario_id: p.usuarioId, revogado_em: null },
+      data: { revogado_em: agora, motivo_revogacao: "troca_senha" },
+    });
+    return true;
+  });
 }

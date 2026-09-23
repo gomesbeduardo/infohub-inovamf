@@ -34,3 +34,9 @@ export function escopoDo(req: Request): Escopo {
   if (req.auth.role === "mentor") return { tipo: "mentor", usuarioId: idDoChamador(req) };
   return { tipo: "aluno", usuarioId: idDoChamador(req) };
 }
+
+// RNF-05: IP de origem gravado na auditoria. req.ip já é o IP real do cliente
+// (app.ts confia no X-Forwarded-For do rewrite do Next — trust proxy).
+export function ipDoChamador(req: Request): string | null {
+  return req.ip ?? null;
+}
