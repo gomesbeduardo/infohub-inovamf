@@ -18,6 +18,8 @@
 export interface EtapaVitrine {
   numero: number;
   nome: string;
+  /** Uma frase do que acontece na etapa (tela da etapa em "Como funciona"). */
+  descricao: string;
   entregavel: string;
 }
 
@@ -33,12 +35,12 @@ export interface CasoVitrine {
 
 /** As 6 etapas da jornada InfoHub → InovAMF, com o entregável de cada uma. */
 export const ETAPAS_VITRINE: EtapaVitrine[] = [
-  { numero: 1, nome: 'Envio da ideia', entregavel: 'Cadastro da ideia (formulário)' },
-  { numero: 2, nome: 'Contato com a equipe', entregavel: 'Agendamento confirmado' },
-  { numero: 3, nome: 'Encontro 1 – Entendendo a ideia', entregavel: 'Problema, público-alvo e solução definidos' },
-  { numero: 4, nome: 'Encontro 2 – Proposta de valor', entregavel: 'Value Proposition Design' },
-  { numero: 5, nome: 'Encontro 3 – Modelo de negócio', entregavel: 'Business Model Canvas' },
-  { numero: 6, nome: 'Encontro 4 – Pitch e inscrição', entregavel: 'Pitch Vídeo, Canvas final, VPD final, dados de todos os integrantes' },
+  { numero: 1, nome: 'Envio da ideia', descricao: 'Você conta a ideia no formulário inicial, mesmo que ainda esteja crua. A conta de acesso é criada na hora.', entregavel: 'Cadastro da ideia (formulário)' },
+  { numero: 2, nome: 'Contato com a equipe', descricao: 'A equipe InfoHub analisa a proposta e agenda o primeiro encontro com vocês.', entregavel: 'Agendamento confirmado' },
+  { numero: 3, nome: 'Encontro 1 – Entendendo a ideia', descricao: 'Mentor e equipe definem o problema, o público-alvo e a solução inicial.', entregavel: 'Problema, público-alvo e solução definidos' },
+  { numero: 4, nome: 'Encontro 2 – Proposta de valor', descricao: 'Vocês constroem o Value Proposition Design com o mentor.', entregavel: 'Value Proposition Design' },
+  { numero: 5, nome: 'Encontro 3 – Modelo de negócio', descricao: 'É a vez do Business Model Canvas: como a ideia gera valor e se sustenta.', entregavel: 'Business Model Canvas' },
+  { numero: 6, nome: 'Encontro 4 – Pitch e inscrição', descricao: 'Revisão geral, gravação do Pitch Vídeo e conferência dos documentos. A equipe fica pronta para o InovAMF.', entregavel: 'Pitch Vídeo, Canvas final, VPD final, dados de todos os integrantes' },
 ];
 
 /** Áreas de atuação aceitas nas ideias (lista configurável — RF, seção 4.2). */
@@ -77,6 +79,15 @@ export const CASOS_VITRINE: CasoVitrine[] = [
     status: 'Pronta p/ InovAMF',
     integrantes: 2,
     cursos: ['Sistemas de Informação'],
+  },
+  {
+    id: 'caso-4',
+    nomeIdeia: 'EduPonte',
+    descricao: 'Mentoria entre veteranos e calouros por trilhas de estudo.',
+    area: 'Educação',
+    status: 'Pronta p/ InovAMF',
+    integrantes: 3,
+    cursos: ['Pedagogia', 'Administração'],
   },
 ];
 
@@ -119,3 +130,22 @@ export const EQUIPES_VITRINE: CasoVitrine[] = [
     cursos: ['Administração'],
   },
 ];
+
+/**
+ * Foto da AMF no card "Aberto a todos os cursos" (opção 2b: a foto ocupa o
+ * card inteiro, com véu). Precisa de direito de uso; enquanto não houver, o
+ * card usa o fundo quente da marca. Para ligar: salve a imagem em
+ * `frontend/public/landing/` e aponte aqui (ex.: '/landing/amf-campus.webp').
+ */
+export const FOTO_AMF: { src: string; alt: string } | null = null;
+
+/** Endereço e contato oficiais da AMF (confirmados pelo dono do produto, 23/09). */
+export const CONTATO_AMF = {
+  instituicao: 'Faculdade Antonio Meneghetti (AMF)',
+  linhas: [
+    'Estrada Recanto Maestro, nº 338',
+    'Distrito Recanto Maestro',
+    'Restinga Sêca – RS · CEP 97200-000',
+  ],
+  telefones: ['(55) 3289-1139', '(55) 99998-0696'],
+};
