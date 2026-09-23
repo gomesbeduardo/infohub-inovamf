@@ -15,7 +15,7 @@ const OPCOES = [
 ];
 
 describe('OpcoesSegmentadas', () => {
-  it('renderiza todas as opções com seus rótulos e descrições', () => {
+  it('renderiza as opções como radios e a descrição de cada uma como descrição acessível', () => {
     render(
       <OpcoesSegmentadas
         name="estagio"
@@ -26,11 +26,39 @@ describe('OpcoesSegmentadas', () => {
       />,
     );
 
-    expect(screen.getByText('Estágio da ideia')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Estágio da ideia' })).toBeInTheDocument();
     for (const o of OPCOES) {
-      expect(screen.getByText(o.label)).toBeInTheDocument();
-      expect(screen.getByText(o.descricao)).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: o.label })).toHaveAccessibleDescription(
+        o.descricao,
+      );
     }
+  });
+
+  it('mostra abaixo do controle só a descrição da opção escolhida', () => {
+    const { rerender } = render(
+      <OpcoesSegmentadas
+        name="estagio"
+        legenda="Estágio da ideia"
+        opcoes={OPCOES}
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
+    const dica = document.querySelector('[data-dica]');
+    expect(dica).toHaveTextContent('');
+
+    rerender(
+      <OpcoesSegmentadas
+        name="estagio"
+        legenda="Estágio da ideia"
+        opcoes={OPCOES}
+        value="prototipo"
+        onChange={vi.fn()}
+      />,
+    );
+    expect(document.querySelector('[data-dica]')).toHaveTextContent(
+      'Algo testável, mesmo simples',
+    );
   });
 
   it('selecionar uma opção chama onChange com o value correspondente', async () => {
@@ -104,7 +132,7 @@ describe('OpcoesSegmentadas', () => {
 
     const radios = screen.getAllByRole('radio');
     for (const r of radios) {
-      expect(r).toHaveAttribute('aria-describedby', 'estagio-error');
+      expect(r.getAttribute('aria-describedby')?.split(' ')).toContain('estagio-error');
     }
   });
 });
