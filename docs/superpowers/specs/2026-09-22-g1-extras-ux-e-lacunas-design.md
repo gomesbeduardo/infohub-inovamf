@@ -151,3 +151,62 @@ Este design fecha as lacunas que aparecem numa demo ao vivo e acrescenta melhori
 - **E4, busca rápida:** Ctrl+K.
 
 Depois de E4: promoção `staging` → `main`, *purge* da demo + redeploy (o cenário volta limpo, já com as notificações), e smoke.
+
+## Adendo (23/09)
+
+Aprovado com o dono do produto depois do merge do E1. Os princípios são os mesmos:
+- o mínimo que atende;
+- **nenhuma migration nova**;
+- regra de negócio só no backend;
+- nunca UUID na API.
+
+### Mesa do mentor (RF-22, B3)
+- **Onde:** em `/orientador`, no topo da "Visão geral", acima dos indicadores. São três blocos:
+  - **Para avaliar:**
+    - Mostra as tarefas com status `entregue` das equipes do mentor.
+    - Cada item traz o nome da equipe, o título da tarefa, a versão e há quanto tempo foi enviada ("v2 enviada há 2 h").
+    - Um clique abre o detalhe da equipe já na aba Tarefas (`?aba=tarefas`), onde se avalia.
+  - **Prazos:**
+    - Mostra as tarefas atrasadas e as que vencem nos próximos 7 dias.
+    - O status vem do backend: RN-04 na consulta, com "hoje" em America/Sao_Paulo.
+    - A tela mostra os chips de prazo do B3.
+  - **Minhas equipes:** um cartão por equipe em andamento (sem desistentes e sem as já encaminhadas ao InovAMF), com:
+    - a etapa, no `StageProgress`;
+    - os integrantes ativos;
+    - "faltam N itens para avançar", que é a contagem das pendências que o backend já calcula para a RN-01/RN-02;
+    - o título e a data do último evento da linha do tempo.
+- **Admin:** o painel `/admin` ganha "Para avaliar" e "Prazos" de todas as equipes, acima dos indicadores.
+- **Backend:** um endpoint só, `GET /dashboard/agenda`.
+  - Serve admin e mentor. O mentor só vê as próprias equipes, pelo mesmo escopo do dashboard.
+  - Responde `{ data: { paraAvaliar, prazos, equipes } }`, só com slugs.
+  - Cada lista tem **no máximo 20 itens**, filtrados e ordenados no banco (prazo mais antigo primeiro).
+  - Os cartões reaproveitam as funções do detalhe (pendências) e da linha do tempo (último evento), fazendo algumas consultas por equipe. Isso é aceitável porque um mentor tem poucas equipes e a lista tem teto.
+  - Pelo mesmo motivo, o admin recebe `equipes` vazia.
+
+### Pedido de redefinição de senha (RF-01)
+- **Tela:**
+  - "Recuperar senha" ganha o campo de e-mail e o botão "Pedir redefinição".
+  - Depois de enviar, a tela mostra a confirmação genérica e mantém a orientação "a coordenação vai te enviar um link".
+  - Isso substitui o "fale com a coordenação" de A3.
+- **Backend:** `POST /auth/pedido-redefinicao` recebe `{ email }` e responde **sempre 202 com o mesmo corpo**, exista ou não a conta, sem enumeração.
+  - Uma falha interna ao registrar também responde 202.
+  - O e-mail malformado recebe 400.
+  - Tem limite de 5 pedidos por 15 min por IP + e-mail, contando os 202 (o limitador do login ignora respostas de sucesso).
+- **Com conta ativa e convite aceito:**
+  - cada admin ativo recebe uma notificação `recuperacao_senha` com status `cancelado` (nunca vira e-mail);
+  - os `dados` levam nome, e-mail e slug de quem pediu;
+  - ela aparece no sino, e o link leva a `/admin/contas`, onde o admin usa "Redefinir senha" (A3).
+- **Dedupe:** no máximo um pedido por conta por hora.
+- **Auditoria:** a ação `redefinicao_solicitada` é gravada na **mesma transação** dos avisos, sem autor (o pedido é anônimo) e sem dados sensíveis.
+- **Nenhum e-mail é enviado:** o envio real fica para o Bloco C / Plano 4.
+
+### Testes do adendo
+- **Backend** (supertest, `tests/helpers.ts`):
+  - agenda: escopo do mentor, a ordem e o status efetivo dos prazos, o cartão (pendências, integrantes, último evento), nenhum UUID, a visão do admin (pertença + teto) e 403 do aluno;
+  - pedido: 202 idêntico para conta existente, inexistente, pendente e inativa, aviso cancelado para admins ativos, dedupe de 1 h, auditoria e 400;
+  - rate limit contando os 202.
+- **Frontend:** os três blocos e os estados de carregamento, erro e vazio, os links `?aba=tarefas`, o painel do admin só com dois blocos, a aba inicial do detalhe e o formulário do pedido.
+
+### Entrega
+- **Backend:** num PR próprio e pequeno para `staging`, antes do E2 ou junto com ele. Não toca arquivos do E2.
+- **Telas:** no E3, depois dos toasts e skeletons, dentro do PR do E3.
