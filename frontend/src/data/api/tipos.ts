@@ -92,6 +92,9 @@ export interface NumerosPublicos {
 export interface UsuarioAdmin {
   slug: string; nome: string; email: string; telefone: string; role: TipoUsuario; ativo: boolean;
   conviteAceito: boolean; ultimoLoginEm?: string | null; criadoEm?: string;
+  // Task 17: só para aluno — curso/semestre (tabela `alunos`) e a equipe ativa.
+  // admin e mentor vêm com os três `null`.
+  curso?: string | null; semestre?: string | null; equipe?: { slug: string; nomeIdeia: string } | null;
 }
 export interface Me {
   slug: string; nome: string; email: string; telefone: string; role: TipoUsuario; criadoEm: string; ultimoLoginEm: string | null;
