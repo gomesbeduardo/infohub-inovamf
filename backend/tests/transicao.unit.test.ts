@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   POSICAO_PRONTA,
   avaliarTransicao,
+  mudancaDeStatusValida,
   pendenciasDeIntegrantes,
   type Pendencia,
 } from "../src/domain/transicao.js";
@@ -72,5 +73,19 @@ describe("pendenciasDeIntegrantes (RN-02: dados de todos os integrantes)", () =>
       { tipo: "integrante", slug: "b", nome: "Bia", motivo: "convite_pendente" },
       { tipo: "integrante", slug: "c", nome: "Caio", motivo: "dados_incompletos" },
     ]);
+  });
+});
+
+describe("mudancaDeStatusValida (A1)", () => {
+  it("encaminhar ao InovAMF só a partir de pronta", () => {
+    expect(mudancaDeStatusValida("pronta_inovamf", "encaminhada_inovamf")).toBe(true);
+    expect(mudancaDeStatusValida("encaminhada_inovamf", "encaminhada_inovamf")).toBe(true);
+    expect(mudancaDeStatusValida("ativa", "encaminhada_inovamf")).toBe(false);
+    expect(mudancaDeStatusValida("pausada", "encaminhada_inovamf")).toBe(false);
+  });
+  it("ativa, pausada e desistente são livres", () => {
+    expect(mudancaDeStatusValida("ativa", "pausada")).toBe(true);
+    expect(mudancaDeStatusValida("pausada", "ativa")).toBe(true);
+    expect(mudancaDeStatusValida("pronta_inovamf", "desistente")).toBe(true);
   });
 });

@@ -51,6 +51,16 @@ export function avaliarTransicao(i: {
   };
 }
 
+// A1: status que o admin escolhe na gestão (PATCH /equipes/:slug).
+// "pronta_inovamf" nunca vem daqui (só da transição — RN-02); encaminhar ao
+// InovAMF só a partir de "pronta_inovamf".
+export function mudancaDeStatusValida(atual: string, novo: string): boolean {
+  if (novo === "encaminhada_inovamf") {
+    return atual === "pronta_inovamf" || atual === "encaminhada_inovamf";
+  }
+  return true;
+}
+
 export function pendenciasDeIntegrantes(
   membros: Array<{
     slug: string;

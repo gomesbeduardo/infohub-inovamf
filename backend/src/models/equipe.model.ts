@@ -3,12 +3,14 @@ import { prisma } from "../prisma.js";
 import {
   POSICAO_PRONTA,
   avaliarTransicao,
+  mudancaDeStatusValida,
   pendenciasDeIntegrantes,
   type Decisao,
   type Pendencia,
 } from "../domain/transicao.js";
 import { toSlug } from "../utils/slug.js";
 import { whereStatusEfetivo } from "./tarefa.model.js";
+import { registrarAuditoria } from "./auditoria.model.js";
 
 // --- Escopo por papel (RNF-03) ------------------------------------------------
 export type Escopo =
@@ -215,16 +217,69 @@ export function criar(data: {
   });
 }
 
-export function atualizarPorSlug(slug: string, data: Prisma.equipesUpdateInput) {
-  return prisma.equipes.update({
-    where: { slug },
-    data,
-    select: {
-      slug: true,
-      nome_ideia: true,
-      status: true,
-      estagio_ideia: true,
-    },
+// A1 (gestão pelo admin) como UMA transação: trava a equipe, confere a regra
+// de status (pura), grava e audita mentor/status (RNF-05). `campos` são as
+// colunas simples já validadas no controller (nome, descrição, estágio, área, origem).
+export async function atualizarGestao(p: {
+  slug: string;
+  campos: Record<string, unknown>;
+  status?: string;
+  mentor?: { id: string; nome: string } | null; // undefined = não mexe; null = sem mentor
+  por: string;
+  ip: string | null;
+}): Promise<
+  | {
+      tipo: "ok";
+      equipe: { slug: string; nome_ideia: string; status: string; estagio_ideia: string };
+    }
+  | { tipo: "nao_encontrada" }
+  | { tipo: "transicao_invalida" }
+> {
+  return prisma.$transaction(async (tx) => {
+    const [trava] = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM equipes WHERE slug = ${p.slug} FOR UPDATE`;
+    if (!trava) return { tipo: "nao_encontrada" as const };
+
+    const atual = await tx.equipes.findUniqueOrThrow({
+      where: { id: trava.id },
+      select: { status: true, mentor_id: true, usuarios: { select: { nome: true } } },
+    });
+    if (p.status !== undefined && !mudancaDeStatusValida(atual.status, p.status)) {
+      return { tipo: "transicao_invalida" as const };
+    }
+
+    const data = { ...p.campos } as Prisma.equipesUncheckedUpdateInput;
+    if (p.status !== undefined) data.status = p.status;
+    if (p.mentor !== undefined) data.mentor_id = p.mentor?.id ?? null;
+    const equipe = await tx.equipes.update({
+      where: { id: trava.id },
+      data,
+      select: { slug: true, nome_ideia: true, status: true, estagio_ideia: true },
+    });
+
+    if (p.status !== undefined && p.status !== atual.status) {
+      await registrarAuditoria(tx, {
+        usuarioId: p.por,
+        entidade: "equipe",
+        entidadeId: trava.id,
+        acao: "status_alterado",
+        antes: { status: atual.status },
+        depois: { status: p.status },
+        ip: p.ip,
+      });
+    }
+    if (p.mentor !== undefined && (p.mentor?.id ?? null) !== atual.mentor_id) {
+      await registrarAuditoria(tx, {
+        usuarioId: p.por,
+        entidade: "equipe",
+        entidadeId: trava.id,
+        acao: "mentor_atribuido",
+        antes: { mentor: atual.usuarios?.nome ?? null },
+        depois: { mentor: p.mentor?.nome ?? null },
+        ip: p.ip,
+      });
+    }
+    return { tipo: "ok" as const, equipe };
   });
 }
 
@@ -299,6 +354,7 @@ export async function transicionar(p: {
   movidoPor: string;
   forcado: boolean;
   observacao: string | null;
+  ip: string | null;
 }): Promise<
   | {
       tipo: "ok";
@@ -359,6 +415,20 @@ export async function transicionar(p: {
         forcado: decisao.forcado,
         observacao: p.observacao,
       },
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: p.movidoPor,
+      entidade: "equipe",
+      entidadeId: p.equipeId,
+      acao: "etapa_movida",
+      antes: { posicao: origem, status: eq.status },
+      depois: {
+        posicao: p.destino,
+        status: atualizada.status,
+        forcado: decisao.forcado,
+        observacao: p.observacao,
+      },
+      ip: p.ip,
     });
 
     return {

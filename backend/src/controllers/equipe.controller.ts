@@ -5,7 +5,7 @@ import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
-import { escopoDo, idDoChamador, podeGerirEquipe } from "../utils/acesso.js";
+import { escopoDo, idDoChamador, ipDoChamador, podeGerirEquipe } from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
@@ -293,26 +293,42 @@ export async function store(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// PATCH /equipes/:slug — admin edita.
+// PATCH /equipes/:slug — admin edita e faz a gestão (A1): mentor e status.
+// "pronta_inovamf" só vem da transição (RN-02); "encaminhada_inovamf" só a
+// partir de "pronta_inovamf" (409). Mentor/status mudados são auditados (RNF-05).
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
     const { nomeIdeia, descricaoIdeia, estagio, status, area, mentor, origem } =
       req.body ?? {};
-    const data: Record<string, unknown> = {};
+    const campos: Record<string, unknown> = {};
 
     if (nomeIdeia !== undefined) {
       if (typeof nomeIdeia !== "string" || nomeIdeia.trim().length < 3) {
         throw httpError(400, "INVALID_NOME", "Nome da ideia inválido");
       }
-      data.nome_ideia = nomeIdeia.trim();
+      campos.nome_ideia = nomeIdeia.trim();
     }
     if (descricaoIdeia !== undefined) {
       if (typeof descricaoIdeia !== "string" || descricaoIdeia.trim().length === 0) {
         throw httpError(400, "INVALID_DESCRICAO", "Descrição inválida");
       }
-      data.descricao_ideia = descricaoIdeia.trim();
+      campos.descricao_ideia = descricaoIdeia.trim();
     }
-    if (estagio !== undefined) data.estagio_ideia = validarEstagio(estagio);
+    if (estagio !== undefined) campos.estagio_ideia = validarEstagio(estagio);
+    if (origem !== undefined) {
+      campos.origem_divulgacao = typeof origem === "string" ? origem.trim() : null;
+    }
+    if (area !== undefined) {
+      if (typeof area === "string" && area.trim()) {
+        const a = await areaModel.findIdByNome(area.trim());
+        if (!a) throw httpError(400, "INVALID_AREA", "Área desconhecida");
+        campos.area_id = a.id;
+      } else {
+        campos.area_id = null;
+      }
+    }
+
+    let novoStatus: StatusEquipe | undefined;
     if (status !== undefined) {
       if (typeof status !== "string" || !(STATUS_EQUIPE as string[]).includes(status)) {
         throw httpError(400, "INVALID_STATUS", "Status inválido");
@@ -324,49 +340,55 @@ export async function update(req: Request, res: Response, next: NextFunction) {
           "Use POST /equipes/:slug/etapa com etapa 'pronta' (RN-02)",
         );
       }
-      data.status = status;
+      novoStatus = status as StatusEquipe;
     }
-    if (origem !== undefined) {
-      data.origem_divulgacao = typeof origem === "string" ? origem.trim() : null;
-    }
-    if (area !== undefined) {
-      if (typeof area === "string" && area.trim()) {
-        const a = await areaModel.findIdByNome(area.trim());
-        if (!a) throw httpError(400, "INVALID_AREA", "Área desconhecida");
-        data.area_id = a.id;
-      } else {
-        data.area_id = null;
-      }
-    }
+
+    // undefined = não mexe; null = "sem mentor".
+    let novoMentor: { id: string; nome: string } | null | undefined;
     if (mentor !== undefined) {
       if (typeof mentor === "string" && mentor.trim()) {
         const id = fromSlug(mentor.trim());
         const u = id ? await usuarioModel.findParaSessaoById(id) : null;
-        if (!u || (u.tipo_usuario !== "mentor" && u.tipo_usuario !== "admin")) {
+        if (!id || !u || (u.tipo_usuario !== "mentor" && u.tipo_usuario !== "admin")) {
           throw httpError(400, "INVALID_MENTOR", "Mentor inválido");
         }
-        data.mentor_id = id;
+        novoMentor = { id, nome: u.nome };
       } else {
-        data.mentor_id = null;
+        novoMentor = null;
       }
     }
 
-    if (Object.keys(data).length === 0) {
+    if (
+      Object.keys(campos).length === 0 &&
+      novoStatus === undefined &&
+      novoMentor === undefined
+    ) {
       throw httpError(400, "EMPTY_UPDATE", "Nada para atualizar");
     }
 
-    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
-    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
-
-    const atualizada = await equipeModel.atualizarPorSlug(
-      req.params.slug ?? "",
-      data,
-    );
+    const r = await equipeModel.atualizarGestao({
+      slug: req.params.slug ?? "",
+      campos,
+      status: novoStatus,
+      mentor: novoMentor,
+      por: idDoChamador(req),
+      ip: ipDoChamador(req),
+    });
+    if (r.tipo === "nao_encontrada") {
+      throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    }
+    if (r.tipo === "transicao_invalida") {
+      throw httpError(
+        409,
+        "TRANSICAO_INVALIDA",
+        "Só dá para encaminhar ao InovAMF uma equipe que está Pronta p/ InovAMF",
+      );
+    }
     res.json({
-      slug: atualizada.slug,
-      nomeIdeia: atualizada.nome_ideia,
-      status: atualizada.status,
-      estagio: atualizada.estagio_ideia,
+      slug: r.equipe.slug,
+      nomeIdeia: r.equipe.nome_ideia,
+      status: r.equipe.status,
+      estagio: r.equipe.estagio_ideia,
     });
   } catch (err) {
     next(err);
@@ -403,6 +425,7 @@ export async function moverEtapa(req: Request, res: Response, next: NextFunction
       movidoPor: idDoChamador(req),
       forcado: forcado === true,
       observacao: typeof observacao === "string" && observacao.trim() ? observacao.trim() : null,
+      ip: ipDoChamador(req),
     });
 
     if (r.tipo === "rejeitada") {
