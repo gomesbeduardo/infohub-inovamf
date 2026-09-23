@@ -2,7 +2,8 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { newId, novoIdComSlug } from "../utils/slug.js";
 import { hojeISO } from "../domain/atraso.js";
-import { CICLO_ATUAL, MODELOS_TAREFA } from "./base.js";
+import type { TipoEmail } from "../domain/enums.js";
+import { ADMIN_EMAIL, CICLO_ATUAL, MODELOS_TAREFA } from "./base.js";
 
 // Camada DEMO do seed — cenário obrigatório do G1, armado para cada fluxo da
 // demo ao vivo. Tudo que é demo usa o domínio DEMO_DOMINIO: é o marcador que o
@@ -133,6 +134,7 @@ export async function seedDemo(
   const modeloId = (etapa: number, titulo: string) =>
     modelos.find((m) => m.etapa_id === etapa && m.titulo === titulo)?.id ?? null;
   const T = (etapa: number) => MODELOS_TAREFA.find((m) => m.etapa === etapa)!;
+  const admin = await db.usuarios.findUnique({ where: { email: ADMIN_EMAIL }, select: { id: true } });
 
   await db.$transaction(
     async (tx) => {
@@ -215,6 +217,34 @@ export async function seedDemo(
             select: { id: true },
           })
         ).id;
+
+      // B1: notificações realistas para o sino já ter o que mostrar na demo
+      // (3–4 por perfil usado ao vivo: admin, mentor1 e os líderes). Status
+      // "cancelado" = nunca saem por e-mail. Plano 4: o worker também deve
+      // ignorar destinatários DEMO_DOMINIO. O purge apaga (equipe demo).
+      const notificacoes: Prisma.emailsCreateManyInput[] = [];
+      const notificar = (n: {
+        tipo: TipoEmail;
+        para: { id: string; email: string };
+        assunto: string;
+        dados: Prisma.InputJsonValue;
+        equipeId: string;
+        horas: number;
+      }) => {
+        const em = horasAtras(n.horas);
+        notificacoes.push({
+          tipo: n.tipo,
+          destinatario_id: n.para.id,
+          destinatario_email: n.para.email,
+          assunto: n.assunto,
+          template: n.tipo,
+          dados_template: n.dados,
+          equipe_id: n.equipeId,
+          status: "cancelado",
+          agendado_para: em,
+          criado_em: em,
+        });
+      };
 
       const mentorIds: string[] = [];
       for (const m of MENTORES) mentorIds.push(await criarPessoa(m, "mentor"));
@@ -330,7 +360,87 @@ export async function seedDemo(
             criadoEm: horasAtras(24 * 7),
           });
         }
+
+        // B1 — o que cada perfil encontra no sino (ver `notificar` acima).
+        const lider = { id: liderId, email: email(e.lider) };
+        const mentor = { id: mentorId, email: email(MENTORES[e.mentor]!) };
+        const sobre = { equipe: e.nome, equipe_slug: equipe.slug };
+        if (admin) {
+          notificar({
+            tipo: "novo_cadastro_admin", para: { id: admin.id, email: ADMIN_EMAIL },
+            assunto: "Novo cadastro no InfoHub", dados: { ...sobre, lider: e.lider.nome },
+            equipeId: equipe.id, horas: 24 * 12,
+          });
+        }
+        if (e.chave === "A") {
+          notificar({
+            tipo: "entrega_aprovada", para: lider, assunto: "Entrega aprovada",
+            dados: { ...sobre, tarefa: e1.titulo, comentario: "Ideia clara, podem seguir." },
+            equipeId: equipe.id, horas: 180,
+          });
+          notificar({
+            tipo: "nova_tarefa", para: lider, assunto: "Nova tarefa atribuída",
+            dados: { ...sobre, titulo: e2.titulo }, equipeId: equipe.id, horas: 24 * 7,
+          });
+          notificar({
+            tipo: "lembrete_manual", para: lider, assunto: "Lembrete da equipe InfoHub",
+            dados: { ...sobre, mensagem: "Encontro com a mentora na quinta, 19h, sala 204." },
+            equipeId: equipe.id, horas: 30,
+          });
+          notificar({
+            tipo: "boas_vindas", para: mentor, assunto: "Boas-vindas ao InfoHub",
+            dados: sobre, equipeId: equipe.id, horas: 24 * 12,
+          });
+          notificar({
+            tipo: "entrega_recebida_admin", para: mentor, assunto: "Nova entrega recebida",
+            dados: { ...sobre, tarefa: e2.titulo, versao: 1 }, equipeId: equipe.id, horas: 20,
+          });
+          if (admin) {
+            notificar({
+              tipo: "entrega_recebida_admin", para: { id: admin.id, email: ADMIN_EMAIL },
+              assunto: "Nova entrega recebida", dados: { ...sobre, tarefa: e2.titulo, versao: 1 },
+              equipeId: equipe.id, horas: 20,
+            });
+          }
+        }
+        if (e.chave === "B") {
+          notificar({
+            tipo: "entrega_aprovada", para: lider, assunto: "Entrega aprovada",
+            dados: { ...sobre, tarefa: e1.titulo, comentario: "Ideia clara, podem seguir." },
+            equipeId: equipe.id, horas: 180,
+          });
+          notificar({
+            tipo: "nova_tarefa", para: lider, assunto: "Nova tarefa atribuída",
+            dados: { ...sobre, titulo: e2.titulo }, equipeId: equipe.id, horas: 24 * 7,
+          });
+          notificar({
+            tipo: "lembrete_manual", para: lider, assunto: "Lembrete da equipe InfoHub",
+            dados: { ...sobre, mensagem: "A confirmação do primeiro encontro venceu — enviem ainda hoje." },
+            equipeId: equipe.id, horas: 20,
+          });
+          notificar({
+            tipo: "tarefa_atrasada_admin", para: mentor, assunto: "Tarefa atrasada",
+            dados: { ...sobre, tarefa: e2.titulo }, equipeId: equipe.id, horas: 48,
+          });
+        }
+        if (e.chave === "C") {
+          notificar({
+            tipo: "boas_vindas", para: lider, assunto: "Boas-vindas ao InfoHub",
+            dados: sobre, equipeId: equipe.id, horas: 24 * 12,
+          });
+          notificar({
+            tipo: "nova_tarefa", para: lider, assunto: "Nova tarefa atribuída",
+            dados: { ...sobre, titulo: e1.titulo }, equipeId: equipe.id, horas: 24 * 11,
+          });
+          notificar({
+            tipo: "lembrete_manual", para: lider, assunto: "Lembrete da equipe InfoHub",
+            dados: { ...sobre, mensagem: "Revisem os dados da ideia até sexta." },
+            equipeId: equipe.id, horas: 48,
+          });
+        }
       }
+
+      await tx.emails.createMany({ data: notificacoes });
     },
     { timeout: 30_000 },
   );
