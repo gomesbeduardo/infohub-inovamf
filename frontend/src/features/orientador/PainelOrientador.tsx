@@ -12,6 +12,7 @@ import { UsersIcon, ListChecksIcon, AlertIcon, CheckIcon } from '@/design-system
 import { FunilKanban } from '@/features/orientador/FunilKanban';
 import { Skeleton } from '@/design-system/components/Skeleton';
 import { MesaDoMentor } from '@/features/agenda/Agenda';
+import { EquipesList } from '@/features/admin-equipes/EquipesList';
 
 function CarregandoOuErro({
   isPending,
@@ -57,7 +58,6 @@ export function PainelOrientador() {
 
   const visaoGeral = (
     <div className="flex flex-col gap-5">
-      <MesaDoMentor />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Equipes mentoradas" value={totalEquipes} Icon={UsersIcon} onClick={irParaFunil} />
         <StatCard label="Entregas a avaliar" value={aAvaliar} Icon={ListChecksIcon} onClick={irParaFunil} />
@@ -82,7 +82,7 @@ export function PainelOrientador() {
           <div className="flex flex-col gap-0.5">
             <h3 className="text-sm font-semibold text-text">Ritmo das últimas semanas</h3>
             <p className="text-sm text-text-muted">
-              Avanços de etapa e entregas concluídas das suas equipes.
+              Avanços de etapa, entregas recebidas e avaliadas, e tarefas concluídas das suas equipes.
             </p>
           </div>
           {totalEquipes === 0 ? (
@@ -91,23 +91,35 @@ export function PainelOrientador() {
             <LineChart
               className="w-full"
               labels={serieSemanal.map((p) => p.rotulo)}
-              ariaLabel="Gráfico de linha com avanços de etapa e entregas concluídas por semana"
+              ariaLabel="Gráfico de linha com avanços de etapa, entregas recebidas, entregas avaliadas e tarefas concluídas por semana"
               series={[
                 {
                   nome: 'Avanços de etapa',
-                  cor: 'var(--primary)',
+                  cor: 'var(--series-1)',
                   valores: serieSemanal.map((p) => p.avancos),
                 },
                 {
-                  nome: 'Entregas concluídas',
-                  cor: 'var(--accent)',
-                  valores: serieSemanal.map((p) => p.entregas),
+                  nome: 'Entregas recebidas',
+                  cor: 'var(--series-2)',
+                  valores: serieSemanal.map((p) => p.entregasRecebidas),
+                },
+                {
+                  nome: 'Entregas avaliadas',
+                  cor: 'var(--series-3)',
+                  valores: serieSemanal.map((p) => p.entregasAvaliadas),
+                },
+                {
+                  nome: 'Tarefas concluídas',
+                  cor: 'var(--series-4)',
+                  valores: serieSemanal.map((p) => p.tarefasConcluidas),
                 },
               ]}
             />
           )}
         </Card.Body>
       </Card>
+
+      <MesaDoMentor />
     </div>
   );
 
@@ -118,6 +130,7 @@ export function PainelOrientador() {
       tabs={[
         { id: 'visao', label: 'Visão geral', content: visaoGeral },
         { id: 'funil', label: 'Funil', content: <FunilKanban /> },
+        { id: 'equipes', label: 'Equipes', content: <EquipesList baseHref="/orientador/equipes" /> },
       ]}
     />
   );

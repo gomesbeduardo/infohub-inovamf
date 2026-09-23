@@ -2,20 +2,29 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { useAgenda, useEtapas } from '@/data/api/consultas';
+import { useAgenda } from '@/data/api/consultas';
 import type { Agenda, CartaoEquipeMesa, ItemParaAvaliar, ItemPrazo } from '@/data/api/tipos';
 import { formatarDataHora } from '@/domain/labels';
+import { Badge } from '@/design-system/components/Badge';
 import { Button } from '@/design-system/components/Button';
 import { Card } from '@/design-system/components/Card';
 import { PrazoChip } from '@/design-system/components/PrazoChip';
 import { Skeleton } from '@/design-system/components/Skeleton';
-import { StageProgress } from '@/design-system/components/StageProgress';
+import { StageTag } from '@/design-system/components/StageTag';
+import { cn } from '@/design-system/cn';
+import { ChevronRightIcon } from '@/design-system/icons';
+import { CARTAO_KANBAN } from '@/features/funil/FunilBoard';
 import { POSICAO_PRONTA, posicaoDe } from '@/features/funil/DialogoMover';
 import { tempoRelativo } from '@/features/shell/notificacoes';
 
 // Adendo 23/09: "mesa do mentor" (/orientador) e os dois primeiros blocos no
 // painel do admin. Tudo vem pronto de GET /dashboard/agenda (escopo, RN-04,
 // pendências RN-01/RN-02); aqui só se apresenta.
+//
+// Destaque (opção C, escolhida pelo dono do produto): cada item é um
+// mini-card com as MESMAS classes do card do kanban (`CARTAO_KANBAN`, de
+// FunilBoard.tsx) — nada de barra lateral nem fundo tonal. Urgência só pelo
+// chip (`PrazoChip`) ou pelo texto discreto "vN · há X".
 
 type Base = '/admin' | '/orientador';
 
@@ -23,13 +32,28 @@ type Base = '/admin' | '/orientador';
 const hrefTarefas = (base: Base, equipeSlug: string) => `${base}/equipes/${equipeSlug}?aba=tarefas`;
 
 const FOCO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]';
-const LINHA_LINK = `flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-sunken ${FOCO}`;
+/** Mini-card clicável da agenda: mesmo visual do kanban, cursor de link (sem arrastar). */
+const CARTAO_AGENDA = cn(CARTAO_KANBAN, 'group flex cursor-pointer items-center justify-between gap-3', FOCO);
+const SETA = 'shrink-0 text-text-subtle transition-colors group-hover:text-text';
 
-function Bloco({ titulo, descricao, children }: { titulo: string; descricao: string; children: ReactNode }) {
+function Bloco({
+  titulo,
+  contagem,
+  descricao,
+  children,
+}: {
+  titulo: string;
+  contagem: number;
+  descricao: string;
+  children: ReactNode;
+}) {
   return (
     <Card>
       <Card.Header className="flex flex-col gap-0.5">
-        <h3 className="text-sm font-semibold text-text">{titulo}</h3>
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
+          <span>{titulo}</span>
+          <Badge tone="neutral">{contagem}</Badge>
+        </h3>
         <p className="text-xs text-text-muted">{descricao}</p>
       </Card.Header>
       <Card.Body>{children}</Card.Body>
@@ -52,20 +76,27 @@ function TarefaEEquipe({ titulo, equipe }: { titulo: string; equipe: string }) {
 
 function ParaAvaliar({ itens, base }: { itens: ItemParaAvaliar[]; base: Base }) {
   return (
-    <Bloco titulo="Para avaliar" descricao="Entregas esperando avaliação, do prazo mais antigo ao mais novo.">
+    <Bloco
+      titulo="Para avaliar"
+      contagem={itens.length}
+      descricao="Entregas esperando avaliação, do prazo mais antigo ao mais novo."
+    >
       {itens.length === 0 ? (
         <Vazio>Nenhuma entrega esperando avaliação.</Vazio>
       ) : (
-        <ul aria-label="Para avaliar" className="flex flex-col gap-1">
+        <ul aria-label="Para avaliar" className="flex flex-col gap-2">
           {itens.map((i) => (
             <li key={i.tarefa.slug}>
-              <Link href={hrefTarefas(base, i.equipe.slug)} className={LINHA_LINK}>
+              <Link href={hrefTarefas(base, i.equipe.slug)} className={CARTAO_AGENDA}>
                 <TarefaEEquipe titulo={i.tarefa.titulo} equipe={i.equipe.nomeIdeia} />
-                {i.entregueEm && (
-                  <span className="shrink-0 text-xs text-text-subtle">
-                    {i.versao ? `v${i.versao} ` : ''}enviada {tempoRelativo(i.entregueEm)}
-                  </span>
-                )}
+                <span className="flex shrink-0 items-center gap-2">
+                  {i.entregueEm && (
+                    <span className="text-xs text-text-subtle">
+                      {i.versao ? `v${i.versao} ` : ''}enviada {tempoRelativo(i.entregueEm)}
+                    </span>
+                  )}
+                  <ChevronRightIcon size={16} className={SETA} />
+                </span>
               </Link>
             </li>
           ))}
@@ -77,16 +108,23 @@ function ParaAvaliar({ itens, base }: { itens: ItemParaAvaliar[]; base: Base }) 
 
 function Prazos({ itens, base }: { itens: ItemPrazo[]; base: Base }) {
   return (
-    <Bloco titulo="Prazos" descricao="Tarefas atrasadas e as que vencem nos próximos 7 dias.">
+    <Bloco
+      titulo="Prazos"
+      contagem={itens.length}
+      descricao="Tarefas atrasadas e as que vencem nos próximos 7 dias."
+    >
       {itens.length === 0 ? (
         <Vazio>Nenhum prazo vencido ou nos próximos 7 dias.</Vazio>
       ) : (
-        <ul aria-label="Prazos" className="flex flex-col gap-1">
+        <ul aria-label="Prazos" className="flex flex-col gap-2">
           {itens.map((i) => (
             <li key={i.tarefa.slug}>
-              <Link href={hrefTarefas(base, i.equipe.slug)} className={LINHA_LINK}>
+              <Link href={hrefTarefas(base, i.equipe.slug)} className={CARTAO_AGENDA}>
                 <TarefaEEquipe titulo={i.tarefa.titulo} equipe={i.equipe.nomeIdeia} />
-                <PrazoChip dataEntrega={i.dataEntrega} status={i.status} className="shrink-0" />
+                <span className="flex shrink-0 items-center gap-2">
+                  <PrazoChip dataEntrega={i.dataEntrega} status={i.status} />
+                  <ChevronRightIcon size={16} className={SETA} />
+                </span>
               </Link>
             </li>
           ))}
@@ -105,31 +143,27 @@ function textoAvanco(e: CartaoEquipeMesa): string {
 }
 
 function MinhasEquipes({ equipes }: { equipes: CartaoEquipeMesa[] }) {
-  const etapas = (useEtapas().data ?? []).map((e) => ({ id: e.numero, numero: e.numero, nome: e.nome }));
   return (
     <section className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold text-text">Minhas equipes</h3>
       {equipes.length === 0 ? (
         <Vazio>Nenhuma equipe atribuída a você ainda.</Vazio>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul aria-label="Minhas equipes" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {equipes.map((e) => (
-            <Card key={e.slug} role="article" aria-label={e.nomeIdeia}>
-              <Card.Body className="flex flex-col gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <Link
-                    href={`/orientador/equipes/${e.slug}`}
-                    className={`w-fit rounded-sm text-sm font-semibold text-text hover:underline ${FOCO}`}
-                  >
-                    {e.nomeIdeia}
-                  </Link>
-                  <span className="text-xs text-text-muted">
-                    {integrantes(e.membrosAtivos)} · {textoAvanco(e)}
-                  </span>
+            <li key={e.slug}>
+              <Link
+                href={`/orientador/equipes/${e.slug}`}
+                aria-label={e.nomeIdeia}
+                className={cn(CARTAO_KANBAN, 'flex cursor-pointer flex-col gap-2', FOCO)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium text-text">{e.nomeIdeia}</span>
+                  <StageTag etapaId={e.etapa.numero} />
                 </div>
-                {etapas.length > 0 && (
-                  <StageProgress etapas={etapas} atualId={e.etapa.numero} pronta={posicaoDe(e) === POSICAO_PRONTA} />
-                )}
+                <span className="text-xs text-text-muted">
+                  {integrantes(e.membrosAtivos)} · {textoAvanco(e)}
+                </span>
                 <p className="text-xs text-text-muted">
                   {e.ultimoEvento ? (
                     <>
@@ -140,10 +174,10 @@ function MinhasEquipes({ equipes }: { equipes: CartaoEquipeMesa[] }) {
                     'Sem eventos ainda.'
                   )}
                 </p>
-              </Card.Body>
-            </Card>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </section>
   );

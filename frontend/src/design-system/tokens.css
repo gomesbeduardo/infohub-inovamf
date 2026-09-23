@@ -58,6 +58,19 @@
   --green-600: #16a34a;
   --green-400: #4ade80; /* aprovada / pronta */
 
+  /* Série categórica de gráficos (skill dataviz — paleta validada por
+     scripts/validate_palette.js: separação CVD e contraste OK nos dois
+     temas; ordem fixa, nunca cicla). Usada no gráfico de linha do painel
+     do mentor (4 séries). */
+  --series-1-light: #2a78d6;
+  --series-2-light: #eb6834;
+  --series-3-light: #1baf7a;
+  --series-4-light: #eda100;
+  --series-1-dark: #3987e5;
+  --series-2-dark: #d95926;
+  --series-3-dark: #199e70;
+  --series-4-dark: #c98500;
+
   /* 3.4 Etapas do funil (o gradiente da marca) — iguais nos dois temas */
   --stage-1: var(--grad-orange);
   --stage-2: var(--grad-amber);
@@ -93,6 +106,11 @@
   --accent: var(--grad-orange);
   --focus-ring: color-mix(in srgb, var(--ember-500) 55%, transparent);
   --overlay: rgba(31, 31, 31, 0.5);
+
+  --series-1: var(--series-1-light);
+  --series-2: var(--series-2-light);
+  --series-3: var(--series-3-light);
+  --series-4: var(--series-4-light);
 
   /* Perigo/erro (semântico). Compartilha a família ember da marca, mas é um
      papel distinto de --primary: nunca decora — sempre acompanha um ícone de
@@ -147,6 +165,11 @@
   --accent: var(--grad-orange);
   --focus-ring: color-mix(in srgb, var(--ember-400) 65%, transparent);
   --overlay: rgba(0, 0, 0, 0.6);
+
+  --series-1: var(--series-1-dark);
+  --series-2: var(--series-2-dark);
+  --series-3: var(--series-3-dark);
+  --series-4: var(--series-4-dark);
 
   /* Perigo/erro — dark */
   --danger: var(--ember-500);

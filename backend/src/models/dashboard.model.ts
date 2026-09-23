@@ -42,7 +42,7 @@ export async function indicadores(escopo: Escopo, hoje: string) {
 // Eventos crus da série semanal (desde uma data), no escopo do papel.
 export async function eventosSerie(escopo: Escopo, desde: Date) {
   const wEq = whereEscopo(escopo);
-  const [historico, concluidas] = await Promise.all([
+  const [historico, entregasCriadas, avaliacoes, concluidas] = await Promise.all([
     prisma.historico_etapas.findMany({
       where: { criado_em: { gte: desde }, equipes: wEq },
       select: {
@@ -53,12 +53,23 @@ export async function eventosSerie(escopo: Escopo, desde: Date) {
         etapas_historico_etapas_etapa_destino_idToetapas: { select: { numero: true } },
       },
     }),
+    // Entregas recebidas: quando a entrega foi enviada (entregas.criado_em).
+    prisma.entregas.findMany({
+      where: { criado_em: { gte: desde }, tarefas: { equipes: wEq } },
+      select: { criado_em: true },
+    }),
+    // Entregas avaliadas: quando a avaliação foi registrada (avaliacoes_entrega.criado_em).
+    prisma.avaliacoes_entrega.findMany({
+      where: { criado_em: { gte: desde }, entregas: { tarefas: { equipes: wEq } } },
+      select: { criado_em: true },
+    }),
+    // Tarefas concluídas (nome antigo "entregas" no front — ver domain/serie.ts).
     prisma.tarefas.findMany({
       where: { concluida_em: { gte: desde }, equipes: wEq },
       select: { concluida_em: true },
     }),
   ]);
-  return { historico, concluidas };
+  return { historico, entregasCriadas, avaliacoes, concluidas };
 }
 
 // --- Agenda (adendo 23/09): "mesa do mentor" e blocos do painel do admin ------

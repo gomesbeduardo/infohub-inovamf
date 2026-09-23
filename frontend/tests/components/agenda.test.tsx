@@ -95,6 +95,14 @@ describe('MesaDoMentor (adendo 23/09)', () => {
     expect(link).toHaveTextContent('v2 enviada há 2 h');
   });
 
+  it('contador no título do bloco (badge do DS com o total de itens)', () => {
+    render(<MesaDoMentor />);
+    const tituloAvaliar = screen.getByText('Para avaliar').closest('h3') as HTMLElement;
+    expect(within(tituloAvaliar).getByText('1')).toBeInTheDocument();
+    const tituloPrazos = screen.getByText('Prazos').closest('h3') as HTMLElement;
+    expect(within(tituloPrazos).getByText('2')).toBeInTheDocument();
+  });
+
   it('"Prazos": chips do DS com o status que veio da API', () => {
     render(<MesaDoMentor />);
     const itens = within(screen.getByRole('list', { name: 'Prazos' })).getAllByRole('listitem');
@@ -105,17 +113,18 @@ describe('MesaDoMentor (adendo 23/09)', () => {
     expect(within(itens[1]!).getByRole('link')).toHaveAttribute('href', '/orientador/equipes/eco?aba=tarefas');
   });
 
-  it('"Minhas equipes": etapa (StageProgress), integrantes ativos, pendências e último evento', () => {
+  it('"Minhas equipes": card clicável no estilo do kanban com StageTag da etapa, integrantes ativos, pendências e último evento', () => {
     render(<MesaDoMentor />);
-    const agro = screen.getByRole('article', { name: 'AgroSmart' });
-    expect(within(agro).getByRole('link', { name: 'AgroSmart' })).toHaveAttribute('href', '/orientador/equipes/agro');
+    const agro = screen.getByRole('link', { name: 'AgroSmart' });
+    expect(agro).toHaveAttribute('href', '/orientador/equipes/agro');
+    expect(agro).toHaveTextContent('Etapa 3');
     expect(agro).toHaveTextContent('3 integrantes ativos');
     expect(agro).toHaveTextContent('Faltam 2 itens para avançar');
-    expect(within(agro).getByText('Etapa atual')).toBeInTheDocument();
     expect(agro).toHaveTextContent('Entrega enviada: Pitch vídeo (v2)');
     expect(agro).toHaveTextContent('20/09/2026');
 
-    const eco = screen.getByRole('article', { name: 'EcoRota' });
+    const eco = screen.getByRole('link', { name: 'EcoRota' });
+    expect(eco).toHaveTextContent('Etapa 2');
     expect(eco).toHaveTextContent('1 integrante ativo');
     expect(eco).toHaveTextContent('Falta 1 item para avançar');
     expect(eco).toHaveTextContent('Sem eventos ainda.');
@@ -131,7 +140,7 @@ describe('MesaDoMentor (adendo 23/09)', () => {
       },
     });
     render(<MesaDoMentor />);
-    expect(screen.getByRole('article', { name: 'AgroSmart' })).toHaveTextContent('Pronta para o InovAMF');
+    expect(screen.getByRole('link', { name: 'AgroSmart' })).toHaveTextContent('Pronta para o InovAMF');
   });
 
   it('sem nada: estado vazio em cada bloco', () => {

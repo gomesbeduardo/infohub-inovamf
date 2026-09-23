@@ -19,6 +19,15 @@ import { cn } from '@/design-system/cn';
 
 const TITULO_PRONTA = 'Pronta p/ InovAMF';
 
+/**
+ * Classes do card de item do kanban — reusadas pela agenda (Task 18) para o
+ * mesmo visual (borda, sombra, hover). `motion-safe:` nas classes de
+ * transform/transição, então o funil também passa a respeitar
+ * `prefers-reduced-motion`.
+ */
+export const CARTAO_KANBAN =
+  'rounded-lg border border-border bg-surface p-3 shadow-sm motion-safe:transition-all motion-safe:hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md';
+
 export interface FunilBoardProps {
   /** `admin` vê todas as equipes (com export e âncoras de coluna); `mentor` vê só as suas. */
   modo: 'admin' | 'mentor';
@@ -245,7 +254,8 @@ function CardArrastavel({
       data-testid="equipe-card"
       title="Arraste para mover de etapa"
       className={cn(
-        'flex cursor-grab flex-col gap-2 rounded-lg border border-border bg-surface p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md active:cursor-grabbing active:translate-y-0',
+        CARTAO_KANBAN,
+        'flex cursor-grab flex-col gap-2 active:cursor-grabbing active:translate-y-0',
         arrastando && 'opacity-50',
       )}
     >
