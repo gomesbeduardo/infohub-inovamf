@@ -13,6 +13,9 @@ import * as emailModel from "../models/email.model.js";
 
 // Convite de conta cria só admin/mentor (RF-03). Aluno entra pelo formulário de ideia.
 const TIPOS_CONVIDAVEIS = ["admin", "mentor"];
+// Task 17: o filtro de listagem (?tipo=) aceita também "aluno" — a Contas
+// admin passou a listar todo mundo, não só quem é convidável.
+const TIPOS_LISTAVEIS = ["admin", "mentor", "aluno"];
 
 // POST /usuarios — admin cria conta (sem senha) e dispara convite por e-mail.
 export async function store(req: Request, res: Response, next: NextFunction) {
@@ -91,7 +94,7 @@ export async function index(req: Request, res: Response, next: NextFunction) {
   try {
     const { page, perPage, skip } = paginacao(req);
     const tipo =
-      typeof req.query.tipo === "string" && TIPOS_CONVIDAVEIS.includes(req.query.tipo)
+      typeof req.query.tipo === "string" && TIPOS_LISTAVEIS.includes(req.query.tipo)
         ? req.query.tipo
         : undefined;
     const ativo =
@@ -119,6 +122,11 @@ export async function index(req: Request, res: Response, next: NextFunction) {
         conviteAceito: u.convite_aceito_em !== null,
         ultimoLoginEm: u.ultimo_login_em,
         criadoEm: u.criado_em,
+        curso: u.alunos?.curso ?? null,
+        semestre: u.alunos?.semestre ?? null,
+        equipe: u.equipe_membros[0]
+          ? { slug: u.equipe_membros[0].equipes.slug, nomeIdeia: u.equipe_membros[0].equipes.nome_ideia }
+          : null,
       })),
       page,
       perPage,
@@ -196,6 +204,10 @@ export async function update(req: Request, res: Response, next: NextFunction) {
     const alvo = await usuarioModel.findIdBySlug(slug);
     if (!alvo) {
       throw httpError(404, "USUARIO_NOT_FOUND", "Usuário não encontrado");
+    }
+    // Aluno não vira admin/mentor pelo PATCH: o tipo de uma conta de aluno é fixo.
+    if (data.tipo_usuario !== undefined && alvo.tipo_usuario === "aluno") {
+      throw httpError(400, "TIPO_ALUNO_IMUTAVEL", "Não é possível mudar o perfil de uma conta de aluno");
     }
     // Ninguém tira o próprio acesso: desativar a si mesmo ou sair de admin
     // trancaria a pessoa fora (e, sendo o único admin, o sistema inteiro).

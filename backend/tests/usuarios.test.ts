@@ -4,6 +4,7 @@ import { createApp } from "../src/app.js";
 import { prisma } from "../src/prisma.js";
 import { hashSenha } from "../src/utils/hash.js";
 import { novoIdComSlug } from "../src/utils/slug.js";
+import { criarEquipe, criarUsuario } from "./helpers.js";
 
 const app = createApp();
 
@@ -36,6 +37,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Equipes primeiro (mentor_id/equipe_membros referenciam usuarios).
+  await prisma.equipes.deleteMany({ where: { nome_ideia: { contains: sufixo } } });
   await prisma.usuarios.deleteMany({ where: { email: { contains: sufixo } } });
   await prisma.emails.deleteMany({
     where: { destinatario_email: { contains: sufixo } },
@@ -173,5 +176,115 @@ describe("controle de acesso e CRUD", () => {
       request(app).patch("/api/v1/usuarios/slugquenaoexiste123456"),
     ).send({ nome: "Zeca" });
     expect(res.status).toBe(404);
+  });
+});
+
+// Task 17 (#164): Contas passa a listar também alunos, com curso/semestre/equipe.
+describe("GET /usuarios — alunos na lista (Task 17)", () => {
+  it("aluno com curso, semestre e equipe ativa aparece com esses campos", async () => {
+    const aluno = await criarUsuario(`aluna.${sufixo}@teste.local`, "aluno", {
+      nome: "Aluna Com Equipe",
+      curso: "Engenharia de Software",
+      semestre: "3",
+    });
+    const equipe = await criarEquipe({
+      nome: `Equipe Ativa ${sufixo}`,
+      status: "ativa",
+      membros: [{ id: aluno.id, papel: "lider" }],
+    });
+
+    const res = await comoAdmin(request(app).get("/api/v1/usuarios")).query({
+      q: "Aluna Com Equipe",
+      tipo: "aluno",
+    });
+    expect(res.status).toBe(200);
+    const linha = res.body.data.find((u: { slug: string }) => u.slug === aluno.slug);
+    expect(linha).toBeTruthy();
+    expect(linha.role).toBe("aluno");
+    expect(linha.curso).toBe("Engenharia de Software");
+    expect(linha.semestre).toBe("3");
+    expect(linha.equipe).toEqual({ slug: equipe.slug, nomeIdeia: `Equipe Ativa ${sufixo}` });
+  });
+
+  it("aluno sem equipe ativa aparece com equipe: null", async () => {
+    const aluno = await criarUsuario(`aluno-sem-equipe.${sufixo}@teste.local`, "aluno", {
+      nome: "Aluno Sem Equipe",
+    });
+
+    const res = await comoAdmin(request(app).get("/api/v1/usuarios")).query({
+      q: "Aluno Sem Equipe",
+    });
+    expect(res.status).toBe(200);
+    const linha = res.body.data.find((u: { slug: string }) => u.slug === aluno.slug);
+    expect(linha).toBeTruthy();
+    expect(linha.curso).toBeNull();
+    expect(linha.semestre).toBeNull();
+    expect(linha.equipe).toBeNull();
+  });
+
+  it("admin aparece com curso, semestre e equipe: null", async () => {
+    const res = await comoAdmin(request(app).get("/api/v1/usuarios")).query({
+      q: "Admin CRUD",
+    });
+    expect(res.status).toBe(200);
+    const linha = res.body.data.find((u: { email: string }) => u.email === emailAdmin);
+    expect(linha).toBeTruthy();
+    expect(linha.curso).toBeNull();
+    expect(linha.semestre).toBeNull();
+    expect(linha.equipe).toBeNull();
+  });
+
+  it("tipo=aluno filtra só alunos", async () => {
+    await criarUsuario(`aluno-filtro.${sufixo}@teste.local`, "aluno", {
+      nome: `Aluno Filtro ${sufixo}`,
+    });
+
+    const res = await comoAdmin(request(app).get("/api/v1/usuarios")).query({
+      q: sufixo,
+      tipo: "aluno",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data.length).toBeGreaterThan(0);
+    for (const u of res.body.data as Array<{ role: string }>) {
+      expect(u.role).toBe("aluno");
+    }
+  });
+
+  it("sem tipo a lista continua trazendo todos os papéis", async () => {
+    const res = await comoAdmin(request(app).get("/api/v1/usuarios")).query({
+      q: sufixo,
+    });
+    expect(res.status).toBe(200);
+    const papeis = new Set((res.body.data as Array<{ role: string }>).map((u) => u.role));
+    expect(papeis.has("aluno")).toBe(true);
+    expect(papeis.size).toBeGreaterThan(1);
+  });
+});
+
+// Task 17 (#164): PATCH não deixa mudar o tipo de uma conta de aluno.
+describe("PATCH /usuarios/:slug — tipo de aluno é imutável (Task 17)", () => {
+  it("400 TIPO_ALUNO_IMUTAVEL ao tentar promover aluno para admin", async () => {
+    const aluno = await criarUsuario(`aluno-imutavel.${sufixo}@teste.local`, "aluno", {
+      nome: "Aluno Imutável",
+    });
+
+    const res = await comoAdmin(
+      request(app).patch(`/api/v1/usuarios/${aluno.slug}`),
+    ).send({ tipo: "admin" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("TIPO_ALUNO_IMUTAVEL");
+  });
+
+  it("200 continua permitindo editar nome/telefone de um aluno", async () => {
+    const aluno = await criarUsuario(`aluno-edita.${sufixo}@teste.local`, "aluno", {
+      nome: "Aluno Edita",
+    });
+
+    const res = await comoAdmin(
+      request(app).patch(`/api/v1/usuarios/${aluno.slug}`),
+    ).send({ nome: "Aluno Editado" });
+    expect(res.status).toBe(200);
+    expect(res.body.nome).toBe("Aluno Editado");
+    expect(res.body.role).toBe("aluno");
   });
 });
