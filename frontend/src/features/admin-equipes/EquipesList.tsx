@@ -11,7 +11,12 @@ import { Button } from '@/design-system/components/Button';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { limparFiltros, useAdiado } from '@/features/funil/filtros';
 
-export function EquipesList() {
+export interface EquipesListProps {
+  /** Base do link do detalhe da equipe (o mentor usa `/orientador/equipes`). */
+  baseHref?: string;
+}
+
+export function EquipesList({ baseHref = '/admin/equipes' }: EquipesListProps = {}) {
   const [busca, setBusca] = useState('');
   const q = useAdiado(busca);
   const consulta = useEquipes(limparFiltros({ q }));
@@ -79,7 +84,7 @@ export function EquipesList() {
                 >
                   <td className="px-4 py-3">
                     <Link
-                      href={`/admin/equipes/${e.slug}`}
+                      href={`${baseHref}/${e.slug}`}
                       className="font-medium text-text hover:text-primary-text hover:underline"
                     >
                       {e.nomeIdeia}

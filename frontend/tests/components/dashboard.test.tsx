@@ -19,11 +19,12 @@ vi.mock('@/data/api/consultas', () => ({
   useDashboard: vi.fn(),
   useAgenda: vi.fn(),
   useEtapas: vi.fn(),
+  useEquipes: vi.fn(),
 }));
 
-import { useAgenda, useDashboard, useEtapas } from '@/data/api/consultas';
+import { useAgenda, useDashboard, useEquipes, useEtapas } from '@/data/api/consultas';
 import { ApiError } from '@/data/api/erro';
-import type { Dashboard } from '@/data/api/tipos';
+import type { Dashboard, EquipeResumo } from '@/data/api/tipos';
 import { DashboardIndicadores } from '@/features/admin-dashboard/DashboardIndicadores';
 import { PainelOrientador } from '@/features/orientador/PainelOrientador';
 
@@ -76,6 +77,24 @@ function mockDashboard(v: Partial<R<typeof useDashboard>>) {
   } as unknown as R<typeof useDashboard>);
 }
 
+const EQUIPES_MENTOR = [
+  {
+    slug: 'agro',
+    nomeIdeia: 'AgroSmart',
+    descricaoIdeia: '',
+    status: 'ativa',
+    estagio: 'ideia',
+    etapa: { numero: 3, nome: 'Encontro 1' },
+    area: null,
+    ciclo: null,
+    mentor: null,
+    lider: null,
+    membrosCount: 3,
+    tarefasAtrasadas: 0,
+    criadoEm: '2026-08-01T00:00:00Z',
+  },
+] as EquipeResumo[];
+
 beforeEach(() => {
   vi.mocked(useAgenda).mockReturnValue({
     data: { paraAvaliar: [], prazos: [], equipes: [] },
@@ -87,6 +106,14 @@ beforeEach(() => {
   vi.mocked(useEtapas).mockReturnValue({ data: [], isPending: false, isError: false } as unknown as R<
     typeof useEtapas
   >);
+  vi.mocked(useEquipes).mockReturnValue({
+    data: EQUIPES_MENTOR,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useEquipes>);
 });
 
 describe('DashboardIndicadores', () => {
@@ -181,6 +208,21 @@ describe('PainelOrientador', () => {
     expect(within(legenda).getByRole('button', { name: /Entregas recebidas/ })).toBeInTheDocument();
     expect(within(legenda).getByRole('button', { name: /Entregas avaliadas/ })).toBeInTheDocument();
     expect(within(legenda).getByRole('button', { name: /Tarefas concluídas/ })).toBeInTheDocument();
+  });
+
+  it('aba "Equipes" vem depois de "Funil", lista as equipes do mentor e o link usa /orientador/equipes', async () => {
+    const user = userEvent.setup();
+    mockDashboard({});
+    render(<PainelOrientador />);
+
+    const abas = screen.getAllByRole('tab').map((t) => t.textContent);
+    expect(abas).toEqual(['Visão geral', 'Funil', 'Equipes']);
+
+    await user.click(screen.getByRole('tab', { name: 'Equipes' }));
+    expect(screen.getByRole('link', { name: 'AgroSmart' })).toHaveAttribute(
+      'href',
+      '/orientador/equipes/agro',
+    );
   });
 
   it('carregando mostra "Carregando…"', () => {

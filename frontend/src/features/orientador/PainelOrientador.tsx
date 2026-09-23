@@ -12,6 +12,7 @@ import { UsersIcon, ListChecksIcon, AlertIcon, CheckIcon } from '@/design-system
 import { FunilKanban } from '@/features/orientador/FunilKanban';
 import { Skeleton } from '@/design-system/components/Skeleton';
 import { MesaDoMentor } from '@/features/agenda/Agenda';
+import { EquipesList } from '@/features/admin-equipes/EquipesList';
 
 function CarregandoOuErro({
   isPending,
@@ -129,6 +130,7 @@ export function PainelOrientador() {
       tabs={[
         { id: 'visao', label: 'Visão geral', content: visaoGeral },
         { id: 'funil', label: 'Funil', content: <FunilKanban /> },
+        { id: 'equipes', label: 'Equipes', content: <EquipesList baseHref="/orientador/equipes" /> },
       ]}
     />
   );
