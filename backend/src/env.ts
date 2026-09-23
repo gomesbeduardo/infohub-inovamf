@@ -24,10 +24,10 @@ export const env = {
   jwtSecret: obrigatoria("JWT_SECRET"),
   jwtAccessTtl: process.env.JWT_ACCESS_TTL ?? "15m",
   refreshTtlDays: Number(process.env.REFRESH_TTL_DAYS ?? 30),
-  // Convite de conta: base do link enviado por e-mail e validade do token.
-  inviteUrlBase:
-    process.env.INVITE_URL_BASE ??
-    `${process.env.CORS_ORIGIN ?? "http://localhost:3000"}/convite`,
+  // Convite de conta: base do link e validade do token. Sem INVITE_URL_BASE o
+  // link sai relativo ("/convite?token=…") e o front completa com a própria
+  // origem — funciona em qualquer domínio que o Coolify der, sem configurar.
+  inviteUrlBase: process.env.INVITE_URL_BASE?.trim() || "/convite",
   inviteTtlHoras: Number(process.env.INVITE_TTL_HORAS ?? 72),
   // G1: monta o cenário de demonstração no boot (contas @demo.infohub.dev).
   seedDemo: process.env.SEED_DEMO === "true",

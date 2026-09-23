@@ -96,4 +96,17 @@ describe('CopiarLink', () => {
       delete (document as any).execCommand;
     }
   });
+
+  it('completa link relativo com a origem da página (campo e cópia)', async () => {
+    const user = userEvent.setup();
+    const escrever = vi.fn().mockResolvedValue(undefined);
+    definirClipboard({ writeText: escrever });
+
+    render(<CopiarLink url="/convite?token=abc123" />);
+    const esperado = `${window.location.origin}/convite?token=abc123`;
+    expect(screen.getByLabelText('Link de convite')).toHaveValue(esperado);
+
+    await user.click(screen.getByRole('button', { name: /^copiar$/i }));
+    expect(escrever).toHaveBeenCalledWith(esperado);
+  });
 });

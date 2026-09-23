@@ -84,7 +84,8 @@ O admin **não define senha** ao criar uma conta:
 
 1. `POST /usuarios` (admin) cria o `usuario` **pendente** (senha inutilizável) +
    um **convite de uso único** (`tokens_senha`) e **enfileira** um e-mail
-   `convite_conta` em `emails` com o link `INVITE_URL_BASE?token=<id>.<segredo>`.
+   `convite_conta` em `emails` com o link `/convite?token=<id>.<segredo>` (relativo; o front completa com
+   a própria origem, ou absoluto se `INVITE_URL_BASE` estiver definida).
 2. A pessoa abre o link → `GET /auth/invite?token=...` mostra os dados
    pré-preenchidos ("vê os dados").
 3. `POST /auth/register` com `{ token, senha, nome?, telefone? }` confirma os
