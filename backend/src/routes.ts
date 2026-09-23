@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { auth } from "./middlewares/auth.js";
 import { role } from "./middlewares/role.js";
-import { authLimiter } from "./middlewares/rateLimit.js";
+import { authLimiter, pedidoRedefinicaoLimiter } from "./middlewares/rateLimit.js";
 import * as authCtrl from "./controllers/auth.controller.js";
 import * as usuarioCtrl from "./controllers/usuario.controller.js";
 import * as equipeCtrl from "./controllers/equipe.controller.js";
@@ -34,6 +34,7 @@ routes.get("/auth/me", auth, authCtrl.me);
 routes.patch("/auth/me", auth, authCtrl.atualizarMe);
 routes.post("/auth/senha", auth, authLimiter, authCtrl.trocarSenha);
 routes.post("/auth/redefinir-senha", authLimiter, authCtrl.redefinirSenha);
+routes.post("/auth/pedido-redefinicao", pedidoRedefinicaoLimiter, authCtrl.pedidoRedefinicao);
 
 // --- Usuários (RF-03: admin cria/edita/desativa; convite por e-mail) ----------
 routes.get("/usuarios", auth, role("admin"), usuarioCtrl.index);
@@ -93,3 +94,4 @@ routes.post("/equipes/:slug/lembrete", auth, role("admin", "mentor"), notificaca
 
 // --- Dashboard (RF-22) ---------------------------------------------------------
 routes.get("/dashboard", auth, role("admin", "mentor"), dashboardCtrl.show);
+routes.get("/dashboard/agenda", auth, role("admin", "mentor"), dashboardCtrl.agenda);

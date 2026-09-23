@@ -14,6 +14,7 @@ import {
 import { toSlug } from "../utils/slug.js";
 import { whereStatusEfetivo } from "./tarefa.model.js";
 import { registrarAuditoria } from "./auditoria.model.js";
+import { montarLinhaDoTempo } from "../domain/linhaDoTempo.js";
 
 // --- Escopo por papel (RNF-03) ------------------------------------------------
 export type Escopo =
@@ -640,4 +641,35 @@ export async function eventosLinhaDoTempo(equipeId: string, limite: number) {
     }),
   ]);
   return { historico, auditoria };
+}
+
+// A5: a linha do tempo pronta (busca + regra pura). Uma função só para o
+// endpoint da linha do tempo e para o "último evento" da mesa do mentor.
+export async function linhaDoTempo(equipeId: string, o: { paraAluno: boolean; limite: number }) {
+  const { historico, auditoria } = await eventosLinhaDoTempo(equipeId, o.limite);
+  return montarLinhaDoTempo({
+    paraAluno: o.paraAluno,
+    limite: o.limite,
+    movimentos: historico.map((h) => ({
+      de:
+        h.status_origem === "pronta_inovamf"
+          ? "pronta"
+          : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+      para:
+        h.status_destino === "pronta_inovamf"
+          ? "pronta"
+          : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+      forcado: h.forcado,
+      observacao: h.observacao,
+      autor: h.usuarios?.nome ?? null,
+      em: h.criado_em,
+    })),
+    auditoria: auditoria.map((a) => ({
+      acao: a.acao,
+      antes: a.dados_anteriores,
+      depois: a.dados_novos,
+      autor: a.usuarios?.nome ?? null,
+      em: a.criado_em,
+    })),
+  });
 }

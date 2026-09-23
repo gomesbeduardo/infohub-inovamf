@@ -80,6 +80,15 @@ export function findAtivoByEmail(email: string) {
   });
 }
 
+// Pedido de redefinição (adendo 23/09): só conta ativa, não excluída e com
+// convite aceito — quem nunca definiu senha usa o convite, não a redefinição.
+export function findParaPedidoRedefinicao(email: string) {
+  return prisma.usuarios.findFirst({
+    where: { email, ativo: true, excluido_em: null, convite_aceito_em: { not: null } },
+    select: { id: true, slug: true, nome: true, email: true },
+  });
+}
+
 export function findPerfilBySlug(slug: string) {
   return prisma.usuarios.findFirst({
     where: { slug, ativo: true, excluido_em: null },

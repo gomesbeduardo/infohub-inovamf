@@ -249,6 +249,12 @@ describe("purgeDemo", () => {
     expect(r.usuarios).toBe(17);
     expect(await prisma.usuarios.count({ where: { email: { endsWith: DEMO_DOMINIO } } })).toBe(0);
     expect(await prisma.usuarios.count({ where: { email: ADMIN_EMAIL } })).toBe(1);
-    expect(await prisma.emails.count({ where: { destinatario_email: ADMIN_EMAIL, status: "cancelado" } })).toBe(0);
+    // pedidos de redefinição de OUTROS arquivos de teste também caem no sino do
+    // admin da base (cancelados) — não são da camada demo.
+    expect(
+      await prisma.emails.count({
+        where: { destinatario_email: ADMIN_EMAIL, status: "cancelado", tipo: { not: "recuperacao_senha" } },
+      }),
+    ).toBe(0);
   });
 });

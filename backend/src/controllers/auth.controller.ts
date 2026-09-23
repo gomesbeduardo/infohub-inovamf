@@ -8,11 +8,13 @@ import {
   verificarSenha,
 } from "../utils/hash.js";
 import { isUuid } from "../utils/slug.js";
-import { idDoChamador } from "../utils/acesso.js";
+import { idDoChamador, ipDoChamador } from "../utils/acesso.js";
+import { ehEmail } from "../utils/text.js";
 import { emitirSessao } from "../utils/sessao.js";
 import type { FinalidadeToken } from "../domain/enums.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
+import * as emailModel from "../models/email.model.js";
 
 // POST /auth/login — pública (rate-limited)
 export async function login(req: Request, res: Response, next: NextFunction) {
@@ -284,6 +286,31 @@ export async function redefinirSenha(req: Request, res: Response, next: NextFunc
     });
     if (!ok) throw httpError(400, "RESET_USED", "Este link já foi usado");
     res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Resposta ÚNICA do pedido de redefinição — igual exista ou não a conta, esteja
+// ela ativa ou não (sem enumeração de e-mails).
+export const MENSAGEM_PEDIDO_REDEFINICAO =
+  "Pedido recebido. Se houver uma conta ativa com esse e-mail, a coordenação já foi avisada.";
+
+// POST /auth/pedido-redefinicao — pública (pedidoRedefinicaoLimiter). A pessoa
+// pede à coordenação um link de redefinição (RF-01). Nenhum e-mail sai daqui:
+// cada admin ativo vê o pedido no sino e gera o link na tela Contas. Falha ao
+// registrar também responde 202 — a resposta não pode depender de a conta existir.
+export async function pedidoRedefinicao(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body ?? {};
+    if (!ehEmail(email)) throw httpError(400, "INVALID_EMAIL", "Informe um e-mail válido");
+    const conta = await usuarioModel.findParaPedidoRedefinicao(email.trim().toLowerCase());
+    if (conta) {
+      await emailModel
+        .registrarPedidoRedefinicao({ usuario: conta, ip: ipDoChamador(req) })
+        .catch((e) => console.error("[pedidoRedefinicao] falha ao registrar o pedido", e));
+    }
+    res.status(202).json({ mensagem: MENSAGEM_PEDIDO_REDEFINICAO });
   } catch (err) {
     next(err);
   }
