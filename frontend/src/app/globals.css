@@ -277,3 +277,55 @@ h2,
     animation: none;
   }
 }
+
+/* ── Landing: texto que sobe/desce de trás de uma máscara ─────────────────────
+   Hero (ao carregar): cada linha do título sobe, uma depois da outra. Só CSS.
+   Títulos de seção (ao rolar): as palavras sobem quando a seção entra rolando
+   para baixo e descem quando entra rolando para cima (ver TituloRevelado).
+   Estado padrão sempre visível; nada se desloca com prefers-reduced-motion. */
+.revelar-linha,
+.revelar-palavra {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  /* folga para descendentes (g, p, ç) não serem cortados pela máscara */
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.revelar-linha > span,
+.revelar-palavra > span {
+  display: inline-block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes revelar-subir {
+    from {
+      transform: translateY(105%);
+    }
+    to {
+      transform: none;
+    }
+  }
+  .revelar-linha > span {
+    animation: revelar-subir 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: calc(var(--i, 0) * 110ms + 80ms);
+  }
+
+  .titulo-revelado .revelar-palavra > span {
+    transition:
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.45s ease-out;
+    transition-delay: calc(var(--i, 0) * 45ms);
+  }
+  .titulo-revelado[data-revelar='abaixo'] .revelar-palavra > span,
+  .titulo-revelado[data-revelar='acima'] .revelar-palavra > span {
+    opacity: 0;
+    transition: none;
+  }
+  .titulo-revelado[data-revelar='abaixo'] .revelar-palavra > span {
+    transform: translateY(105%);
+  }
+  .titulo-revelado[data-revelar='acima'] .revelar-palavra > span {
+    transform: translateY(-105%);
+  }
+}
