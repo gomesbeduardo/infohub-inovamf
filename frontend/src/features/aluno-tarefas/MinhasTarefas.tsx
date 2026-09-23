@@ -1,35 +1,59 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import type { StatusTarefa } from '@/domain/types';
-import { useStore } from '@/data/store';
+import type { Tarefa } from '@/data/api/tipos';
+import { useEntregas, useEquipe, useEquipes, useTarefas } from '@/data/api/consultas';
 import { formatarData } from '@/domain/labels';
-import { getUsuarioAtual } from '@/data/session';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
 import { Badge } from '@/design-system/components/Badge';
 import { EmptyState } from '@/design-system/components/EmptyState';
+import { Button } from '@/design-system/components/Button';
 import { EnviarEntregaDialog } from '@/features/aluno-tarefas/EnviarEntregaDialog';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
 const CONCLUIDAS: StatusTarefa[] = ['entregue', 'aprovada'];
 
+function CarregandoOuErro({
+  isPending,
+  error,
+  refetch,
+}: {
+  isPending: boolean;
+  error: Error | null;
+  refetch: () => void;
+}) {
+  if (isPending) return <p className="text-sm text-text-muted">Carregando…</p>;
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p
+        role="alert"
+        className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+      >
+        {error?.message}
+      </p>
+      <Button variant="secondary" onClick={() => refetch()}>
+        Tentar de novo
+      </Button>
+    </div>
+  );
+}
+
 export function MinhasTarefas() {
-  const { state } = useStore();
-  const [montado, setMontado] = useState(false);
-  useEffect(() => setMontado(true), []);
+  const equipesConsulta = useEquipes();
 
-  if (!montado) return null;
-
-  const usuario = getUsuarioAtual(state);
-  if (!usuario) {
-    return <EmptyState title="Sessão não encontrada" description="Faça login novamente." />;
+  if (equipesConsulta.isPending || equipesConsulta.isError) {
+    return (
+      <CarregandoOuErro
+        isPending={equipesConsulta.isPending}
+        error={equipesConsulta.error}
+        refetch={() => void equipesConsulta.refetch()}
+      />
+    );
   }
 
-  const equipe = state.equipes.find((e) =>
-    e.membros.some((m) => m.usuarioId === usuario.id),
-  );
-  if (!equipe) {
+  const resumo = equipesConsulta.data[0];
+  if (!resumo) {
     return (
       <EmptyState
         title="Você ainda não faz parte de uma equipe"
@@ -38,45 +62,47 @@ export function MinhasTarefas() {
     );
   }
 
-  const etapa = state.etapas.find((e) => e.id === equipe.etapaAtualId);
-  const tarefas = state.tarefas.filter((t) => t.equipeId === equipe.id);
-  const pendentes = tarefas.filter((t) => PENDENTES.includes(t.status));
-  const concluidas = tarefas.filter((t) => CONCLUIDAS.includes(t.status));
+  return <MinhasTarefasConteudo slug={resumo.slug} />;
+}
 
-  function LinhaTarefa({
-    tarefaId,
-  }: {
-    tarefaId: string;
-  }) {
-    const t = tarefas.find((x) => x.id === tarefaId)!;
-    const entregavel = t.status !== 'aprovada';
+function MinhasTarefasConteudo({ slug }: { slug: string }) {
+  const equipeConsulta = useEquipe(slug);
+  const tarefasConsulta = useTarefas(slug);
+
+  if (equipeConsulta.isPending || tarefasConsulta.isPending) {
+    return <CarregandoOuErro isPending error={null} refetch={() => {}} />;
+  }
+  if (equipeConsulta.isError) {
     return (
-      <li className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <span className="flex items-center gap-2 font-medium text-text">
-              {t.titulo}
-              {t.obrigatoria && <Badge>obrigatória</Badge>}
-            </span>
-            <span className="text-xs text-text-muted">Entrega até {formatarData(t.dataEntrega)}</span>
-          </div>
-          <StatusBadge status={t.status} />
-        </div>
-        {t.descricao && <p className="text-sm text-text-muted">{t.descricao}</p>}
-        {entregavel && <EnviarEntregaDialog tarefa={t} enviadoPor={usuario!.id} />}
-      </li>
+      <CarregandoOuErro
+        isPending={false}
+        error={equipeConsulta.error}
+        refetch={() => void equipeConsulta.refetch()}
+      />
     );
   }
+  if (tarefasConsulta.isError) {
+    return (
+      <CarregandoOuErro
+        isPending={false}
+        error={tarefasConsulta.error}
+        refetch={() => void tarefasConsulta.refetch()}
+      />
+    );
+  }
+
+  const equipe = equipeConsulta.data;
+  const tarefas = tarefasConsulta.data;
+  const pendentes = tarefas.filter((t) => PENDENTES.includes(t.status));
+  const concluidas = tarefas.filter((t) => CONCLUIDAS.includes(t.status));
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-text-muted">{equipe.nomeIdeia}</span>
-        {etapa && (
-          <StageTag etapaId={equipe.etapaAtualId}>
-            {etapa.numero}. {etapa.nome}
-          </StageTag>
-        )}
+        <StageTag etapaId={equipe.etapa.numero}>
+          {equipe.etapa.numero}. {equipe.etapa.nome}
+        </StageTag>
       </div>
 
       <section className="flex flex-col gap-3">
@@ -86,7 +112,7 @@ export function MinhasTarefas() {
         ) : (
           <ul className="flex flex-col gap-3">
             {pendentes.map((t) => (
-              <LinhaTarefa key={t.id} tarefaId={t.id} />
+              <LinhaTarefa key={t.slug} tarefa={t} equipeSlug={equipe.slug} />
             ))}
           </ul>
         )}
@@ -97,11 +123,54 @@ export function MinhasTarefas() {
           <h2 className="text-sm font-semibold text-text">Concluídas</h2>
           <ul className="flex flex-col gap-3">
             {concluidas.map((t) => (
-              <LinhaTarefa key={t.id} tarefaId={t.id} />
+              <LinhaTarefa key={t.slug} tarefa={t} equipeSlug={equipe.slug} />
             ))}
           </ul>
         </section>
       )}
     </div>
+  );
+}
+
+function LinhaTarefa({ tarefa, equipeSlug }: { tarefa: Tarefa; equipeSlug: string }) {
+  const entregavel = tarefa.status !== 'aprovada';
+  const entregasConsulta = useEntregas(tarefa.slug);
+  const entregas = [...(entregasConsulta.data ?? [])].sort((a, b) => a.versao - b.versao);
+  const ultima = entregas[entregas.length - 1];
+  const comentarioAjuste =
+    tarefa.status === 'ajustar' ? (ultima?.avaliacoes[0]?.comentario ?? null) : null;
+
+  return (
+    <li className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <span className="flex items-center gap-2 font-medium text-text">
+            {tarefa.titulo}
+            {tarefa.obrigatoria && <Badge>obrigatória</Badge>}
+          </span>
+          <span className="text-xs text-text-muted">
+            Entrega até {formatarData(tarefa.dataEntrega.slice(0, 10))}
+          </span>
+        </div>
+        <StatusBadge status={tarefa.status} />
+      </div>
+      {tarefa.descricao && <p className="text-sm text-text-muted">{tarefa.descricao}</p>}
+      {comentarioAjuste && (
+        <p
+          className="rounded-md px-3 py-2 text-sm"
+          style={{ color: 'var(--st-ajustar-fg)', background: 'var(--st-ajustar-bg)' }}
+        >
+          <span className="font-medium">Ajustes solicitados: </span>
+          {comentarioAjuste}
+        </p>
+      )}
+      {entregavel && (
+        <EnviarEntregaDialog
+          tarefaSlug={tarefa.slug}
+          equipeSlug={equipeSlug}
+          tituloTarefa={tarefa.titulo}
+        />
+      )}
+    </li>
   );
 }

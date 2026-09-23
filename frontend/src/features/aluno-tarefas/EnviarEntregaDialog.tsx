@@ -1,85 +1,85 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import type { ArquivoEntrega, Tarefa } from '@/domain/types';
-import { useActions } from '@/data/store';
+import { useState } from 'react';
+import { useEnviarEntrega } from '@/data/api/consultas';
 import { Dialog } from '@/design-system/components/primitives/Dialog';
 import { Button } from '@/design-system/components/Button';
 import { Input } from '@/design-system/components/Input';
 import { Textarea } from '@/design-system/components/Textarea';
 import { FormField } from '@/design-system/components/FormField';
 
-type Tipo = 'arquivo' | 'link';
+const HTTPS = /^https:\/\//;
+const ERRO_HTTPS = 'O link precisa começar com https://';
 
 export function EnviarEntregaDialog({
-  tarefa,
-  enviadoPor,
+  tarefaSlug,
+  equipeSlug,
+  tituloTarefa,
 }: {
-  tarefa: Tarefa;
-  enviadoPor: string;
+  tarefaSlug: string;
+  equipeSlug: string;
+  tituloTarefa: string;
 }) {
-  const { enviarEntrega } = useActions();
+  const enviar = useEnviarEntrega(tarefaSlug, equipeSlug);
   const [aberto, setAberto] = useState(false);
-  const [tipo, setTipo] = useState<Tipo>('arquivo');
   const [url, setUrl] = useState('');
+  const [links, setLinks] = useState<string[]>([]);
   const [comentario, setComentario] = useState('');
-  const [arquivos, setArquivos] = useState<ArquivoEntrega[]>([]);
-  const idSeq = useRef(0);
-
-  function novoId() {
-    idSeq.current += 1;
-    return `arq-${enviadoPor}-${tarefa.id}-${idSeq.current}`;
-  }
+  const [erroUrl, setErroUrl] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
   function fechar() {
     setAberto(false);
-    setTipo('arquivo');
     setUrl('');
+    setLinks([]);
     setComentario('');
-    setArquivos([]);
-    idSeq.current = 0;
+    setErroUrl(null);
+    setErro(null);
   }
 
-  function adicionarArquivosLocais(files: FileList | null) {
-    if (!files) return;
-    const novos: ArquivoEntrega[] = Array.from(files).map((f) => ({
-      id: novoId(),
-      tipo: 'arquivo',
-      nomeOriginal: f.name,
-    }));
-    setArquivos((xs) => [...xs, ...novos]);
+  function alterarUrl(v: string) {
+    setUrl(v);
+    if (erroUrl) setErroUrl(null);
   }
 
   function adicionarLink() {
-    if (url.trim() === '') return;
-    setArquivos((xs) => [
-      ...xs,
-      { id: novoId(), tipo: 'link', urlExterna: url.trim() },
-    ]);
+    const v = url.trim();
+    if (!v) return;
+    if (!HTTPS.test(v)) {
+      setErroUrl(ERRO_HTTPS);
+      return;
+    }
+    setLinks((xs) => [...xs, v]);
     setUrl('');
   }
 
-  function removerArquivo(id: string) {
-    setArquivos((xs) => xs.filter((a) => a.id !== id));
+  function removerLink(i: number) {
+    setLinks((xs) => xs.filter((_, idx) => idx !== i));
   }
 
   function podeEnviar() {
-    return arquivos.length > 0 || (tipo === 'link' && url.trim() !== '');
+    return links.length > 0 || (url.trim() !== '' && HTTPS.test(url.trim()));
   }
 
-  function enviar() {
-    const finais = [...arquivos];
-    // inclui um link digitado mas ainda não adicionado
-    if (tipo === 'link' && url.trim() !== '') {
-      finais.push({ id: novoId(), tipo: 'link', urlExterna: url.trim() });
+  function enviarClique() {
+    const finais = [...links];
+    const v = url.trim();
+    if (v) {
+      if (!HTTPS.test(v)) {
+        setErroUrl(ERRO_HTTPS);
+        return;
+      }
+      finais.push(v);
     }
     if (finais.length === 0) return;
-    enviarEntrega(tarefa.id, {
-      enviadoPor,
-      arquivos: finais,
-      comentario: comentario || undefined,
-    });
-    fechar();
+    setErro(null);
+    enviar.mutate(
+      { links: finais.map((u) => ({ url: u })), comentario: comentario.trim() || undefined },
+      {
+        onSuccess: fechar,
+        onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível enviar a entrega.'),
+      },
+    );
   }
 
   return (
@@ -92,74 +92,57 @@ export function EnviarEntregaDialog({
         open={aberto}
         onOpenChange={(o) => (o ? setAberto(true) : fechar())}
         title="Enviar entrega"
-        description={tarefa.titulo}
+        description={tituloTarefa}
       >
         <div className="flex flex-col gap-4">
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={tipo === 'arquivo' ? 'primary' : 'secondary'}
-              onClick={() => setTipo('arquivo')}
-            >
-              Arquivo
-            </Button>
-            <Button
-              size="sm"
-              variant={tipo === 'link' ? 'primary' : 'secondary'}
-              onClick={() => setTipo('link')}
-            >
-              Link
-            </Button>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex gap-2" role="tablist">
+              <Button size="sm" variant="secondary" disabled role="tab" aria-selected={false}>
+                Arquivo
+              </Button>
+              <Button size="sm" variant="primary" disabled role="tab" aria-selected>
+                Link
+              </Button>
+            </div>
+            <span className="text-xs text-text-subtle">Envio de arquivo em breve</span>
           </div>
 
-          {tipo === 'arquivo' ? (
-            <FormField
-              label="Arquivos"
-              htmlFor="arquivo"
-              hint="Pode selecionar mais de um. No mock, guardamos só o nome."
-            >
+          <FormField
+            label="URL do link"
+            htmlFor="url"
+            error={erroUrl ?? undefined}
+            hint={erroUrl ? undefined : 'Precisa começar com https://'}
+          >
+            <div className="flex gap-2">
               <Input
-                id="arquivo"
-                type="file"
-                multiple
-                onChange={(e) => adicionarArquivosLocais(e.target.files)}
+                id="url"
+                type="url"
+                placeholder="https://…"
+                value={url}
+                onChange={(e) => alterarUrl(e.target.value)}
               />
-            </FormField>
-          ) : (
-            <FormField label="URL do link" htmlFor="url">
-              <div className="flex gap-2">
-                <Input
-                  id="url"
-                  type="url"
-                  placeholder="https://…"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={adicionarLink}
-                  disabled={url.trim() === ''}
-                >
-                  Adicionar
-                </Button>
-              </div>
-            </FormField>
-          )}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={adicionarLink}
+                disabled={url.trim() === ''}
+              >
+                Adicionar
+              </Button>
+            </div>
+          </FormField>
 
-          {arquivos.length > 0 && (
+          {links.length > 0 && (
             <ul className="flex flex-col gap-1">
-              {arquivos.map((a) => (
+              {links.map((l, i) => (
                 <li
-                  key={a.id}
+                  key={i}
                   className="flex items-center justify-between gap-2 rounded-md bg-surface-sunken px-2.5 py-1.5 text-xs text-text-muted"
                 >
-                  <span className="truncate">
-                    {a.tipo === 'link' ? a.urlExterna : a.nomeOriginal}
-                  </span>
+                  <span className="truncate">{l}</span>
                   <button
                     type="button"
-                    onClick={() => removerArquivo(a.id)}
+                    onClick={() => removerLink(i)}
                     className="text-text-subtle hover:text-primary-text"
                     aria-label="Remover"
                   >
@@ -179,12 +162,21 @@ export function EnviarEntregaDialog({
             />
           </FormField>
 
+          {erro && (
+            <p
+              role="alert"
+              className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+            >
+              {erro}
+            </p>
+          )}
+
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={fechar}>
               Cancelar
             </Button>
-            <Button onClick={enviar} disabled={!podeEnviar()}>
-              Enviar
+            <Button onClick={enviarClique} disabled={!podeEnviar() || enviar.isPending}>
+              {enviar.isPending ? 'Enviando…' : 'Enviar'}
             </Button>
           </div>
         </div>
