@@ -14,7 +14,7 @@ import {
   type EstagioIdeia,
   type StatusEquipe,
 } from "../domain/enums.js";
-import { POSICAO_PRONTA } from "../domain/transicao.js";
+import { POSICAO_PRONTA, codigoBloqueio } from "../domain/transicao.js";
 import { classificarColega } from "../domain/membros.js";
 import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
@@ -401,6 +401,12 @@ const MENSAGEM_INVALIDA: Record<string, string> = {
   POSICAO_INVALIDA: "Etapa deve ser um número de 1 a 6 ou 'pronta'",
 };
 
+const MENSAGEM_BLOQUEIO: Record<ReturnType<typeof codigoBloqueio>, string> = {
+  RN01_SALTO: "Pular etapas exige forçar com observação",
+  RN01_PENDENCIAS: "Há pendências obrigatórias nesta etapa",
+  RN02_PENDENCIAS: "Faltam entregáveis finais ou dados de integrantes para ficar Pronta p/ InovAMF",
+};
+
 // POST /equipes/:slug/etapa — avançar/retroceder (RF-09, RN-01, RN-02).
 export async function moverEtapa(req: Request, res: Response, next: NextFunction) {
   try {
@@ -432,14 +438,10 @@ export async function moverEtapa(req: Request, res: Response, next: NextFunction
       if (r.decisao.tipo === "invalida") {
         throw httpError(400, r.decisao.codigo, MENSAGEM_INVALIDA[r.decisao.codigo] ?? "");
       }
-      throw httpError(
-        409,
-        r.decisao.motivo === "salto" ? "RN01_SALTO" : "RN01_PENDENCIAS",
-        r.decisao.motivo === "salto"
-          ? "Pular etapas exige forçar com observação"
-          : "Há pendências obrigatórias nesta etapa",
-        { pendencias: r.decisao.pendencias },
-      );
+      const codigo = codigoBloqueio(r.origem, r.decisao.motivo);
+      throw httpError(409, codigo, MENSAGEM_BLOQUEIO[codigo], {
+        pendencias: r.decisao.pendencias,
+      });
     }
     res.json(r.equipe);
   } catch (err) {

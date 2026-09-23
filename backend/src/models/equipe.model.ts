@@ -1,10 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
 import {
+  ENTREGAVEIS_FINAIS,
   POSICAO_PRONTA,
   avaliarTransicao,
+  juntarPendencias,
   mudancaDeStatusValida,
   pendenciasDeIntegrantes,
+  pendenciasEntregaveisFinais,
   type Decisao,
   type Pendencia,
 } from "../domain/transicao.js";
@@ -305,33 +308,51 @@ async function pendenciasDaPosicao(
     slug: toSlug(t.id),
     titulo: t.titulo,
   }));
-  if (posicao === 6) {
-    const membros = await tx.equipe_membros.findMany({
-      where: { equipe_id: equipeId, ativo: true },
-      select: {
-        usuarios: {
-          select: {
-            slug: true,
-            nome: true,
-            convite_aceito_em: true,
-            alunos: { select: { curso: true, semestre: true } },
-          },
+  if (posicao !== 6) return pendencias;
+
+  // RN-02: os três entregáveis finais (tarefas nascidas dos modelos da Etapa 6)
+  // + os dados de todos os integrantes ativos.
+  const finais = await tx.tarefas.findMany({
+    where: {
+      equipe_id: equipeId,
+      modelos_tarefa: { etapas: { numero: 6 }, titulo: { in: [...ENTREGAVEIS_FINAIS] } },
+    },
+    orderBy: { criado_em: "asc" },
+    select: { id: true, titulo: true, status: true, modelos_tarefa: { select: { titulo: true } } },
+  });
+  const membros = await tx.equipe_membros.findMany({
+    where: { equipe_id: equipeId, ativo: true },
+    select: {
+      usuarios: {
+        select: {
+          slug: true,
+          nome: true,
+          convite_aceito_em: true,
+          alunos: { select: { curso: true, semestre: true } },
         },
       },
-    });
-    pendencias.push(
-      ...pendenciasDeIntegrantes(
-        membros.map((m) => ({
-          slug: m.usuarios.slug,
-          nome: m.usuarios.nome,
-          conviteAceitoEm: m.usuarios.convite_aceito_em,
-          curso: m.usuarios.alunos?.curso ?? null,
-          semestre: m.usuarios.alunos?.semestre ?? null,
-        })),
-      ),
-    );
-  }
-  return pendencias;
+    },
+  });
+  return juntarPendencias(
+    pendencias,
+    pendenciasEntregaveisFinais(
+      finais.map((t) => ({
+        slug: toSlug(t.id),
+        titulo: t.titulo,
+        status: t.status,
+        modelo: t.modelos_tarefa?.titulo ?? "",
+      })),
+    ),
+    pendenciasDeIntegrantes(
+      membros.map((m) => ({
+        slug: m.usuarios.slug,
+        nome: m.usuarios.nome,
+        conviteAceitoEm: m.usuarios.convite_aceito_em,
+        curso: m.usuarios.alunos?.curso ?? null,
+        semestre: m.usuarios.alunos?.semestre ?? null,
+      })),
+    ),
+  );
 }
 
 // Pendências que hoje impedem a equipe de avançar (preview do drag no kanban).
@@ -365,7 +386,7 @@ export async function transicionar(p: {
         forcado: boolean;
       };
     }
-  | { tipo: "rejeitada"; decisao: Exclude<Decisao, { tipo: "permitida" }> }
+  | { tipo: "rejeitada"; decisao: Exclude<Decisao, { tipo: "permitida" }>; origem: number }
 > {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM equipes WHERE id = ${p.equipeId}::uuid FOR UPDATE`;
@@ -384,7 +405,7 @@ export async function transicionar(p: {
       forcado: p.forcado,
       observacao: p.observacao,
     });
-    if (decisao.tipo !== "permitida") return { tipo: "rejeitada" as const, decisao };
+    if (decisao.tipo !== "permitida") return { tipo: "rejeitada" as const, decisao, origem };
 
     const etapaDestino = await tx.etapas.findUniqueOrThrow({
       where: { numero: Math.min(p.destino, 6) },
