@@ -50,7 +50,7 @@ const PILARES: Bloco[] = [
     icone: LightbulbIcon,
     titulo: 'Sua ideia sai do papel',
     texto:
-      'Você envia a ideia mesmo crua. A equipe InfoHub analisa, chama para conversar e ajuda a transformar o esboço em um problema, um público e uma solução.',
+      'Você envia a ideia ainda no começo. A equipe InfoHub analisa, chama para conversar e ajuda a transformar o esboço em um problema, um público e uma solução.',
   },
   {
     icone: UsersIcon,
@@ -223,7 +223,7 @@ export function Landing() {
               <p className="mt-5 max-w-xl text-base leading-relaxed text-text-muted sm:text-lg">
                 O InfoHub é o laboratório de empreendedorismo da AMF: seis etapas
                 de mentoria que levam o seu esboço até um MVP pronto para o centro
-                de inovação InovAMF. Envie a ideia — mesmo que ainda esteja crua.
+                de inovação InovAMF. Envie a sua ideia, mesmo que ainda esteja no começo.
               </p>
               <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
                 <Link href="/cadastro" className={BOTAO_PRINCIPAL}>
@@ -367,11 +367,12 @@ export function Landing() {
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-4 text-center sm:px-6">
           <h2 id="titulo-enviar" className="font-display text-3xl font-bold tracking-tight text-text sm:text-4xl">
-            Comece pela ideia crua
+            Inscreva sua ideia no InfoHub
           </h2>
           <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-text-muted">
-            Preencha o formulário inicial contando o que você imaginou. A equipe
-            InfoHub analisa e chama a sua equipe para o primeiro encontro.
+            Envie sua proposta pelo formulário de inscrição. A coordenação do
+            InfoHub analisa cada ideia e entra em contato para agendar o primeiro
+            encontro com a sua equipe.
           </p>
           <Link href="/cadastro" className={cn(BOTAO_PRINCIPAL, 'mt-8')}>
             Enviar minha ideia
