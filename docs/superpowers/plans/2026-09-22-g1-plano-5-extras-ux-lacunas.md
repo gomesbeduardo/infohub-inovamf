@@ -5830,3 +5830,1830 @@ Depois do merge do E4 (fora deste plano, conforme a spec): promoção `staging` 
 **2. Placeholders:** nenhum "TBD"/"TODO"/"similar à Task N"; todo passo de código traz o código.
 
 **3. Consistência de tipos e nomes:** `registrarAuditoria`/`RegistroAuditoria` (Task 1) usados em 2–4 com as mesmas ações do contrato; `ipDoChamador` (Task 1) usado em 1–4; `Pendencia.entregavel` igual no backend (Task 2) e no front (Task 9); `codigoBloqueio` usa `origem` que `transicionar` passa a devolver (Task 2); `ItemLinhaDoTempo` do backend (Task 5, `em: Date` serializado como ISO) = tipo do front (Task 9, `em: string`); `chaves.linhaDoTempo` criada na Task 9 e usada nas Tasks 10–11; `useToast`/`Skeleton` (Task 7) usados em 8–13; `BellIcon` (Task 8) usado em 9–10; `useUsuarios(tipo, { enabled })` (Task 14) é compatível com as chamadas antigas `useUsuarios()`/`useUsuarios('mentor')`; `useIniciarTarefa`, `useGerarRedefinicao`, `useRedefinirSenha`, `useAtualizarEquipe`, `useEnviarLembrete` batem com os `vi.mock` dos testes que os renderizam.
+
+
+---
+
+## Adendo (23/09) — Mesa do mentor e pedido de redefinição
+
+**Escopo aprovado pelo dono do produto em 23/09** (spec: seção "Adendo (23/09)" de `docs/superpowers/specs/2026-09-22-g1-extras-ux-e-lacunas-design.md`):
+- **A) Mesa do mentor:** em `/orientador`, acima dos indicadores da "Visão geral", três blocos: "Para avaliar", "Prazos" e "Minhas equipes". O painel do admin (`/admin`) ganha os dois primeiros, com todas as equipes. Tudo vem de **um** endpoint, `GET /api/v1/dashboard/agenda`.
+- **B) Pedido de redefinição:** a tela pública "Recuperar senha" ganha o campo de e-mail e o botão "Pedir redefinição". `POST /api/v1/auth/pedido-redefinicao` responde **sempre 202** com o mesmo corpo. Quando a conta existe, cada admin ativo vê o pedido no sino. Nenhum e-mail é enviado (o envio real é o Bloco C).
+
+### Nota global do adendo
+
+- Valem **todas** as Global Constraints do plano: nenhuma migration nova; todo PR mira `staging`; testes, typecheck e build verdes; front só por `/api/v1` relativo; regra de negócio só no backend; erros inline com `role="alert"` e toast só para sucesso; `motion-safe`; cores só por tokens do DS; solução mínima; commits Conventional em pt-BR com as duas linhas de trailer.
+- **Ordem de execução:**
+  - A **Task 15** é só backend e sai num **PR próprio e pequeno para `staging`**, antes do E2 ou junto com ele. Ela não toca nenhum arquivo do E2.
+  - A **Task 16** roda no **Bloco E3, depois da Task 13**, no branch `feat/g1-e3-telas`, e entra no PR do E3. Ela consome `Skeleton` (Task 7), `tempoRelativo` (Task 8), `PrazoChip`/`hojeISO` (Task 11) e o `PainelOrientador` já com skeleton (Task 13).
+- **Link do sino para `recuperacao_senha`:** já resolvido **dentro da Task 8**. `destinoNotificacao` devolve `/admin/contas` para o tipo `recuperacao_senha` quando o papel é admin, e a Task 8 tem teste unitário disso. Este adendo **não** edita `notificacoes.ts`.
+- **Banco de teste compartilhado:**
+  - Os testes novos conferem deltas ou dados filtrados pelos próprios ids ou e-mails do arquivo.
+  - A lista do admin é global, então é checada por pertença e pelo teto.
+  - Os avisos de pedido vão para **todo** admin ativo, inclusive o `admin@infohub.dev` da base. Por isso a Task 15 ajusta **uma** asserção do `seed.test.ts` e limpa esses avisos no `afterAll`.
+
+### Estrutura de arquivos (adendo)
+
+**Task 15 — Backend (PR próprio)**
+- Modify `backend/src/models/dashboard.model.ts`: `LIMITE_AGENDA`, `JANELA_PRAZOS_DIAS`, `aguardandoAvaliacao`, `prazosDaSemana`, `equipesDoMentor` (listas com teto, filtradas e ordenadas no banco).
+- Modify `backend/src/controllers/dashboard.controller.ts`: `agenda` e o helper local `cartoesDoMentor`.
+- Modify `backend/src/models/equipe.model.ts`: `linhaDoTempo(equipeId, { paraAluno, limite })`, que busca e aplica a regra pura. Uma só função para o endpoint da linha do tempo e para o "último evento" dos cartões.
+- Modify `backend/src/controllers/equipe.controller.ts`: `linhaDoTempo` passa a usar `equipeModel.linhaDoTempo` (refatoração sem mudança de comportamento).
+- Modify `backend/src/models/auditoria.model.ts`: nova ação `redefinicao_solicitada`.
+- Modify `backend/src/middlewares/rateLimit.ts`: `pedidoRedefinicaoLimiter`, com a mesma chave (IP + e-mail) e o mesmo limite do `authLimiter`, mas contando também as respostas 202.
+- Modify `backend/src/models/usuario.model.ts`: `findParaPedidoRedefinicao`.
+- Modify `backend/src/models/email.model.ts`: `JANELA_PEDIDO_REDEFINICAO_MS`, `registrarPedidoRedefinicao`.
+- Modify `backend/src/controllers/auth.controller.ts`: `MENSAGEM_PEDIDO_REDEFINICAO`, `pedidoRedefinicao`.
+- Modify `backend/src/routes.ts`.
+- Tests: create `backend/tests/agenda.test.ts` and `backend/tests/pedido-redefinicao.test.ts`; modify `backend/tests/rate-limit.test.ts` and `backend/tests/seed.test.ts` (uma asserção).
+
+**Task 16 — Telas (Bloco E3, depois da Task 13)**
+- Create `frontend/src/features/agenda/Agenda.tsx`: `MesaDoMentor()` (três blocos) e `AgendaAdmin()` (dois blocos). Os blocos, o carregamento e o erro ficam no mesmo arquivo.
+- Modify `frontend/src/data/api/tipos.ts` (`ItemParaAvaliar`, `ItemPrazo`, `CartaoEquipeMesa`, `Agenda`) e `frontend/src/data/api/consultas.ts` (`chaves.agenda`, `useAgenda`, `usePedirRedefinicao`).
+- Modify `frontend/src/features/orientador/PainelOrientador.tsx` (mesa no topo da "Visão geral") e `frontend/src/app/admin/page.tsx` (`AgendaAdmin` acima dos indicadores).
+- Modify `frontend/src/features/admin-detalhe/DetalheEquipe.tsx` (prop `abaInicial`), `frontend/src/app/admin/equipes/[slug]/page.tsx` e `frontend/src/app/orientador/equipes/[slug]/page.tsx` (repassam `?aba=`).
+- Modify `frontend/src/features/auth/RecuperarSenhaForm.tsx` (formulário do pedido).
+- Tests: create `frontend/tests/components/agenda.test.tsx`; modify `frontend/tests/components/dashboard.test.tsx` and `frontend/tests/components/detalhe-equipe.test.tsx`; rewrite `frontend/tests/components/recuperar.test.tsx`.
+
+### Contratos compartilhados (adendo)
+
+**Endpoints novos (em `/api/v1`)**
+| Método e rota | Quem | Corpo | Resposta |
+|---|---|---|---|
+| `GET /dashboard/agenda` | admin (todas as equipes); mentor (só as próprias, via `escopoDo` + `whereEscopo`) | — | 200 `{ data: Agenda }`; 403 `FORBIDDEN` para aluno |
+| `POST /auth/pedido-redefinicao` | pública (`pedidoRedefinicaoLimiter`: 5 por 15 min por IP + e-mail, contando os 202) | `{ email }` | **sempre** 202 `{ mensagem: MENSAGEM_PEDIDO_REDEFINICAO }`, exista ou não a conta; 400 `INVALID_EMAIL` (formato); 429 `RATE_LIMITED` |
+
+```ts
+// Agenda (JSON). Só slugs, nunca UUID. Cada lista tem até LIMITE_AGENDA = 20 itens.
+interface Agenda {
+  // Tarefas com status "entregue" no escopo, do prazo mais antigo para o mais novo.
+  paraAvaliar: Array<{
+    equipe: { slug: string; nomeIdeia: string };
+    tarefa: { slug: string; titulo: string };
+    versao: number | null;       // última versão enviada (null só em dado legado sem entrega)
+    entregueEm: string | null;   // ISO, criado_em dessa versão
+  }>;
+  // Atrasadas (RN-04, whereStatusEfetivo) + pendente/em_andamento/ajustar vencendo de hoje
+  // até hoje + JANELA_PRAZOS_DIAS (7), com "hoje" em America/Sao_Paulo. Da mais antiga para a mais nova.
+  prazos: Array<{
+    equipe: { slug: string; nomeIdeia: string };
+    tarefa: { slug: string; titulo: string };
+    dataEntrega: string;         // ISO (coluna DATE → 00:00Z)
+    status: "pendente" | "em_andamento" | "ajustar" | "atrasada";   // status efetivo (statusEfetivo)
+  }>;
+  // Só para mentor (admin recebe []): equipes dele, menos desistente e encaminhada_inovamf, em ordem de nome.
+  equipes: Array<{
+    slug: string; nomeIdeia: string; status: StatusEquipe;
+    etapa: { numero: number; nome: string };
+    membrosAtivos: number;
+    faltamParaAvancar: number;   // pendenciasParaAvancar(equipeId).length (RN-01/RN-02)
+    ultimoEvento: { titulo: string; em: string } | null;   // 1º item de equipeModel.linhaDoTempo
+  }>;
+}
+```
+
+**Por que os cartões consultam uma equipe de cada vez:**
+- `paraAvaliar` e `prazos` saem cada um de **uma** consulta com filtro, ordem e `take` no banco.
+- Os cartões reaproveitam as **mesmas** funções do detalhe (`pendenciasParaAvancar`) e da linha do tempo (`equipeModel.linhaDoTempo`), para a regra não ser duplicada em SQL. São cerca de 5 consultas por equipe (7 na Etapa 6), rodando em paralelo.
+- Isso é aceitável porque um mentor tem poucas equipes e a lista tem teto de `LIMITE_AGENDA`.
+- Pelo mesmo motivo, o admin (todas as equipes) **não** recebe cartões.
+
+**Auditoria:** nova `AcaoAuditoria` `"redefinicao_solicitada"`:
+- `entidade: "usuario"` e `entidadeId` = UUID de quem pediu;
+- `usuarioId: null`, porque o pedido é anônimo;
+- `depois: { notificados: number }`, sem e-mail e sem nome.
+
+A janela de "1 pedido por conta por hora" é contada por essas linhas.
+
+**Notificação do pedido** (uma linha em `emails` por admin ativo, na mesma transação da auditoria):
+- `tipo: "recuperacao_senha"` e `status: "cancelado"`: o worker do Plano 4 nunca envia;
+- `assunto: "Pedido de redefinição de senha: <nome>"` e `template: "recuperacao_senha"`;
+- `dados_template: { nome, email, usuario_slug }`, sem `equipe_slug`.
+
+O sino leva a `/admin/contas` (tratado na Task 8).
+
+**Frontend: hooks e componentes**
+```ts
+chaves.agenda = ['dashboard', 'agenda']   // prefixo de chaves.dashboard: mover etapa, entregar e avaliar já invalidam a agenda
+useAgenda(): UseQueryResult<Agenda>
+usePedirRedefinicao()                      // mutate(email: string) → { mensagem: string } (rota pública)
+MesaDoMentor()                             // "Para avaliar" + "Prazos" + "Minhas equipes"; links para /orientador/...
+AgendaAdmin()                              // "Para avaliar" + "Prazos"; links para /admin/...
+DetalheEquipe({ slug: string; abaInicial?: string })   // `?aba=tarefas` abre direto na aba Tarefas (onde se avalia)
+RecuperarSenhaForm()                       // e-mail + "Pedir redefinição"; confirmação genérica vinda da API
+```
+
+---
+
+### Task 15: Backend — `GET /dashboard/agenda` e `POST /auth/pedido-redefinicao`
+
+Sai **num PR próprio para `staging`**, antes do E2 ou junto com ele, sem tocar arquivos do E2:
+
+```bash
+git fetch origin && git switch -c feat/g1-adendo-backend origin/staging
+cd backend && npm ci
+```
+
+Todos os comandos abaixo rodam dentro de `backend/`, com o `.env` de teste (banco compartilhado).
+
+**Files:**
+- Modify: `backend/src/models/equipe.model.ts` (`linhaDoTempo`), `backend/src/controllers/equipe.controller.ts` (`linhaDoTempo` usa o model)
+- Modify: `backend/src/models/dashboard.model.ts`, `backend/src/controllers/dashboard.controller.ts`
+- Modify: `backend/src/models/auditoria.model.ts`, `backend/src/middlewares/rateLimit.ts`, `backend/src/models/usuario.model.ts`, `backend/src/models/email.model.ts`, `backend/src/controllers/auth.controller.ts`
+- Modify: `backend/src/routes.ts`
+- Test: `backend/tests/agenda.test.ts` (novo), `backend/tests/pedido-redefinicao.test.ts` (novo); modify `backend/tests/rate-limit.test.ts`, `backend/tests/seed.test.ts`
+
+**Interfaces:**
+- Consumes:
+  - `escopoDo(req)`, `ipDoChamador(req)` (`utils/acesso.ts`);
+  - `whereEscopo(escopo)`, `pendenciasParaAvancar(equipeId)`, `eventosLinhaDoTempo(equipeId, limite)` (`equipe.model.ts`);
+  - `whereStatusEfetivo(status, hoje)` (`tarefa.model.ts`);
+  - `hojeISO()`, `somarDias(iso, n)`, `statusEfetivo(status, data, hoje)`, `STATUS_SEM_ENTREGA` (`domain/atraso.ts`);
+  - `montarLinhaDoTempo`, `LIMITE_LINHA_DO_TEMPO` (`domain/linhaDoTempo.ts`);
+  - `registrarAuditoria(tx, r)` (`auditoria.model.ts`);
+  - `linha(novoEmail)`, a função interna de `email.model.ts`;
+  - `ehEmail(v)` (`utils/text.ts`);
+  - `toSlug(id)` (`utils/slug.ts`);
+  - dos testes, `criarUsuario`/`criarEquipe`/`limpar`/`login`/`bearer` (`tests/helpers.ts`).
+- Produces:
+  - `LIMITE_AGENDA = 20` e `JANELA_PRAZOS_DIAS = 7`;
+  - `aguardandoAvaliacao(escopo)`, `prazosDaSemana(escopo, hoje)`, `equipesDoMentor(mentorId)`;
+  - `equipeModel.linhaDoTempo(equipeId, { paraAluno: boolean; limite: number }): Promise<ItemLinhaDoTempo[]>`;
+  - `dashboardCtrl.agenda`;
+  - `AcaoAuditoria` com `"redefinicao_solicitada"`;
+  - `pedidoRedefinicaoLimiter`;
+  - `findParaPedidoRedefinicao(email)` → `{ id, slug, nome, email } | null`;
+  - `JANELA_PEDIDO_REDEFINICAO_MS = 3_600_000`;
+  - `registrarPedidoRedefinicao({ usuario, ip }): Promise<"registrado" | "repetido">`;
+  - `MENSAGEM_PEDIDO_REDEFINICAO`;
+  - `authCtrl.pedidoRedefinicao`;
+  - as rotas da tabela de contratos acima.
+
+- [ ] **Step 1: Teste da agenda (falha)**
+
+Crie `backend/tests/agenda.test.ts`:
+
+```ts
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import request from "supertest";
+import { createApp } from "../src/app.js";
+import { prisma } from "../src/prisma.js";
+import { hojeISO, somarDias } from "../src/domain/atraso.js";
+import { LIMITE_AGENDA } from "../src/models/dashboard.model.js";
+import { toSlug } from "../src/utils/slug.js";
+import { bearer, criarEquipe, criarUsuario, limpar, login } from "./helpers.js";
+
+// Adendo 23/09: GET /dashboard/agenda — "mesa do mentor" (para avaliar, prazos,
+// minhas equipes) e os dois primeiros blocos no painel do admin.
+// Banco compartilhado: o mentor A só existe neste arquivo, então as listas DELE
+// são exatas; as do admin (globais) só são checadas por pertença + teto.
+const app = createApp();
+const sufixo = `ag${Date.now()}`;
+const email = (n: string) => `${n}.${sufixo}@teste.local`;
+const dia = (n: number) => somarDias(hojeISO(), n);
+let adminAccess = "";
+let mentorAAccess = "";
+let alunoAccess = "";
+let a1 = { id: "", slug: "" };
+let b1 = { id: "", slug: "" };
+const idsTarefas: string[] = [];
+
+async function tarefa(equipeId: string, titulo: string, status: string, data: Date): Promise<string> {
+  const t = await prisma.tarefas.create({
+    data: { equipe_id: equipeId, etapa_id: 2, titulo, status, data_entrega: data },
+    select: { id: true },
+  });
+  idsTarefas.push(t.id);
+  return t.id;
+}
+
+beforeAll(async () => {
+  await criarUsuario(email("admin"), "admin");
+  const mentorA = await criarUsuario(email("mentora"), "mentor");
+  const mentorB = await criarUsuario(email("mentorb"), "mentor");
+  const aluno = await criarUsuario(email("aluno"), "aluno");
+  const alunoB = await criarUsuario(email("alunob"), "aluno");
+  a1 = await criarEquipe({
+    nome: `Agenda A1 ${sufixo}`,
+    mentorId: mentorA.id,
+    etapa: 2,
+    membros: [{ id: aluno.id, papel: "lider" }],
+  });
+  await criarEquipe({ nome: `Agenda A2 ${sufixo}`, mentorId: mentorA.id, etapa: 3, status: "desistente" });
+  b1 = await criarEquipe({
+    nome: `Agenda B1 ${sufixo}`,
+    mentorId: mentorB.id,
+    etapa: 2,
+    membros: [{ id: alunoB.id, papel: "lider" }],
+  });
+
+  // A1 (mentor A): 5 tarefas obrigatórias da Etapa 2, nenhuma aprovada.
+  const entregueA = await tarefa(a1.id, "Entregue A1", "entregue", dia(20));
+  await prisma.entregas.create({ data: { tarefa_id: entregueA, versao: 1, enviado_por: aluno.id } });
+  await tarefa(a1.id, "Atrasada A1", "pendente", new Date("2020-01-01T00:00:00Z"));
+  await tarefa(a1.id, "Ajustar amanhã", "ajustar", dia(1));
+  await tarefa(a1.id, "Vence em 3 dias", "em_andamento", dia(3));
+  await tarefa(a1.id, "Vence em 30 dias", "pendente", dia(30));
+  await prisma.historico_etapas.create({
+    data: {
+      equipe_id: a1.id,
+      etapa_origem_id: 1,
+      etapa_destino_id: 2,
+      movido_por: mentorA.id,
+      status_origem: "ativa",
+      status_destino: "ativa",
+    },
+  });
+
+  // B1 (mentor B): datas bem antigas para aparecerem no topo da lista global do admin.
+  const entregueB = await tarefa(b1.id, "Entregue B1", "entregue", new Date("1999-01-01T00:00:00Z"));
+  await prisma.entregas.create({ data: { tarefa_id: entregueB, versao: 1, enviado_por: alunoB.id } });
+  await tarefa(b1.id, "Atrasada B1", "pendente", new Date("1999-01-02T00:00:00Z"));
+
+  adminAccess = await login(app, email("admin"));
+  mentorAAccess = await login(app, email("mentora"));
+  alunoAccess = await login(app, email("aluno"));
+});
+
+afterAll(async () => {
+  await limpar(sufixo);
+  await prisma.$disconnect();
+});
+
+const agenda = (access: string) => request(app).get("/api/v1/dashboard/agenda").set(bearer(access));
+
+describe("GET /dashboard/agenda", () => {
+  it("mentor: 'para avaliar' só das suas equipes, com slug, versão e quando foi enviada", async () => {
+    const r = await agenda(mentorAAccess);
+    expect(r.status).toBe(200);
+    const { paraAvaliar } = r.body.data;
+    expect(paraAvaliar).toHaveLength(1);
+    expect(paraAvaliar[0]).toMatchObject({
+      equipe: { slug: a1.slug, nomeIdeia: `Agenda A1 ${sufixo}` },
+      tarefa: { slug: toSlug(idsTarefas[0]!), titulo: "Entregue A1" },
+      versao: 1,
+    });
+    expect(Number.isNaN(Date.parse(paraAvaliar[0].entregueEm))).toBe(false);
+  });
+
+  it("mentor: prazos = atrasadas + próximos 7 dias, com status efetivo (RN-04), do mais antigo ao mais novo", async () => {
+    const r = await agenda(mentorAAccess);
+    const prazos = r.body.data.prazos as Array<{ tarefa: { titulo: string }; status: string; dataEntrega: string }>;
+    expect(prazos.map((p) => p.tarefa.titulo)).toEqual(["Atrasada A1", "Ajustar amanhã", "Vence em 3 dias"]);
+    expect(prazos.map((p) => p.status)).toEqual(["atrasada", "ajustar", "em_andamento"]);
+    expect(prazos[2]?.dataEntrega.slice(0, 10)).toBe(dia(3).toISOString().slice(0, 10));
+  });
+
+  it("mentor: um cartão por equipe em andamento, com etapa, integrantes, pendências (RN-01) e último evento", async () => {
+    const r = await agenda(mentorAAccess);
+    expect(r.body.data.equipes).toEqual([
+      {
+        slug: a1.slug,
+        nomeIdeia: `Agenda A1 ${sufixo}`,
+        status: "ativa",
+        etapa: { numero: 2, nome: expect.any(String) },
+        membrosAtivos: 1,
+        faltamParaAvancar: 5,
+        ultimoEvento: { titulo: "Etapa 1 → Etapa 2", em: expect.any(String) },
+      },
+    ]);
+  });
+
+  it("nunca expõe UUID", async () => {
+    const corpo = JSON.stringify((await agenda(mentorAAccess)).body);
+    for (const id of [a1.id, ...idsTarefas]) expect(corpo).not.toContain(id);
+  });
+
+  it("admin: vê todas as equipes (inclui a do mentor B), listas com teto e sem cartões", async () => {
+    const r = await agenda(adminAccess);
+    expect(r.status).toBe(200);
+    const { paraAvaliar, prazos, equipes } = r.body.data as {
+      paraAvaliar: Array<{ equipe: { slug: string }; tarefa: { titulo: string } }>;
+      prazos: Array<{ equipe: { slug: string }; tarefa: { titulo: string }; status: string }>;
+      equipes: unknown[];
+    };
+    expect(paraAvaliar.length).toBeLessThanOrEqual(LIMITE_AGENDA);
+    expect(prazos.length).toBeLessThanOrEqual(LIMITE_AGENDA);
+    expect(paraAvaliar.some((i) => i.equipe.slug === b1.slug && i.tarefa.titulo === "Entregue B1")).toBe(true);
+    expect(
+      prazos.some((i) => i.equipe.slug === b1.slug && i.tarefa.titulo === "Atrasada B1" && i.status === "atrasada"),
+    ).toBe(true);
+    expect(equipes).toEqual([]);
+  });
+
+  it("aluno → 403", async () => {
+    expect((await agenda(alunoAccess)).status).toBe(403);
+  });
+});
+```
+
+- [ ] **Step 2: Rodar e ver falhar**
+
+Run: `npx vitest run tests/agenda.test.ts`
+Expected: FAIL. A rota não existe, então vem `expected 404 to be 200` e o aluno recebe 404, não 403. O import `LIMITE_AGENDA` fica `undefined`.
+
+- [ ] **Step 3: Linha do tempo "pronta" no model (uma regra só)**
+
+Em `backend/src/models/equipe.model.ts`, acrescente no topo `import { montarLinhaDoTempo } from "../domain/linhaDoTempo.js";` e, no fim do arquivo (depois de `eventosLinhaDoTempo`), acrescente:
+
+```ts
+// A5: a linha do tempo pronta (busca + regra pura). Uma função só para o
+// endpoint da linha do tempo e para o "último evento" da mesa do mentor.
+export async function linhaDoTempo(equipeId: string, o: { paraAluno: boolean; limite: number }) {
+  const { historico, auditoria } = await eventosLinhaDoTempo(equipeId, o.limite);
+  return montarLinhaDoTempo({
+    paraAluno: o.paraAluno,
+    limite: o.limite,
+    movimentos: historico.map((h) => ({
+      de:
+        h.status_origem === "pronta_inovamf"
+          ? "pronta"
+          : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+      para:
+        h.status_destino === "pronta_inovamf"
+          ? "pronta"
+          : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+      forcado: h.forcado,
+      observacao: h.observacao,
+      autor: h.usuarios?.nome ?? null,
+      em: h.criado_em,
+    })),
+    auditoria: auditoria.map((a) => ({
+      acao: a.acao,
+      antes: a.dados_anteriores,
+      depois: a.dados_novos,
+      autor: a.usuarios?.nome ?? null,
+      em: a.criado_em,
+    })),
+  });
+}
+```
+
+Em `backend/src/controllers/equipe.controller.ts`:
+- troque `import { LIMITE_LINHA_DO_TEMPO, montarLinhaDoTempo } from "../domain/linhaDoTempo.js";` por `import { LIMITE_LINHA_DO_TEMPO } from "../domain/linhaDoTempo.js";`;
+- substitua a função `linhaDoTempo` inteira por:
+
+```ts
+export async function linhaDoTempo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    const membros = controle.equipe_membros.map((m) => m.usuario_id);
+    if (!podeVerEquipe(req, controle.mentor_id, membros)) {
+      throw httpError(403, "FORBIDDEN", "Equipe fora do seu escopo");
+    }
+    const data = await equipeModel.linhaDoTempo(controle.id, {
+      paraAluno: req.auth.role === "aluno",
+      limite: LIMITE_LINHA_DO_TEMPO,
+    });
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+```
+
+- [ ] **Step 4: Consultas da agenda (no banco, com teto)**
+
+Em `backend/src/models/dashboard.model.ts`:
+- troque as importações do topo por:
+
+```ts
+import type { Prisma } from "@prisma/client";
+import { prisma } from "../prisma.js";
+import { STATUS_SEM_ENTREGA, somarDias } from "../domain/atraso.js";
+import { whereEscopo, type Escopo } from "./equipe.model.js";
+import { whereStatusEfetivo } from "./tarefa.model.js";
+```
+
+- no fim do arquivo, acrescente:
+
+```ts
+// --- Agenda (adendo 23/09): "mesa do mentor" e blocos do painel do admin ------
+// Listas com teto, filtradas e ordenadas NO BANCO, com o escopo do papel.
+export const LIMITE_AGENDA = 20;
+export const JANELA_PRAZOS_DIAS = 7;
+
+const TAREFA_AGENDA = {
+  id: true,
+  titulo: true,
+  status: true,
+  data_entrega: true,
+  equipes: { select: { slug: true, nome_ideia: true } },
+} satisfies Prisma.tarefasSelect;
+
+// Entregas esperando avaliação: tarefa "entregue" + a última versão enviada.
+// Prazo mais antigo primeiro.
+export function aguardandoAvaliacao(escopo: Escopo) {
+  return prisma.tarefas.findMany({
+    where: { status: "entregue", equipes: whereEscopo(escopo) },
+    orderBy: [{ data_entrega: "asc" }, { criado_em: "asc" }],
+    take: LIMITE_AGENDA,
+    select: {
+      ...TAREFA_AGENDA,
+      entregas: { orderBy: { versao: "desc" }, take: 1, select: { versao: true, criado_em: true } },
+    },
+  });
+}
+
+// Prazos: atrasadas (RN-04 — a MESMA regra de whereStatusEfetivo) + as sem
+// entrega que vencem de hoje até hoje + 7 (dia de SP). Mais antiga primeiro.
+export function prazosDaSemana(escopo: Escopo, hoje: string) {
+  return prisma.tarefas.findMany({
+    where: {
+      equipes: whereEscopo(escopo),
+      OR: [
+        whereStatusEfetivo("atrasada", hoje),
+        {
+          status: { in: [...STATUS_SEM_ENTREGA, "ajustar"] },
+          data_entrega: { gte: somarDias(hoje, 0), lte: somarDias(hoje, JANELA_PRAZOS_DIAS) },
+        },
+      ],
+    },
+    orderBy: [{ data_entrega: "asc" }, { criado_em: "asc" }],
+    take: LIMITE_AGENDA,
+    select: TAREFA_AGENDA,
+  });
+}
+
+// Equipes em andamento do mentor para os cartões da mesa (desistentes e já
+// encaminhadas ao InovAMF ficam de fora). Integrantes ativos contados no banco.
+export function equipesDoMentor(mentorId: string) {
+  return prisma.equipes.findMany({
+    where: {
+      AND: [
+        whereEscopo({ tipo: "mentor", usuarioId: mentorId }),
+        { status: { notIn: ["desistente", "encaminhada_inovamf"] } },
+      ],
+    },
+    orderBy: { nome_ideia: "asc" },
+    take: LIMITE_AGENDA,
+    select: {
+      id: true,
+      slug: true,
+      nome_ideia: true,
+      status: true,
+      etapas: { select: { numero: true, nome: true } },
+      _count: { select: { equipe_membros: { where: { ativo: true } } } },
+    },
+  });
+}
+```
+
+- [ ] **Step 5: Controller e rota**
+
+Em `backend/src/controllers/dashboard.controller.ts`, troque as importações do topo por:
+
+```ts
+import type { NextFunction, Request, Response } from "express";
+import { escopoDo } from "../utils/acesso.js";
+import { toSlug } from "../utils/slug.js";
+import { hojeISO, somarDias, statusEfetivo } from "../domain/atraso.js";
+import { ehAvanco, serieSemanal } from "../domain/serie.js";
+import * as dashboardModel from "../models/dashboard.model.js";
+import * as equipeModel from "../models/equipe.model.js";
+```
+
+e, no fim do arquivo, acrescente:
+
+```ts
+// Cartões da mesa do mentor. Pendências (RN-01/RN-02) e último evento vêm das
+// MESMAS funções do detalhe e da linha do tempo — nada de regra duplicada em
+// SQL. São ~5 consultas por equipe (7 na Etapa 6), em paralelo: aceitável
+// porque o mentor tem poucas equipes e a lista tem teto (LIMITE_AGENDA). Por
+// isso o admin (todas as equipes) não recebe cartões.
+async function cartoesDoMentor(mentorId: string) {
+  const equipes = await dashboardModel.equipesDoMentor(mentorId);
+  return Promise.all(
+    equipes.map(async (e) => {
+      const [pendencias, [ultimo]] = await Promise.all([
+        equipeModel.pendenciasParaAvancar(e.id),
+        equipeModel.linhaDoTempo(e.id, { paraAluno: false, limite: 1 }),
+      ]);
+      return {
+        slug: e.slug,
+        nomeIdeia: e.nome_ideia,
+        status: e.status,
+        etapa: { numero: e.etapas.numero, nome: e.etapas.nome },
+        membrosAtivos: e._count.equipe_membros,
+        faltamParaAvancar: pendencias.length,
+        ultimoEvento: ultimo ? { titulo: ultimo.titulo, em: ultimo.em } : null,
+      };
+    }),
+  );
+}
+
+// GET /dashboard/agenda — admin (tudo) e mentor (só as suas equipes). Adendo
+// 23/09: "para avaliar", "prazos" e, só para o mentor, os cartões das equipes.
+export async function agenda(req: Request, res: Response, next: NextFunction) {
+  try {
+    const escopo = escopoDo(req);
+    const hoje = hojeISO();
+    const [avaliar, prazos, equipes] = await Promise.all([
+      dashboardModel.aguardandoAvaliacao(escopo),
+      dashboardModel.prazosDaSemana(escopo, hoje),
+      escopo.tipo === "mentor" ? cartoesDoMentor(escopo.usuarioId) : Promise.resolve([]),
+    ]);
+    res.json({
+      data: {
+        paraAvaliar: avaliar.map((t) => ({
+          equipe: { slug: t.equipes.slug, nomeIdeia: t.equipes.nome_ideia },
+          tarefa: { slug: toSlug(t.id), titulo: t.titulo },
+          versao: t.entregas[0]?.versao ?? null,
+          entregueEm: t.entregas[0]?.criado_em ?? null,
+        })),
+        prazos: prazos.map((t) => ({
+          equipe: { slug: t.equipes.slug, nomeIdeia: t.equipes.nome_ideia },
+          tarefa: { slug: toSlug(t.id), titulo: t.titulo },
+          dataEntrega: t.data_entrega,
+          status: statusEfetivo(t.status, t.data_entrega, hoje),
+        })),
+        equipes,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+```
+
+Em `backend/src/routes.ts`, logo depois de `routes.get("/dashboard", auth, role("admin", "mentor"), dashboardCtrl.show);`, acrescente:
+
+```ts
+routes.get("/dashboard/agenda", auth, role("admin", "mentor"), dashboardCtrl.agenda);
+```
+
+- [ ] **Step 6: Rodar os testes**
+
+Run: `npx vitest run tests/agenda.test.ts tests/linha-do-tempo.test.ts tests/dashboard.test.ts && npm run typecheck`
+Expected: PASS em todos. A linha do tempo continua igual depois da refatoração, e o `tsc --noEmit` passa sem erros.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/models/equipe.model.ts src/controllers/equipe.controller.ts src/models/dashboard.model.ts src/controllers/dashboard.controller.ts src/routes.ts tests/agenda.test.ts
+git commit -F - <<'EOF'
+feat(backend): agenda do mentor e do admin (GET /dashboard/agenda)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E9TXsEhLzvh1bBR9LeB58C
+EOF
+```
+
+- [ ] **Step 8: Testes do pedido de redefinição (falham)**
+
+Crie `backend/tests/pedido-redefinicao.test.ts`:
+
+```ts
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import request from "supertest";
+import { createApp } from "../src/app.js";
+import { prisma } from "../src/prisma.js";
+import { MENSAGEM_PEDIDO_REDEFINICAO } from "../src/controllers/auth.controller.js";
+import { bearer, criarUsuario, limpar, login } from "./helpers.js";
+
+// Adendo 23/09 (RF-01): a pessoa pede a redefinição na tela pública. Resposta
+// SEMPRE 202 e igual (sem enumeração). Com conta ativa e convite aceito, cada
+// admin ativo recebe o aviso no sino (status 'cancelado' — nunca vira e-mail),
+// no máximo 1 por conta por hora, auditado na mesma transação.
+// Banco compartilhado: CADA admin ativo (de outros arquivos também) recebe o
+// aviso, então as asserções filtram pelo e-mail de quem pediu (dados.email).
+const app = createApp();
+const sufixo = `pr${Date.now()}`;
+const email = (n: string) => `${n}.${sufixo}@teste.local`;
+let admin = { id: "", slug: "" };
+let adminInativo = { id: "", slug: "" };
+let alvo = { id: "", slug: "" };
+let pendente = { id: "", slug: "" };
+let inativo = { id: "", slug: "" };
+let adminAccess = "";
+
+beforeAll(async () => {
+  admin = await criarUsuario(email("admin"), "admin");
+  adminInativo = await criarUsuario(email("admin-off"), "admin", { ativo: false });
+  alvo = await criarUsuario(email("alvo"), "mentor", { nome: "Alvo Pedido" });
+  pendente = await criarUsuario(email("pend"), "aluno", { ativado: false });
+  inativo = await criarUsuario(email("off"), "aluno", { ativo: false });
+  adminAccess = await login(app, email("admin"));
+});
+
+afterAll(async () => {
+  // os avisos também foram para admins de fora deste arquivo (ex.: o da base)
+  await prisma.emails.deleteMany({
+    where: { tipo: "recuperacao_senha", dados_template: { path: ["email"], string_contains: sufixo } },
+  });
+  await limpar(sufixo);
+  await prisma.$disconnect();
+});
+
+const pedir = (e: unknown) => request(app).post("/api/v1/auth/pedido-redefinicao").send({ email: e });
+const avisosDe = (e: string) =>
+  prisma.emails.findMany({
+    where: { tipo: "recuperacao_senha", dados_template: { path: ["email"], equals: e } },
+    select: { destinatario_id: true, status: true, assunto: true, dados_template: true },
+  });
+const pedidosDe = (usuarioId: string) =>
+  prisma.log_auditoria.findMany({
+    where: { entidade: "usuario", entidade_id: usuarioId, acao: "redefinicao_solicitada" },
+    select: { usuario_id: true, dados_novos: true },
+  });
+
+describe("POST /auth/pedido-redefinicao", () => {
+  it("conta ativa: 202 genérico; cada admin ativo recebe o aviso cancelado; pedido auditado", async () => {
+    const r = await pedir(email("alvo"));
+    expect(r.status).toBe(202);
+    expect(r.body).toEqual({ mensagem: MENSAGEM_PEDIDO_REDEFINICAO });
+
+    const avisos = await avisosDe(email("alvo"));
+    const destinos = avisos.map((a) => a.destinatario_id);
+    expect(destinos).toContain(admin.id);
+    expect(destinos).not.toContain(adminInativo.id);
+    expect(avisos.every((a) => a.status === "cancelado")).toBe(true);
+    expect(avisos[0]?.assunto).toBe("Pedido de redefinição de senha: Alvo Pedido");
+    expect(avisos[0]?.dados_template).toEqual({ nome: "Alvo Pedido", email: email("alvo"), usuario_slug: alvo.slug });
+
+    const log = await pedidosDe(alvo.id);
+    expect(log).toHaveLength(1);
+    expect(log[0]?.usuario_id).toBeNull();
+    const notificados = (log[0]?.dados_novos as { notificados: number }).notificados;
+    expect(notificados).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(log[0]?.dados_novos)).not.toContain(email("alvo"));
+  });
+
+  it("o admin vê o pedido no sino (GET /notificacoes)", async () => {
+    const inbox = await request(app).get("/api/v1/notificacoes").set(bearer(adminAccess));
+    expect(inbox.status).toBe(200);
+    const aviso = (inbox.body.data as Array<{ tipo: string; status: string; dados: { usuario_slug?: string } }>).find(
+      (n) => n.tipo === "recuperacao_senha" && n.dados.usuario_slug === alvo.slug,
+    );
+    expect(aviso?.status).toBe("cancelado");
+  });
+
+  it("repetir dentro de 1 h não duplica aviso nem auditoria (mesmo 202)", async () => {
+    const antes = (await avisosDe(email("alvo"))).length;
+    const r = await pedir(`  ${email("alvo").toUpperCase()} `);
+    expect(r.status).toBe(202);
+    expect(r.body).toEqual({ mensagem: MENSAGEM_PEDIDO_REDEFINICAO });
+    expect((await avisosDe(email("alvo"))).length).toBe(antes);
+    expect(await pedidosDe(alvo.id)).toHaveLength(1);
+  });
+
+  it("sem conta, convite pendente ou conta inativa: o MESMO 202 e nada enfileirado nem auditado", async () => {
+    for (const e of [email("ninguem"), email("pend"), email("off")]) {
+      const r = await pedir(e);
+      expect(r.status).toBe(202);
+      expect(r.body).toEqual({ mensagem: MENSAGEM_PEDIDO_REDEFINICAO });
+      expect(await avisosDe(e)).toHaveLength(0);
+    }
+    expect(await pedidosDe(pendente.id)).toHaveLength(0);
+    expect(await pedidosDe(inativo.id)).toHaveLength(0);
+  });
+
+  it("passada 1 h, um novo pedido volta a avisar", async () => {
+    const antes = (await avisosDe(email("alvo"))).length;
+    await prisma.log_auditoria.updateMany({
+      where: { entidade: "usuario", entidade_id: alvo.id, acao: "redefinicao_solicitada" },
+      data: { criado_em: new Date(Date.now() - 61 * 60_000) },
+    });
+    expect((await pedir(email("alvo"))).status).toBe(202);
+    expect((await avisosDe(email("alvo"))).length).toBeGreaterThan(antes);
+    expect(await pedidosDe(alvo.id)).toHaveLength(2);
+  });
+
+  it("e-mail ausente ou malformado → 400 INVALID_EMAIL", async () => {
+    for (const e of [undefined, "", "sem-arroba"]) {
+      const r = await pedir(e);
+      expect(r.status).toBe(400);
+      expect(r.body.error.code).toBe("INVALID_EMAIL");
+    }
+  });
+});
+```
+
+Em `backend/tests/rate-limit.test.ts`, no fim do arquivo, acrescente:
+
+```ts
+describe("pedidoRedefinicaoLimiter", () => {
+  it("o 202 também gasta tentativa: o 6º pedido em 15 min do mesmo IP + e-mail leva 429", async () => {
+    const pedir = () =>
+      request(app)
+        .post("/api/v1/auth/pedido-redefinicao")
+        .set("X-Forwarded-For", "203.0.113.50")
+        .send({ email: `ninguem.${sufixo}@teste.local` });
+    for (let i = 0; i < 5; i++) {
+      expect((await pedir()).status).toBe(202);
+    }
+    expect((await pedir()).status).toBe(429);
+  });
+});
+```
+
+Em `backend/tests/seed.test.ts`, no teste do `purgeDemo`, troque:
+
+```ts
+    expect(await prisma.emails.count({ where: { destinatario_email: ADMIN_EMAIL, status: "cancelado" } })).toBe(0);
+```
+
+por:
+
+```ts
+    // pedidos de redefinição de OUTROS arquivos de teste também caem no sino do
+    // admin da base (cancelados) — não são da camada demo.
+    expect(
+      await prisma.emails.count({
+        where: { destinatario_email: ADMIN_EMAIL, status: "cancelado", tipo: { not: "recuperacao_senha" } },
+      }),
+    ).toBe(0);
+```
+
+- [ ] **Step 9: Rodar e ver falhar**
+
+Run: `npx vitest run tests/pedido-redefinicao.test.ts tests/rate-limit.test.ts`
+Expected: FAIL. A rota responde 404 `NOT_FOUND` (`expected 404 to be 202`), e o 6º pedido do rate limit também volta 404.
+
+- [ ] **Step 10: Implementar**
+
+Em `backend/src/models/auditoria.model.ts`, troque `  | "redefinicao_senha_gerada";` por:
+
+```ts
+  | "redefinicao_senha_gerada"
+  | "redefinicao_solicitada";
+```
+
+Substitua `backend/src/middlewares/rateLimit.ts` inteiro por:
+
+```ts
+import type { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
+
+// Chave dos limitadores públicos: IP real + e-mail do corpo. req.ip é o IP real
+// do cliente (app.ts confia no X-Forwarded-For do rewrite do Next). A inscrição
+// manda o e-mail em lider.email; as demais rotas em email.
+function chaveIpEmail(req: Request): string {
+  const bruto = req.body?.email ?? req.body?.lider?.email;
+  const email = typeof bruto === "string" ? bruto.toLowerCase() : "sem-email";
+  return `${req.ip ?? "sem-ip"}:${email}`;
+}
+
+function responder429(_req: Request, res: Response): void {
+  res.status(429).json({
+    error: {
+      code: "RATE_LIMITED",
+      message: "Muitas tentativas. Tente novamente mais tarde.",
+    },
+  });
+}
+
+const COMUM = {
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  validate: false, // não usamos req.ip cru como chave sozinho; combinamos com e-mail
+  // Desligado em teste para não deixar a suíte flaky (rate-limit.test.ts religa).
+  skip: () => process.env.NODE_ENV === "test",
+  keyGenerator: chaveIpEmail,
+  handler: responder429,
+} as const;
+
+// §7: 5 tentativas falhas / 15 min por IP + e-mail em /auth/login e
+// /auth/register (e demais rotas públicas sensíveis). Login certo não conta.
+export const authLimiter = rateLimit({ ...COMUM, skipSuccessfulRequests: true });
+
+// Pedido de redefinição (adendo 23/09): a rota SEMPRE responde 202, então aqui
+// TODA requisição conta — com skipSuccessfulRequests o limite nunca dispararia.
+export const pedidoRedefinicaoLimiter = rateLimit({ ...COMUM, skipSuccessfulRequests: false });
+```
+
+Em `backend/src/models/usuario.model.ts`, logo depois de `findAtivoByEmail`, acrescente:
+
+```ts
+// Pedido de redefinição (adendo 23/09): só conta ativa, não excluída e com
+// convite aceito — quem nunca definiu senha usa o convite, não a redefinição.
+export function findParaPedidoRedefinicao(email: string) {
+  return prisma.usuarios.findFirst({
+    where: { email, ativo: true, excluido_em: null, convite_aceito_em: { not: null } },
+    select: { id: true, slug: true, nome: true, email: true },
+  });
+}
+```
+
+Em `backend/src/models/email.model.ts`, logo depois de `enfileirarComAuditoria`, acrescente:
+
+```ts
+// Pedido de redefinição feito na tela pública (adendo 23/09, RF-01). No máximo
+// UM por conta por hora — a janela é contada pela auditoria. Trava a conta
+// (FOR UPDATE) para dois pedidos simultâneos não passarem juntos. Cada admin
+// ativo recebe o aviso no sino com status 'cancelado' (o worker de e-mail do
+// Plano 4 nunca envia) e o pedido é auditado na MESMA transação (RNF-05).
+export const JANELA_PEDIDO_REDEFINICAO_MS = 60 * 60 * 1000;
+
+export function registrarPedidoRedefinicao(p: {
+  usuario: { id: string; slug: string; nome: string; email: string };
+  ip: string | null;
+}): Promise<"registrado" | "repetido"> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM usuarios WHERE id = ${p.usuario.id}::uuid FOR UPDATE`;
+    const recente = await tx.log_auditoria.findFirst({
+      where: {
+        entidade: "usuario",
+        entidade_id: p.usuario.id,
+        acao: "redefinicao_solicitada",
+        criado_em: { gt: new Date(Date.now() - JANELA_PEDIDO_REDEFINICAO_MS) },
+      },
+      select: { id: true },
+    });
+    if (recente) return "repetido" as const;
+
+    const admins = await tx.usuarios.findMany({
+      where: { tipo_usuario: "admin", ativo: true, excluido_em: null },
+      select: { id: true, email: true },
+    });
+    await tx.emails.createMany({
+      data: admins.map((a) => ({
+        ...linha({
+          tipo: "recuperacao_senha",
+          destinatarioId: a.id,
+          destinatarioEmail: a.email,
+          assunto: `Pedido de redefinição de senha: ${p.usuario.nome}`,
+          template: "recuperacao_senha",
+          dadosTemplate: { nome: p.usuario.nome, email: p.usuario.email, usuario_slug: p.usuario.slug },
+        }),
+        status: "cancelado",
+      })),
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: null, // pedido anônimo: quem digitou o e-mail não está autenticado
+      entidade: "usuario",
+      entidadeId: p.usuario.id,
+      acao: "redefinicao_solicitada",
+      depois: { notificados: admins.length },
+      ip: p.ip,
+    });
+    return "registrado" as const;
+  });
+}
+```
+
+Em `backend/src/controllers/auth.controller.ts`:
+- troque `import { idDoChamador } from "../utils/acesso.js";` por `import { idDoChamador, ipDoChamador } from "../utils/acesso.js";`;
+- acrescente `import { ehEmail } from "../utils/text.js";` e `import * as emailModel from "../models/email.model.js";` junto das importações;
+- no fim do arquivo, acrescente:
+
+```ts
+// Resposta ÚNICA do pedido de redefinição — igual exista ou não a conta, esteja
+// ela ativa ou não (sem enumeração de e-mails).
+export const MENSAGEM_PEDIDO_REDEFINICAO =
+  "Pedido recebido. Se houver uma conta ativa com esse e-mail, a coordenação já foi avisada.";
+
+// POST /auth/pedido-redefinicao — pública (pedidoRedefinicaoLimiter). A pessoa
+// pede à coordenação um link de redefinição (RF-01). Nenhum e-mail sai daqui:
+// cada admin ativo vê o pedido no sino e gera o link na tela Contas. Falha ao
+// registrar também responde 202 — a resposta não pode depender de a conta existir.
+export async function pedidoRedefinicao(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body ?? {};
+    if (!ehEmail(email)) throw httpError(400, "INVALID_EMAIL", "Informe um e-mail válido");
+    const conta = await usuarioModel.findParaPedidoRedefinicao(email.trim().toLowerCase());
+    if (conta) {
+      await emailModel
+        .registrarPedidoRedefinicao({ usuario: conta, ip: ipDoChamador(req) })
+        .catch((e) => console.error("[pedidoRedefinicao] falha ao registrar o pedido", e));
+    }
+    res.status(202).json({ mensagem: MENSAGEM_PEDIDO_REDEFINICAO });
+  } catch (err) {
+    next(err);
+  }
+}
+```
+
+Em `backend/src/routes.ts`:
+- troque `import { authLimiter } from "./middlewares/rateLimit.js";` por `import { authLimiter, pedidoRedefinicaoLimiter } from "./middlewares/rateLimit.js";`;
+- logo depois de `routes.post("/auth/redefinir-senha", authLimiter, authCtrl.redefinirSenha);`, acrescente:
+
+```ts
+routes.post("/auth/pedido-redefinicao", pedidoRedefinicaoLimiter, authCtrl.pedidoRedefinicao);
+```
+
+- [ ] **Step 11: Rodar os testes**
+
+Run: `npx vitest run tests/pedido-redefinicao.test.ts tests/rate-limit.test.ts tests/seed.test.ts tests/auth.test.ts tests/redefinir-senha.test.ts tests/notificacoes.test.ts && npm run typecheck`
+Expected: PASS em todos, inclusive os testes antigos do `authLimiter` (o login certo continua sem gastar tentativa). O `tsc --noEmit` passa sem erros.
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add src/models/auditoria.model.ts src/middlewares/rateLimit.ts src/models/usuario.model.ts src/models/email.model.ts src/controllers/auth.controller.ts src/routes.ts tests/pedido-redefinicao.test.ts tests/rate-limit.test.ts tests/seed.test.ts
+git commit -F - <<'EOF'
+feat(backend): pedido público de redefinição de senha avisa a coordenação
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E9TXsEhLzvh1bBR9LeB58C
+EOF
+```
+
+- [ ] **Step 13: Suíte inteira e PR próprio para `staging`**
+
+Run: `npm test && npm run typecheck`
+Expected: todos os arquivos PASS e `tsc --noEmit` sem erros.
+
+```bash
+git push -u origin feat/g1-adendo-backend
+gh pr create --base staging --title "feat: G1 adendo — agenda do mentor e pedido de redefinição (backend)" --body "$(cat <<'EOF'
+## Resumo
+- `GET /dashboard/agenda` (admin e mentor, escopo do papel): "para avaliar", "prazos" (atrasadas + 7 dias, RN-04) e, só para o mentor, cartões das equipes (etapa, integrantes ativos, pendências RN-01/RN-02, último evento). Listas com teto de 20, no banco; só slugs.
+- `POST /auth/pedido-redefinicao` (público): sempre 202 com o mesmo corpo; com conta ativa, avisa cada admin ativo no sino (`recuperacao_senha`, status `cancelado`), no máximo 1 por conta por hora, auditado (`redefinicao_solicitada`) na mesma transação. Limitador próprio (5/15 min por IP + e-mail) que conta os 202.
+- Linha do tempo montada numa função só do model (endpoint + "último evento").
+- Sem migration nova; não toca arquivos do E2.
+
+## Testes
+- `npm test` e `npm run typecheck` verdes
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_01E9TXsEhLzvh1bBR9LeB58C
+EOF
+)"
+```
+
+Aguardar aprovação e merge. A Task 16 precisa deste PR em `staging`.
+
+---
+
+### Task 16: Mesa do mentor, agenda no painel do admin e pedido na tela "Recuperar senha"
+
+Roda no **Bloco E3, depois da Task 13**, no branch `feat/g1-e3-telas`, e entra no PR do E3. **Pré-requisito:** o PR da Task 15 já está em `staging`. Se o branch do E3 foi criado antes desse merge, atualize-o antes de começar:
+
+```bash
+git fetch origin && git merge origin/staging
+```
+
+Todos os comandos abaixo rodam dentro de `frontend/`.
+
+**Files:**
+- Create: `frontend/src/features/agenda/Agenda.tsx`
+- Modify: `frontend/src/data/api/tipos.ts`, `frontend/src/data/api/consultas.ts`
+- Modify: `frontend/src/features/orientador/PainelOrientador.tsx`, `frontend/src/app/admin/page.tsx`
+- Modify: `frontend/src/features/admin-detalhe/DetalheEquipe.tsx`, `frontend/src/app/admin/equipes/[slug]/page.tsx`, `frontend/src/app/orientador/equipes/[slug]/page.tsx`
+- Modify: `frontend/src/features/auth/RecuperarSenhaForm.tsx`
+- Test: `frontend/tests/components/agenda.test.tsx` (novo); modify `frontend/tests/components/dashboard.test.tsx`, `frontend/tests/components/detalhe-equipe.test.tsx`; rewrite `frontend/tests/components/recuperar.test.tsx`
+
+**Interfaces:**
+- Consumes:
+  - `GET /dashboard/agenda` e `POST /auth/pedido-redefinicao` (Task 15);
+  - `Skeleton({ linhas, className })` (Task 7);
+  - `tempoRelativo(iso, agora?)` (Task 8, `features/shell/notificacoes.ts`). `destinoNotificacao` já trata `recuperacao_senha` → `/admin/contas` (Task 8), sem edição aqui;
+  - `PrazoChip({ dataEntrega, status, className })` e `hojeISO(agora?)` (Task 11);
+  - o `PainelOrientador` com skeleton (Task 13);
+  - `StageProgress`, `Card`, `Button`, `Input`, `FormField`;
+  - `posicaoDe`/`POSICAO_PRONTA` (`features/funil/DialogoMover.tsx`);
+  - `formatarDataHora` (`domain/labels.ts`);
+  - `useEtapas()`.
+- Produces:
+  - os tipos `ItemParaAvaliar`, `ItemPrazo`, `CartaoEquipeMesa` e `Agenda`;
+  - `chaves.agenda = ['dashboard', 'agenda']`, `useAgenda()` e `usePedirRedefinicao()`;
+  - `MesaDoMentor()` e `AgendaAdmin()`;
+  - `DetalheEquipe({ slug, abaInicial? })`, com as páginas de detalhe repassando `?aba=`;
+  - `RecuperarSenhaForm()` com o pedido.
+
+- [ ] **Step 1: Testes da agenda (falham)**
+
+Crie `frontend/tests/components/agenda.test.tsx`:
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+vi.mock('@/data/api/consultas', () => ({ useAgenda: vi.fn(), useEtapas: vi.fn() }));
+
+import { useAgenda, useEtapas } from '@/data/api/consultas';
+import { ApiError } from '@/data/api/erro';
+import type { Agenda } from '@/data/api/tipos';
+import { hojeISO } from '@/domain/prazo';
+import { AgendaAdmin, MesaDoMentor } from '@/features/agenda/Agenda';
+
+type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
+
+const DIA_MS = 86_400_000;
+const ETAPAS = [1, 2, 3, 4, 5, 6].map((numero) => ({
+  numero,
+  nome: `Etapa ${numero}`,
+  descricao: null,
+  entregavel: null,
+}));
+
+const AGENDA: Agenda = {
+  paraAvaliar: [
+    {
+      equipe: { slug: 'agro', nomeIdeia: 'AgroSmart' },
+      tarefa: { slug: 't-pitch', titulo: 'Pitch vídeo' },
+      versao: 2,
+      entregueEm: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    },
+  ],
+  prazos: [
+    {
+      equipe: { slug: 'agro', nomeIdeia: 'AgroSmart' },
+      tarefa: { slug: 't-bmc', titulo: 'BMC' },
+      dataEntrega: '2026-09-01T00:00:00.000Z',
+      status: 'atrasada',
+    },
+    {
+      equipe: { slug: 'eco', nomeIdeia: 'EcoRota' },
+      tarefa: { slug: 't-vpd', titulo: 'VPD' },
+      dataEntrega: `${hojeISO(new Date(Date.now() + 3 * DIA_MS))}T00:00:00.000Z`,
+      status: 'pendente',
+    },
+  ],
+  equipes: [
+    {
+      slug: 'agro',
+      nomeIdeia: 'AgroSmart',
+      status: 'ativa',
+      etapa: { numero: 3, nome: 'Encontro 1' },
+      membrosAtivos: 3,
+      faltamParaAvancar: 2,
+      ultimoEvento: { titulo: 'Entrega enviada: Pitch vídeo (v2)', em: '2026-09-20T15:00:00Z' },
+    },
+    {
+      slug: 'eco',
+      nomeIdeia: 'EcoRota',
+      status: 'ativa',
+      etapa: { numero: 2, nome: 'Contato com a equipe' },
+      membrosAtivos: 1,
+      faltamParaAvancar: 1,
+      ultimoEvento: null,
+    },
+  ],
+};
+const refetch = vi.fn();
+
+function mockAgenda(parcial: Record<string, unknown> = {}) {
+  vi.mocked(useAgenda).mockReturnValue({
+    data: AGENDA,
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch,
+    ...parcial,
+  } as unknown as R<typeof useAgenda>);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockAgenda();
+  vi.mocked(useEtapas).mockReturnValue({ data: ETAPAS, isPending: false, isError: false } as unknown as R<
+    typeof useEtapas
+  >);
+});
+
+describe('MesaDoMentor (adendo 23/09)', () => {
+  it('"Para avaliar": tarefa, equipe, versão, há quanto tempo e um clique até a aba Tarefas', () => {
+    render(<MesaDoMentor />);
+    const link = within(screen.getByRole('list', { name: 'Para avaliar' })).getByRole('link');
+    expect(link).toHaveAttribute('href', '/orientador/equipes/agro?aba=tarefas');
+    expect(link).toHaveTextContent('Pitch vídeo');
+    expect(link).toHaveTextContent('AgroSmart');
+    expect(link).toHaveTextContent('v2 enviada há 2 h');
+  });
+
+  it('"Prazos": chips do DS com o status que veio da API', () => {
+    render(<MesaDoMentor />);
+    const itens = within(screen.getByRole('list', { name: 'Prazos' })).getAllByRole('listitem');
+    expect(itens).toHaveLength(2);
+    expect(itens[0]).toHaveTextContent('BMC');
+    expect(within(itens[0]!).getByText(/^atrasada há \d+ dias?$/)).toBeInTheDocument();
+    expect(within(itens[1]!).getByText('vence em 3 dias')).toBeInTheDocument();
+    expect(within(itens[1]!).getByRole('link')).toHaveAttribute('href', '/orientador/equipes/eco?aba=tarefas');
+  });
+
+  it('"Minhas equipes": etapa (StageProgress), integrantes ativos, pendências e último evento', () => {
+    render(<MesaDoMentor />);
+    const agro = screen.getByRole('article', { name: 'AgroSmart' });
+    expect(within(agro).getByRole('link', { name: 'AgroSmart' })).toHaveAttribute('href', '/orientador/equipes/agro');
+    expect(agro).toHaveTextContent('3 integrantes ativos');
+    expect(agro).toHaveTextContent('Faltam 2 itens para avançar');
+    expect(within(agro).getByText('Etapa atual')).toBeInTheDocument();
+    expect(agro).toHaveTextContent('Entrega enviada: Pitch vídeo (v2)');
+    expect(agro).toHaveTextContent('20/09/2026');
+
+    const eco = screen.getByRole('article', { name: 'EcoRota' });
+    expect(eco).toHaveTextContent('1 integrante ativo');
+    expect(eco).toHaveTextContent('Falta 1 item para avançar');
+    expect(eco).toHaveTextContent('Sem eventos ainda.');
+  });
+
+  it('equipe pronta mostra "Pronta para o InovAMF" no lugar das pendências', () => {
+    mockAgenda({
+      data: {
+        ...AGENDA,
+        equipes: [
+          { ...AGENDA.equipes[0]!, status: 'pronta_inovamf', etapa: { numero: 6, nome: 'Encontro 4' }, faltamParaAvancar: 0 },
+        ],
+      },
+    });
+    render(<MesaDoMentor />);
+    expect(screen.getByRole('article', { name: 'AgroSmart' })).toHaveTextContent('Pronta para o InovAMF');
+  });
+
+  it('sem nada: estado vazio em cada bloco', () => {
+    mockAgenda({ data: { paraAvaliar: [], prazos: [], equipes: [] } });
+    render(<MesaDoMentor />);
+    expect(screen.getByText('Nenhuma entrega esperando avaliação.')).toBeInTheDocument();
+    expect(screen.getByText('Nenhum prazo vencido ou nos próximos 7 dias.')).toBeInTheDocument();
+    expect(screen.getByText('Nenhuma equipe atribuída a você ainda.')).toBeInTheDocument();
+  });
+
+  it('carregando mostra o skeleton; erro mostra a mensagem da API e "Tentar de novo"', async () => {
+    mockAgenda({ data: undefined, isPending: true });
+    const { unmount } = render(<MesaDoMentor />);
+    expect(screen.getByRole('status')).toHaveTextContent('Carregando…');
+    unmount();
+
+    mockAgenda({ data: undefined, isError: true, error: new ApiError(500, 'X', 'Agenda indisponível') });
+    const user = userEvent.setup();
+    render(<MesaDoMentor />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Agenda indisponível');
+    await user.click(screen.getByRole('button', { name: /tentar de novo/i }));
+    expect(refetch).toHaveBeenCalled();
+  });
+});
+
+describe('AgendaAdmin (adendo 23/09)', () => {
+  it('mostra só "Para avaliar" e "Prazos", com links para o detalhe do admin', () => {
+    render(<AgendaAdmin />);
+    expect(screen.queryByText('Minhas equipes')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Para avaliar' })).getByRole('link')).toHaveAttribute(
+      'href',
+      '/admin/equipes/agro?aba=tarefas',
+    );
+    expect(within(screen.getByRole('list', { name: 'Prazos' })).getAllByRole('link')[0]).toHaveAttribute(
+      'href',
+      '/admin/equipes/agro?aba=tarefas',
+    );
+  });
+});
+```
+
+Em `frontend/tests/components/dashboard.test.tsx` (o `PainelOrientador` passa a renderizar a mesa):
+1. Troque `import { describe, it, expect, vi } from 'vitest';` por `import { beforeEach, describe, it, expect, vi } from 'vitest';`.
+2. No `vi.mock('@/data/api/consultas', () => ({ useDashboard: vi.fn(), }))`, acrescente `useAgenda: vi.fn(),` e `useEtapas: vi.fn(),`. Troque `import { useDashboard } from '@/data/api/consultas';` por `import { useAgenda, useDashboard, useEtapas } from '@/data/api/consultas';`.
+3. Logo depois da função `mockDashboard`, acrescente:
+
+```tsx
+beforeEach(() => {
+  vi.mocked(useAgenda).mockReturnValue({
+    data: { paraAvaliar: [], prazos: [], equipes: [] },
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as R<typeof useAgenda>);
+  vi.mocked(useEtapas).mockReturnValue({ data: [], isPending: false, isError: false } as unknown as R<
+    typeof useEtapas
+  >);
+});
+```
+
+4. Dentro do `describe('PainelOrientador', ...)`, acrescente:
+
+```tsx
+  it('a mesa do mentor aparece no topo da visão geral', () => {
+    mockDashboard({});
+    render(<PainelOrientador />);
+    const mesa = screen.getByRole('region', { name: 'Mesa do mentor' });
+    expect(within(mesa).getByText('Para avaliar')).toBeInTheDocument();
+    expect(within(mesa).getByText('Prazos')).toBeInTheDocument();
+    expect(within(mesa).getByText('Minhas equipes')).toBeInTheDocument();
+  });
+```
+
+Em `frontend/tests/components/detalhe-equipe.test.tsx`, dentro do `describe('DetalheEquipe — ideia e membros', ...)`, acrescente:
+
+```tsx
+  it('abaInicial abre direto na aba pedida (link "?aba=" da mesa) e as abas continuam trocando', async () => {
+    const user = userEvent.setup();
+    render(<DetalheEquipe slug="agrosmart" abaInicial="anotacoes" />);
+    expect(screen.getByRole('tab', { name: 'Anotações' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: 'Visão geral' }));
+    expect(screen.getByRole('tab', { name: 'Visão geral' })).toHaveAttribute('aria-selected', 'true');
+  });
+```
+
+- [ ] **Step 2: Rodar e ver falhar**
+
+Run: `npx vitest run tests/components/agenda.test.tsx tests/components/dashboard.test.tsx tests/components/detalhe-equipe.test.tsx`
+Expected: FAIL. `@/features/agenda/Agenda` não é resolvido, não há região "Mesa do mentor" e a aba "Anotações" não começa selecionada.
+
+- [ ] **Step 3: Tipos e hook da agenda**
+
+Em `frontend/src/data/api/tipos.ts`, logo depois da `interface Dashboard`, acrescente:
+
+```ts
+// ── Agenda (adendo 23/09): GET /dashboard/agenda ─────────────────────────────
+/** "Para avaliar": tarefa entregue esperando avaliação (prazo mais antigo primeiro). */
+export interface ItemParaAvaliar {
+  equipe: { slug: string; nomeIdeia: string }; tarefa: { slug: string; titulo: string };
+  versao: number | null; entregueEm: string | null;
+}
+/** "Prazos": atrasadas + as que vencem em até 7 dias; `status` é o efetivo (RN-04). */
+export interface ItemPrazo {
+  equipe: { slug: string; nomeIdeia: string }; tarefa: { slug: string; titulo: string };
+  dataEntrega: string; status: StatusTarefa;
+}
+/** Cartão da "mesa do mentor" (a lista vem vazia para o admin). */
+export interface CartaoEquipeMesa {
+  slug: string; nomeIdeia: string; status: StatusEquipe; etapa: EtapaRef; membrosAtivos: number;
+  faltamParaAvancar: number; ultimoEvento: { titulo: string; em: string } | null;
+}
+export interface Agenda { paraAvaliar: ItemParaAvaliar[]; prazos: ItemPrazo[]; equipes: CartaoEquipeMesa[] }
+```
+
+Em `frontend/src/data/api/consultas.ts`:
+- acrescente `Agenda` à lista do `import type { ... } from './tipos';`;
+- em `chaves`, logo depois de `dashboard: ['dashboard'] as const,`, acrescente:
+
+```ts
+  // Prefixo de `dashboard`: quem já invalida o dashboard (mover etapa, entregar,
+  // avaliar) invalida a agenda junto.
+  agenda: ['dashboard', 'agenda'] as const,
+```
+
+- logo depois de `export const useDashboard = ...`, acrescente:
+
+```ts
+/** Adendo 23/09: "mesa do mentor" e blocos do painel do admin (o escopo vem do backend). */
+export const useAgenda = () =>
+  useQuery({
+    queryKey: chaves.agenda,
+    queryFn: () => api<{ data: Agenda }>('/dashboard/agenda').then((r) => r.data),
+  });
+```
+
+- [ ] **Step 4: Os blocos da agenda**
+
+Crie `frontend/src/features/agenda/Agenda.tsx`:
+
+```tsx
+'use client';
+
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { useAgenda, useEtapas } from '@/data/api/consultas';
+import type { Agenda, CartaoEquipeMesa, ItemParaAvaliar, ItemPrazo } from '@/data/api/tipos';
+import { formatarDataHora } from '@/domain/labels';
+import { Button } from '@/design-system/components/Button';
+import { Card } from '@/design-system/components/Card';
+import { PrazoChip } from '@/design-system/components/PrazoChip';
+import { Skeleton } from '@/design-system/components/Skeleton';
+import { StageProgress } from '@/design-system/components/StageProgress';
+import { POSICAO_PRONTA, posicaoDe } from '@/features/funil/DialogoMover';
+import { tempoRelativo } from '@/features/shell/notificacoes';
+
+// Adendo 23/09: "mesa do mentor" (/orientador) e os dois primeiros blocos no
+// painel do admin. Tudo vem pronto de GET /dashboard/agenda (escopo, RN-04,
+// pendências RN-01/RN-02); aqui só se apresenta.
+
+type Base = '/admin' | '/orientador';
+
+/** Um clique até a avaliação: o detalhe da equipe já aberto na aba Tarefas. */
+const hrefTarefas = (base: Base, equipeSlug: string) => `${base}/equipes/${equipeSlug}?aba=tarefas`;
+
+const FOCO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]';
+const LINHA_LINK = `flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-sunken ${FOCO}`;
+
+function Bloco({ titulo, descricao, children }: { titulo: string; descricao: string; children: ReactNode }) {
+  return (
+    <Card>
+      <Card.Header className="flex flex-col gap-0.5">
+        <h3 className="text-sm font-semibold text-text">{titulo}</h3>
+        <p className="text-xs text-text-muted">{descricao}</p>
+      </Card.Header>
+      <Card.Body>{children}</Card.Body>
+    </Card>
+  );
+}
+
+function Vazio({ children }: { children: ReactNode }) {
+  return <p className="py-4 text-center text-sm text-text-muted">{children}</p>;
+}
+
+function TarefaEEquipe({ titulo, equipe }: { titulo: string; equipe: string }) {
+  return (
+    <span className="flex min-w-0 flex-col gap-0.5">
+      <span className="truncate text-sm font-medium text-text">{titulo}</span>
+      <span className="truncate text-xs text-text-muted">{equipe}</span>
+    </span>
+  );
+}
+
+function ParaAvaliar({ itens, base }: { itens: ItemParaAvaliar[]; base: Base }) {
+  return (
+    <Bloco titulo="Para avaliar" descricao="Entregas esperando avaliação, do prazo mais antigo ao mais novo.">
+      {itens.length === 0 ? (
+        <Vazio>Nenhuma entrega esperando avaliação.</Vazio>
+      ) : (
+        <ul aria-label="Para avaliar" className="flex flex-col gap-1">
+          {itens.map((i) => (
+            <li key={i.tarefa.slug}>
+              <Link href={hrefTarefas(base, i.equipe.slug)} className={LINHA_LINK}>
+                <TarefaEEquipe titulo={i.tarefa.titulo} equipe={i.equipe.nomeIdeia} />
+                {i.entregueEm && (
+                  <span className="shrink-0 text-xs text-text-subtle">
+                    {i.versao ? `v${i.versao} ` : ''}enviada {tempoRelativo(i.entregueEm)}
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Bloco>
+  );
+}
+
+function Prazos({ itens, base }: { itens: ItemPrazo[]; base: Base }) {
+  return (
+    <Bloco titulo="Prazos" descricao="Tarefas atrasadas e as que vencem nos próximos 7 dias.">
+      {itens.length === 0 ? (
+        <Vazio>Nenhum prazo vencido ou nos próximos 7 dias.</Vazio>
+      ) : (
+        <ul aria-label="Prazos" className="flex flex-col gap-1">
+          {itens.map((i) => (
+            <li key={i.tarefa.slug}>
+              <Link href={hrefTarefas(base, i.equipe.slug)} className={LINHA_LINK}>
+                <TarefaEEquipe titulo={i.tarefa.titulo} equipe={i.equipe.nomeIdeia} />
+                <PrazoChip dataEntrega={i.dataEntrega} status={i.status} className="shrink-0" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Bloco>
+  );
+}
+
+const integrantes = (n: number) => (n === 1 ? '1 integrante ativo' : `${n} integrantes ativos`);
+
+function textoAvanco(e: CartaoEquipeMesa): string {
+  if (posicaoDe(e) === POSICAO_PRONTA) return 'Pronta para o InovAMF';
+  if (e.faltamParaAvancar === 0) return 'Nada pendente para avançar';
+  return e.faltamParaAvancar === 1 ? 'Falta 1 item para avançar' : `Faltam ${e.faltamParaAvancar} itens para avançar`;
+}
+
+function MinhasEquipes({ equipes }: { equipes: CartaoEquipeMesa[] }) {
+  const etapas = (useEtapas().data ?? []).map((e) => ({ id: e.numero, numero: e.numero, nome: e.nome }));
+  return (
+    <section className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold text-text">Minhas equipes</h3>
+      {equipes.length === 0 ? (
+        <Vazio>Nenhuma equipe atribuída a você ainda.</Vazio>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {equipes.map((e) => (
+            <Card key={e.slug} role="article" aria-label={e.nomeIdeia}>
+              <Card.Body className="flex flex-col gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <Link
+                    href={`/orientador/equipes/${e.slug}`}
+                    className={`w-fit rounded-sm text-sm font-semibold text-text hover:underline ${FOCO}`}
+                  >
+                    {e.nomeIdeia}
+                  </Link>
+                  <span className="text-xs text-text-muted">
+                    {integrantes(e.membrosAtivos)} · {textoAvanco(e)}
+                  </span>
+                </div>
+                {etapas.length > 0 && (
+                  <StageProgress etapas={etapas} atualId={e.etapa.numero} pronta={posicaoDe(e) === POSICAO_PRONTA} />
+                )}
+                <p className="text-xs text-text-muted">
+                  {e.ultimoEvento ? (
+                    <>
+                      Último evento: <span className="text-text">{e.ultimoEvento.titulo}</span> ·{' '}
+                      {formatarDataHora(e.ultimoEvento.em)}
+                    </>
+                  ) : (
+                    'Sem eventos ainda.'
+                  )}
+                </p>
+              </Card.Body>
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Carregamento e erro da agenda num lugar só; o conteúdo recebe os dados prontos. */
+function ComAgenda({ children }: { children: (a: Agenda) => ReactNode }) {
+  const consulta = useAgenda();
+  if (consulta.isPending) return <Skeleton linhas={4} />;
+  if (consulta.isError) {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <p
+          role="alert"
+          className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+        >
+          {consulta.error.message}
+        </p>
+        <Button variant="secondary" onClick={() => void consulta.refetch()}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
+  return <>{children(consulta.data)}</>;
+}
+
+/** /orientador: "Para avaliar", "Prazos" e "Minhas equipes" (só as do mentor — escopo do backend). */
+export function MesaDoMentor() {
+  return (
+    <ComAgenda>
+      {(a) => (
+        <section aria-label="Mesa do mentor" className="flex flex-col gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ParaAvaliar itens={a.paraAvaliar} base="/orientador" />
+            <Prazos itens={a.prazos} base="/orientador" />
+          </div>
+          <MinhasEquipes equipes={a.equipes} />
+        </section>
+      )}
+    </ComAgenda>
+  );
+}
+
+/** /admin: "Para avaliar" e "Prazos" de todas as equipes. */
+export function AgendaAdmin() {
+  return (
+    <ComAgenda>
+      {(a) => (
+        <section aria-label="Agenda da coordenação" className="grid gap-4 lg:grid-cols-2">
+          <ParaAvaliar itens={a.paraAvaliar} base="/admin" />
+          <Prazos itens={a.prazos} base="/admin" />
+        </section>
+      )}
+    </ComAgenda>
+  );
+}
+```
+
+- [ ] **Step 5: Encaixar nas telas (e o `?aba=` do detalhe)**
+
+Em `frontend/src/features/orientador/PainelOrientador.tsx`, acrescente `import { MesaDoMentor } from '@/features/agenda/Agenda';` e troque:
+
+```tsx
+  const visaoGeral = (
+    <div className="flex flex-col gap-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+```
+
+por:
+
+```tsx
+  const visaoGeral = (
+    <div className="flex flex-col gap-5">
+      <MesaDoMentor />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+```
+
+Em `frontend/src/app/admin/page.tsx`, acrescente `import { AgendaAdmin } from '@/features/agenda/Agenda';` e, logo antes de `<DashboardIndicadores />`, acrescente `<AgendaAdmin />`.
+
+Em `frontend/src/features/admin-detalhe/DetalheEquipe.tsx`:
+- acrescente `import { useState } from 'react';` logo depois de `'use client';`;
+- troque a assinatura e as duas primeiras linhas do corpo:
+
+```tsx
+export function DetalheEquipe({ slug }: { slug: string }) {
+  const consulta = useEquipe(slug);
+```
+
+por:
+
+```tsx
+export function DetalheEquipe({ slug, abaInicial }: { slug: string; abaInicial?: string }) {
+  // `?aba=tarefas` (mesa do mentor / agenda do admin) abre direto onde se avalia.
+  const [aba, setAba] = useState(abaInicial ?? 'visao');
+  const consulta = useEquipe(slug);
+```
+
+- troque:
+
+```tsx
+      <Tabs
+        tabs={[
+```
+
+por:
+
+```tsx
+      <Tabs
+        active={aba}
+        onChange={setAba}
+        tabs={[
+```
+
+Substitua `frontend/src/app/orientador/equipes/[slug]/page.tsx` inteiro por:
+
+```tsx
+import { AppShell } from '@/features/shell/AppShell';
+import { DetalheEquipe } from '@/features/admin-detalhe/DetalheEquipe';
+
+export default function OrientadorEquipePage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { aba?: string | string[] };
+}) {
+  const aba = typeof searchParams.aba === 'string' ? searchParams.aba : undefined;
+  return (
+    <AppShell
+      largura="media"
+      back={{ href: '/orientador', label: 'Voltar às minhas equipes' }}
+    >
+      <DetalheEquipe slug={params.slug} abaInicial={aba} />
+    </AppShell>
+  );
+}
+```
+
+Substitua `frontend/src/app/admin/equipes/[slug]/page.tsx` inteiro por:
+
+```tsx
+import { AppShell } from '@/features/shell/AppShell';
+import { DetalheEquipe } from '@/features/admin-detalhe/DetalheEquipe';
+
+export default function EquipeDetalhePage({
+  params,
+  searchParams,
+}: {
+  params: { slug: string };
+  searchParams: { aba?: string | string[] };
+}) {
+  const aba = typeof searchParams.aba === 'string' ? searchParams.aba : undefined;
+  return (
+    <AppShell largura="media" back={{ href: '/admin', label: 'Voltar ao funil' }}>
+      <DetalheEquipe slug={params.slug} abaInicial={aba} />
+    </AppShell>
+  );
+}
+```
+
+- [ ] **Step 6: Rodar os testes**
+
+Run: `npx vitest run tests/components/agenda.test.tsx tests/components/dashboard.test.tsx tests/components/detalhe-equipe.test.tsx`
+Expected: PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/data/api/tipos.ts src/data/api/consultas.ts src/features/agenda/Agenda.tsx src/features/orientador/PainelOrientador.tsx src/app/admin/page.tsx src/features/admin-detalhe/DetalheEquipe.tsx "src/app/admin/equipes/[slug]/page.tsx" "src/app/orientador/equipes/[slug]/page.tsx" tests/components/agenda.test.tsx tests/components/dashboard.test.tsx tests/components/detalhe-equipe.test.tsx
+git commit -F - <<'EOF'
+feat(telas): mesa do mentor e agenda no painel do admin
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E9TXsEhLzvh1bBR9LeB58C
+EOF
+```
+
+- [ ] **Step 8: Teste do pedido na tela "Recuperar senha" (falha)**
+
+Substitua `frontend/tests/components/recuperar.test.tsx` inteiro por:
+
+```tsx
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+vi.mock('@/data/api/consultas', () => ({ usePedirRedefinicao: vi.fn() }));
+
+import { usePedirRedefinicao } from '@/data/api/consultas';
+import { ApiError } from '@/data/api/erro';
+import { RecuperarSenhaForm } from '@/features/auth/RecuperarSenhaForm';
+
+type R<T extends (...a: never[]) => unknown> = ReturnType<T>;
+const mutate = vi.fn();
+const GENERICA = 'Pedido recebido. Se houver uma conta ativa com esse e-mail, a coordenação já foi avisada.';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(usePedirRedefinicao).mockReturnValue({ mutate, isPending: false } as unknown as R<
+    typeof usePedirRedefinicao
+  >);
+});
+
+describe('RecuperarSenhaForm (adendo 23/09)', () => {
+  it('explica o caminho e tem link de volta ao login', () => {
+    render(<RecuperarSenhaForm />);
+    expect(screen.getByText(/a coordenação vai te enviar um link/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /voltar ao login/i })).toHaveAttribute('href', '/login');
+  });
+
+  it('sem e-mail não envia', async () => {
+    const user = userEvent.setup();
+    render(<RecuperarSenhaForm />);
+    await user.click(screen.getByRole('button', { name: 'Pedir redefinição' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Informe seu e-mail.');
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('envia o e-mail e mostra a confirmação genérica da API, mantendo a orientação', async () => {
+    mutate.mockImplementationOnce((_e: unknown, opts?: { onSuccess?: (r: { mensagem: string }) => void }) =>
+      opts?.onSuccess?.({ mensagem: GENERICA }),
+    );
+    const user = userEvent.setup();
+    render(<RecuperarSenhaForm />);
+    await user.type(screen.getByLabelText('E-mail'), 'lia@amf.edu.br');
+    await user.click(screen.getByRole('button', { name: 'Pedir redefinição' }));
+    expect(mutate).toHaveBeenCalledWith('lia@amf.edu.br', expect.anything());
+    expect(screen.getByRole('status')).toHaveTextContent(GENERICA);
+    expect(screen.queryByRole('button', { name: 'Pedir redefinição' })).not.toBeInTheDocument();
+    expect(screen.getByText(/a coordenação vai te enviar um link/i)).toBeInTheDocument();
+  });
+
+  it('erro da API (ex.: muitas tentativas) aparece inline', async () => {
+    mutate.mockImplementationOnce((_e: unknown, opts?: { onError?: (e: unknown) => void }) =>
+      opts?.onError?.(new ApiError(429, 'RATE_LIMITED', 'Muitas tentativas. Tente novamente mais tarde.')),
+    );
+    const user = userEvent.setup();
+    render(<RecuperarSenhaForm />);
+    await user.type(screen.getByLabelText('E-mail'), 'lia@amf.edu.br');
+    await user.click(screen.getByRole('button', { name: 'Pedir redefinição' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Muitas tentativas');
+  });
+});
+```
+
+- [ ] **Step 9: Rodar e ver falhar**
+
+Run: `npx vitest run tests/components/recuperar.test.tsx`
+Expected: FAIL. Não há o texto "a coordenação vai te enviar um link" nem o botão "Pedir redefinição", e o mock de `usePedirRedefinicao` nunca é chamado.
+
+- [ ] **Step 10: Hook e formulário**
+
+Em `frontend/src/data/api/consultas.ts`, logo depois de `useRedefinirSenha` (Task 12), acrescente:
+
+```ts
+/** Adendo 23/09 (RF-01): pedido público de redefinição; a resposta é sempre a mesma (202). */
+export function usePedirRedefinicao() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      api<{ mensagem: string }>('/auth/pedido-redefinicao', { method: 'POST', body: { email }, publica: true }),
+  });
+}
+```
+
+Substitua `frontend/src/features/auth/RecuperarSenhaForm.tsx` inteiro por:
+
+```tsx
+'use client';
+
+import { useState, type FormEvent } from 'react';
+import { usePedirRedefinicao } from '@/data/api/consultas';
+import { Card } from '@/design-system/components/Card';
+import { Button } from '@/design-system/components/Button';
+import { Input } from '@/design-system/components/Input';
+import { FormField } from '@/design-system/components/FormField';
+import { AlertIcon, CheckIcon, MailIcon } from '@/design-system/icons';
+
+/**
+ * RF-01 (adendo 23/09): a pessoa pede a redefinição com o e-mail da conta. A
+ * resposta da API é sempre a mesma (não revela se a conta existe); a
+ * coordenação vê o pedido no sino e gera o link na tela Contas. Nenhum e-mail
+ * sai daqui por enquanto.
+ */
+export function RecuperarSenhaForm() {
+  const pedir = usePedirRedefinicao();
+  const [email, setEmail] = useState('');
+  const [erroEmail, setErroEmail] = useState<string | undefined>(undefined);
+  const [erroApi, setErroApi] = useState<string | null>(null);
+  const [confirmacao, setConfirmacao] = useState<string | null>(null);
+
+  function enviar(e: FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) {
+      setErroEmail('Informe seu e-mail.');
+      return;
+    }
+    setErroEmail(undefined);
+    setErroApi(null);
+    pedir.mutate(email.trim(), {
+      onSuccess: (r) => setConfirmacao(r.mensagem),
+      onError: (err) => setErroApi(err instanceof Error ? err.message : 'Não foi possível enviar o pedido.'),
+    });
+  }
+
+  return (
+    <Card className="w-full overflow-hidden shadow-md">
+      <Card.Body className="flex flex-col gap-5 p-7">
+        <h1 className="text-xl font-semibold text-text">Recuperar senha</h1>
+
+        <p className="flex items-start gap-2 rounded-[0.625rem] bg-primary-soft px-3 py-3 text-sm font-medium text-primary-text">
+          <MailIcon size={16} className="mt-0.5 shrink-0" />
+          Peça a redefinição com o e-mail da sua conta: a coordenação vai te enviar um link para definir uma
+          senha nova.
+        </p>
+
+        {confirmacao ? (
+          <p
+            role="status"
+            className="flex items-start gap-2 rounded-[0.625rem] bg-success-soft px-3 py-3 text-sm font-medium text-success-text"
+          >
+            <CheckIcon size={16} className="mt-0.5 shrink-0" />
+            {confirmacao}
+          </p>
+        ) : (
+          <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
+            <FormField label="E-mail" htmlFor="rec-email" error={erroEmail}>
+              <Input
+                id="rec-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="voce@infohub.dev"
+                autoComplete="email"
+                spellCheck={false}
+              />
+            </FormField>
+            {erroApi && (
+              <p
+                role="alert"
+                className="flex items-center gap-2 rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text"
+              >
+                <AlertIcon size={16} className="shrink-0" />
+                {erroApi}
+              </p>
+            )}
+            <Button type="submit" size="lg" className="w-full" disabled={pedir.isPending}>
+              {pedir.isPending ? 'Enviando…' : 'Pedir redefinição'}
+            </Button>
+          </form>
+        )}
+
+        <a href="/login" className="text-center text-sm text-primary-text hover:underline">
+          Voltar ao login
+        </a>
+      </Card.Body>
+    </Card>
+  );
+}
+```
+
+- [ ] **Step 11: Rodar a suíte e o build**
+
+Run: `npx vitest run tests/components/recuperar.test.tsx && npm test && npm run build`
+Expected: todos PASS. O `next build` passa sem erro de tipo nem de lint, sem import sobrando e sem `any`.
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add src/data/api/consultas.ts src/features/auth/RecuperarSenhaForm.tsx tests/components/recuperar.test.tsx
+git commit -F - <<'EOF'
+feat(telas): pedido de redefinição na tela "Recuperar senha"
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E9TXsEhLzvh1bBR9LeB58C
+EOF
+```
+
+- [ ] **Step 13: Corpo do PR do E3**
+
+No "Fechamento do Bloco E3", acrescente ao `## Resumo` do `gh pr create`:
+
+```markdown
+- Mesa do mentor em /orientador ("Para avaliar", "Prazos" com chips, "Minhas equipes" com etapa, integrantes, pendências e último evento) e "Para avaliar"/"Prazos" no painel do admin; os links abrem o detalhe já na aba Tarefas (`?aba=tarefas`)
+- "Recuperar senha": pedido pelo e-mail (resposta genérica); a coordenação recebe no sino e gera o link em Contas
+```
+
+### Self-review do adendo
+
+**1. Cobertura do escopo aprovado**
+
+| Item | Onde |
+|---|---|
+| A: um endpoint `GET /dashboard/agenda` (admin + mentor, escopo, só slugs) `{ data: { paraAvaliar, prazos, equipes } }` | Task 15, Steps 1–6 |
+| A: listas com teto (`LIMITE_AGENDA = 20`) calculadas no banco; consulta por equipe só nos cartões do mentor, justificada | Task 15, Steps 4–5 (comentários e "Contratos") |
+| A1 "Para avaliar": tarefas `entregue`, nome da equipe, título, tempo desde o envio, um clique até a avaliação | Task 15, Step 4; Task 16, Steps 4–5 (`?aba=tarefas`) |
+| A2 "Prazos": atrasadas (RN-04 na consulta) + 7 dias, "hoje" de SP, com os chips da Task 11 | Task 15, Step 4 (`whereStatusEfetivo`, `hojeISO`, `statusEfetivo`); Task 16, Step 4 (`PrazoChip`) |
+| A3 "Minhas equipes": StageProgress, integrantes ativos, "faltam N itens" (pendências RN-01/RN-02), título e data do último evento | Task 15, Step 5 (`cartoesDoMentor`); Task 16, Step 4 |
+| A: admin com os blocos 1 e 2 de todas as equipes | Task 15, Step 5 (escopo admin, `equipes: []`); Task 16, Step 5 (`AgendaAdmin` em `/admin`) |
+| B: `POST /auth/pedido-redefinicao` sempre 202 com o mesmo corpo, sem enumeração | Task 15, Steps 8 e 10 (`MENSAGEM_PEDIDO_REDEFINICAO`, falha também responde 202) |
+| B: rate limit da família "auth" | Task 15, Step 10 (`pedidoRedefinicaoLimiter`, mesma chave e limite, contando os 202) |
+| B: conta ativa com convite aceito → um aviso `recuperacao_senha` `cancelado` por admin ativo, `dados { nome, email, usuario_slug }` | Task 15, Step 10 (`findParaPedidoRedefinicao`, `registrarPedidoRedefinicao`) |
+| B: sino leva a `/admin/contas` | Task 8 (já trata `recuperacao_senha`; ver a nota global) |
+| B: no máximo 1 pedido por conta por hora; auditoria na mesma transação | Task 15, Step 10 (`FOR UPDATE` + janela pela auditoria + `registrarAuditoria(tx, …)`) |
+| B: tela com confirmação genérica e a orientação "a coordenação vai te enviar um link"; nenhum e-mail enviado | Task 16, Steps 8–10 |
+| Testes de integração com `tests/helpers.ts`, com deltas ou dados filtrados | Task 15, Steps 1 e 8 (mentor exclusivo do arquivo; avisos filtrados por `dados.email`; limpeza no `afterAll`; ajuste de uma asserção do `seed.test.ts`) |
+
+**2. Placeholders:** não há "TBD", "TODO" nem "similar à Task N". Todo passo de código traz o código, e todo comando traz a saída esperada.
+
+**3. Consistência de nomes e tipos:**
+- **Nomes do backend:** `LIMITE_AGENDA`, `aguardandoAvaliacao`, `prazosDaSemana`, `equipesDoMentor`, `equipeModel.linhaDoTempo`, `cartoesDoMentor`, `dashboardCtrl.agenda`, `pedidoRedefinicaoLimiter`, `findParaPedidoRedefinicao`, `registrarPedidoRedefinicao`, `MENSAGEM_PEDIDO_REDEFINICAO` e `authCtrl.pedidoRedefinicao` são os mesmos nos Files, Interfaces, passos e testes.
+- **Campos do JSON e tipos do front:** `paraAvaliar{equipe,tarefa,versao,entregueEm}`, `prazos{equipe,tarefa,dataEntrega,status}` e `equipes{slug,nomeIdeia,status,etapa,membrosAtivos,faltamParaAvancar,ultimoEvento}` batem com `ItemParaAvaliar`, `ItemPrazo` e `CartaoEquipeMesa` (Task 16).
+- **Chave da agenda:** `chaves.agenda` é prefixada por `chaves.dashboard`, que as mutações existentes já invalidam.
+- **`vi.mock` dos testes:** `useAgenda` e `useEtapas` entram em todo `vi.mock` de teste que renderiza `MesaDoMentor` (`agenda.test.tsx`, `dashboard.test.tsx`), e `usePedirRedefinicao` no de `recuperar.test.tsx`.
+- **Consumo das tasks anteriores:** `PrazoChip`, `hojeISO` (Task 11), `tempoRelativo` (Task 8) e `Skeleton` (Task 7) são usados com as assinaturas definidas nessas tasks.
