@@ -189,9 +189,10 @@ export async function show(req: Request, res: Response, next: NextFunction) {
 
     const meuSlug = req.auth.slug;
     const ehMentorDela = equipe.usuarios?.slug === meuSlug;
-    const ehMembro = equipe.equipe_membros.some(
-      (m) => m.usuarios.slug === meuSlug,
-    );
+    const meuMembro = equipe.equipe_membros.find((m) => m.usuarios.slug === meuSlug);
+    const ehMembro = meuMembro !== undefined;
+    // souLider: só o próprio líder ativo, para o front decidir "Enviar entrega"/"Comecei".
+    const souLider = req.auth.role === "aluno" && meuMembro?.papel === "lider";
     if (req.auth.role === "mentor" && !ehMentorDela) {
       throw httpError(403, "NOT_TEAM_MENTOR", "Equipe fora do seu escopo");
     }
@@ -216,6 +217,7 @@ export async function show(req: Request, res: Response, next: NextFunction) {
       mentor: equipe.usuarios
         ? { slug: equipe.usuarios.slug, nome: equipe.usuarios.nome }
         : null,
+      souLider,
       membros: equipe.equipe_membros.map((m) => ({
         slug: m.usuarios.slug,
         nome: m.usuarios.nome,

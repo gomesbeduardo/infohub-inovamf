@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { httpError } from "../utils/error.js";
 import { fromSlug, toSlug } from "../utils/slug.js";
 import {
+  ehLiderAtivo,
   idDoChamador,
   podeGerirEquipe,
   podeVerEquipe,
@@ -39,7 +40,7 @@ interface TarefaDetalhe {
     slug: string;
     nome_ideia: string;
     mentor_id: string | null;
-    equipe_membros: { usuario_id: string }[];
+    equipe_membros: { usuario_id: string; papel: string }[];
   };
 }
 
@@ -259,8 +260,9 @@ export async function update(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// POST /tarefas/:slug/iniciar — o aluno da equipe marca "Comecei" (RF-12).
-// Enviar a entrega continua levando a "entregue".
+// POST /tarefas/:slug/iniciar — só o aluno líder da equipe marca "Comecei"
+// (decisão do dono do produto, 23/09; RF-12). Enviar a entrega continua
+// levando a "entregue".
 export async function iniciar(req: Request, res: Response, next: NextFunction) {
   try {
     const id = fromSlug(req.params.slug ?? "");
@@ -269,6 +271,9 @@ export async function iniciar(req: Request, res: Response, next: NextFunction) {
     const membros = tarefa.equipes.equipe_membros.map((m) => m.usuario_id);
     if (!membros.includes(idDoChamador(req))) {
       throw httpError(403, "NOT_TEAM_MEMBER", "Você não participa desta equipe");
+    }
+    if (req.auth.role !== "aluno" || !ehLiderAtivo(tarefa.equipes.equipe_membros, idDoChamador(req))) {
+      throw httpError(403, "APENAS_LIDER", "Só o líder da equipe marca a tarefa como iniciada");
     }
     const iniciada = await tarefaModel.iniciar(tarefa.id);
     if (!iniciada) {
