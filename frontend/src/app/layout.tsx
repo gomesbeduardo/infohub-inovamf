@@ -7,7 +7,6 @@ import {
   type Theme,
   type ThemePreference,
 } from '@/design-system/theme';
-import { StoreProvider } from '@/data/store';
 import { Providers } from '@/data/api/Providers';
 
 const display = Space_Grotesk({
@@ -74,9 +73,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider initialPreference={preference} initialTheme={theme}>
-          <Providers>
-            <StoreProvider>{children}</StoreProvider>
-          </Providers>
+          <Providers>{children}</Providers>
         </ThemeProvider>
       </body>
     </html>
