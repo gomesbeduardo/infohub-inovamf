@@ -5,7 +5,13 @@ import { hashSenha, hashTokenSenha, tokenAleatorio } from "../utils/hash.js";
 import { emitirSessao } from "../utils/sessao.js";
 import { EMAIL_RE } from "../utils/text.js";
 import { paginacao } from "../utils/http.js";
-import { escopoDo, idDoChamador, ipDoChamador, podeGerirEquipe } from "../utils/acesso.js";
+import {
+  escopoDo,
+  idDoChamador,
+  ipDoChamador,
+  podeGerirEquipe,
+  podeVerEquipe,
+} from "../utils/acesso.js";
 import { env } from "../env.js";
 import {
   ESTAGIOS_IDEIA,
@@ -15,6 +21,7 @@ import {
   type StatusEquipe,
 } from "../domain/enums.js";
 import { POSICAO_PRONTA, codigoBloqueio } from "../domain/transicao.js";
+import { LIMITE_LINHA_DO_TEMPO, montarLinhaDoTempo } from "../domain/linhaDoTempo.js";
 import { classificarColega } from "../domain/membros.js";
 import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
@@ -712,6 +719,52 @@ export async function adicionarMembro(req: Request, res: Response, next: NextFun
       conviteUrl: c.conviteToken ? linkConvite(c.conviteToken) : null,
       pendente: c.conviteToken !== null,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /equipes/:slug/linha-do-tempo — A5 (RF-08, RNF-05 visível). Admin vê
+// tudo; mentor só as próprias equipes; aluno a própria, sem a observação de
+// movimento forçado. Nunca devolve UUID.
+export async function linhaDoTempo(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+    const membros = controle.equipe_membros.map((m) => m.usuario_id);
+    if (!podeVerEquipe(req, controle.mentor_id, membros)) {
+      throw httpError(403, "FORBIDDEN", "Equipe fora do seu escopo");
+    }
+
+    const { historico, auditoria } = await equipeModel.eventosLinhaDoTempo(
+      controle.id,
+      LIMITE_LINHA_DO_TEMPO,
+    );
+    const data = montarLinhaDoTempo({
+      paraAluno: req.auth.role === "aluno",
+      movimentos: historico.map((h) => ({
+        de:
+          h.status_origem === "pronta_inovamf"
+            ? "pronta"
+            : (h.etapas_historico_etapas_etapa_origem_idToetapas?.numero ?? null),
+        para:
+          h.status_destino === "pronta_inovamf"
+            ? "pronta"
+            : h.etapas_historico_etapas_etapa_destino_idToetapas.numero,
+        forcado: h.forcado,
+        observacao: h.observacao,
+        autor: h.usuarios?.nome ?? null,
+        em: h.criado_em,
+      })),
+      auditoria: auditoria.map((a) => ({
+        acao: a.acao,
+        antes: a.dados_anteriores,
+        depois: a.dados_novos,
+        autor: a.usuarios?.nome ?? null,
+        em: a.criado_em,
+      })),
+    });
+    res.json({ data });
   } catch (err) {
     next(err);
   }

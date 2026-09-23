@@ -593,3 +593,51 @@ export function inscrever(p: DadosInscricao) {
 
   return prisma.$transaction(ops);
 }
+
+// A5: o que a linha do tempo junta — histórico de etapas e auditoria da
+// equipe, das tarefas dela e das entregas dessas tarefas. Só leitura.
+export async function eventosLinhaDoTempo(equipeId: string, limite: number) {
+  const tarefas = await prisma.tarefas.findMany({
+    where: { equipe_id: equipeId },
+    select: { id: true, entregas: { select: { id: true } } },
+  });
+  const tarefaIds = tarefas.map((t) => t.id);
+  const entregaIds = tarefas.flatMap((t) => t.entregas.map((e) => e.id));
+  const [historico, auditoria] = await Promise.all([
+    prisma.historico_etapas.findMany({
+      where: { equipe_id: equipeId },
+      orderBy: { criado_em: "desc" },
+      take: limite,
+      select: {
+        forcado: true,
+        observacao: true,
+        status_origem: true,
+        status_destino: true,
+        criado_em: true,
+        etapas_historico_etapas_etapa_origem_idToetapas: { select: { numero: true } },
+        etapas_historico_etapas_etapa_destino_idToetapas: { select: { numero: true } },
+        usuarios: { select: { nome: true } },
+      },
+    }),
+    prisma.log_auditoria.findMany({
+      where: {
+        acao: { not: "etapa_movida" },
+        OR: [
+          { entidade: "equipe", entidade_id: equipeId },
+          { entidade: "tarefa", entidade_id: { in: tarefaIds } },
+          { entidade: "entrega", entidade_id: { in: entregaIds } },
+        ],
+      },
+      orderBy: { criado_em: "desc" },
+      take: limite,
+      select: {
+        acao: true,
+        dados_anteriores: true,
+        dados_novos: true,
+        criado_em: true,
+        usuarios: { select: { nome: true } },
+      },
+    }),
+  ]);
+  return { historico, auditoria };
+}
