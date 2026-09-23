@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/design-system/Logo';
 import { Button } from '@/design-system/components/Button';
@@ -24,6 +25,7 @@ import {
 import { LandingHeader } from '@/features/landing/LandingHeader';
 import { FunilVisual } from '@/features/landing/FunilVisual';
 import { NumerosVitrine } from '@/features/landing/NumerosVitrine';
+import { TituloRevelado } from '@/features/landing/TituloRevelado';
 import {
   AREAS_VITRINE,
   CASOS_VITRINE,
@@ -106,9 +108,10 @@ function TituloSecao({
       <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-primary-text">
         {etiqueta}
       </p>
-      <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-text sm:text-3xl">
-        {titulo}
-      </h2>
+      <TituloRevelado
+        texto={titulo}
+        className="mt-2 font-display text-2xl font-bold tracking-tight text-text sm:text-3xl"
+      />
       {texto && (
         <p className="mt-3 text-[0.95rem] leading-relaxed text-text-muted">
           {texto}
@@ -175,9 +178,13 @@ export function Landing() {
         <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="motion-fade">
             <h1 className="mt-5 font-display text-4xl font-bold leading-[1.08] tracking-tight text-text sm:text-5xl">
-              Você tem uma ideia.
+              <span className="revelar-linha">
+                <span style={{ '--i': 0 } as CSSProperties}>Você tem uma ideia.</span>
+              </span>
               <br />
-              Aqui ela vira um negócio.
+              <span className="revelar-linha">
+                <span style={{ '--i': 1 } as CSSProperties}>Aqui ela vira um negócio.</span>
+              </span>
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-text-muted sm:text-lg">
               O InfoHub é o laboratório de empreendedorismo da AMF: seis etapas
