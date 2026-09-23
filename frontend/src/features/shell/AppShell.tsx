@@ -13,6 +13,7 @@ import { cn } from '@/design-system/cn';
 import { navFor, homeFor, type NavItem } from '@/features/shell/nav';
 import { SinoNotificacoes } from '@/features/shell/SinoNotificacoes';
 import { PerfilMenu } from '@/features/shell/PerfilMenu';
+import { BuscaRapida } from '@/features/shell/BuscaRapida';
 
 type Largura = 'estreita' | 'media' | 'ampla';
 
@@ -74,6 +75,9 @@ export function AppShell({ children, largura = 'ampla', back }: AppShellProps) {
             <Logo />
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
+            {usuario && (usuario.role === 'admin' || usuario.role === 'mentor') && (
+              <BuscaRapida papel={usuario.role} />
+            )}
             {usuario && <SinoNotificacoes usuario={usuario} />}
             <ThemeToggle />
             {usuario && <PerfilMenu usuario={usuario} onSair={sair} />}

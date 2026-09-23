@@ -237,3 +237,12 @@ export function BellIcon(p: IconProps) {
     </svg>
   );
 }
+
+export function SearchIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}

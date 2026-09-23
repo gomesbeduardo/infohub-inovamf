@@ -271,10 +271,12 @@ export const useAgenda = () =>
   });
 
 // ── Contas ────────────────────────────────────────────────────────────────────
-export const useUsuarios = (tipo?: 'admin' | 'mentor' | 'aluno') =>
+export const useUsuarios = (tipo?: 'admin' | 'mentor' | 'aluno', opcoes: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: chaves.usuarios(tipo),
     queryFn: () => api<Pagina<UsuarioAdmin>>(`/usuarios${qs({ tipo, perPage: 100 })}`).then((r) => r.data),
+    // GET /usuarios é só do admin: quem não é admin passa enabled=false.
+    enabled: opcoes.enabled ?? true,
   });
 
 // POST /usuarios não devolve ativo/conviteAceito (a conta nasce pendente,
