@@ -1,10 +1,8 @@
 'use client';
 
-import type { EquipeDetalhe } from '@/data/api/tipos';
 import { useEquipe } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { ApiError } from '@/data/api/erro';
-import { useStore } from '@/data/store';
 import { ESTAGIO_LABEL, STATUS_EQUIPE_LABEL } from '@/domain/labels';
 import { StageTag } from '@/design-system/components/StageTag';
 import { Badge } from '@/design-system/components/Badge';
@@ -113,29 +111,11 @@ export function DetalheEquipe({ slug }: { slug: string }) {
       <Tabs
         tabs={[
           { id: 'visao', label: 'Visão geral', content: visaoGeral },
-          { id: 'tarefas', label: 'Tarefas', content: <TarefasLegado slug={equipe.slug} /> },
+          { id: 'tarefas', label: 'Tarefas', content: <TarefaList equipe={equipe} /> },
           { id: 'anotacoes', label: 'Anotações', content: <AnotacoesInternas equipeSlug={equipe.slug} /> },
           { id: 'historico', label: 'Histórico', content: <HistoricoEtapas historico={equipe.historico} /> },
         ]}
       />
     </div>
   );
-}
-
-/**
- * Ponte temporária: a lista de tarefas ainda lê o mock (migra na Task 6 do
- * Plano 3). Procura a equipe do mock pelo slug; sem ela, avisa.
- */
-function TarefasLegado({ slug }: { slug: EquipeDetalhe['slug'] }) {
-  const { state } = useStore();
-  const equipe = state.equipes.find((e) => e.slug === slug);
-  if (!equipe) {
-    return (
-      <EmptyState
-        title="Tarefas em migração"
-        description="A lista de tarefas desta equipe ainda não está ligada à API."
-      />
-    );
-  }
-  return <TarefaList equipe={equipe} />;
 }
