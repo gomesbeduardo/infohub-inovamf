@@ -101,7 +101,7 @@
   --border-strong: var(--hub-300);
   --text: var(--hub-900);
   --text-muted: var(--hub-600); /* 7,4:1 sobre surface */
-  --text-subtle: #8c8c8c; /* 4,9:1 (era 3,2:1) */ /* 5,1:1 (era hub-400: 2,96:1) */
+  --text-subtle: #666666; /* 5,7:1 sobre surface, 4,9:1 sobre sunken (era #8c8c8c: 3,4:1) */
   --text-inverted: #ffffff;
 
   --primary: var(--ember-500); /* fills, botões */
@@ -179,8 +179,8 @@
   --border: var(--hub-800);
   --border-strong: #454545;
   --text: #f2f2f2;
-  --text-muted: var(--hub-400);
-  --text-subtle: var(--hub-500);
+  --text-muted: #adadad; /* 7,3:1 sobre surface — acima do subtle para manter hierarquia */
+  --text-subtle: #949494; /* 5,4:1 sobre surface, 4,7:1 sobre chip (era hub-500: 3,2:1) */
   --text-inverted: var(--hub-950);
 
   --primary: var(--ember-500);
