@@ -84,6 +84,7 @@ describe("ciclos", () => {
   });
   it("inscrição entra no ciclo atual (ativo mais recente)", async () => {
     const r = await request(app).post("/api/v1/equipes/inscricao").send({
+      consentimento: true,
       lider: { nome: "Líder Ciclo", email: email("lciclo"), senha: "senha-forte-1", telefone: "5199" },
       ideia: { nome: `Z ${sufixo}`, descricao: "d", estagio: "ideia" },
     });

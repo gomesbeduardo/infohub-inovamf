@@ -5,6 +5,7 @@ import { hashTokenSenha, sha256, tokenAleatorio } from "../utils/hash.js";
 import { DIA_MS } from "../utils/time.js";
 import type { MotivoRevogacao } from "../domain/enums.js";
 import { registrarAuditoria } from "./auditoria.model.js";
+import { opsAceite, type DadosAceite } from "./termos.model.js";
 
 // --- Sessão (par access + refresh em tokens_acesso) ---------------------------
 // access.token_pai_id → o refresh irmão (permite logout do par por jti).
@@ -147,6 +148,8 @@ export function consumirConvite(params: {
   perfil?: { nome?: string; telefone?: string };
   // Aluno completa os próprios dados ao aceitar (RN-02: dados de todos os integrantes).
   aluno?: { curso: string; semestre: string; matricula: string | null };
+  // Termos + Política aceitos por quem está ativando a própria conta.
+  aceite: DadosAceite;
 }) {
   const agora = new Date();
   const ops: Prisma.PrismaPromise<unknown>[] = [
@@ -164,6 +167,7 @@ export function consumirConvite(params: {
       where: { id: params.conviteId },
       data: { usado_em: agora },
     }),
+    ...opsAceite(params.usuarioId, params.aceite),
   ];
   if (params.aluno) {
     ops.push(

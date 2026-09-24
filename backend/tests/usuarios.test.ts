@@ -117,6 +117,7 @@ describe("GET /auth/invite (vê os dados) + POST /auth/register", () => {
 
   it("201 aceita convite, completa telefone e loga", async () => {
     const res = await request(app).post("/api/v1/auth/register").send({
+      consentimento: true,
       token: tokenConvite,
       senha: "minha-senha-forte",
       telefone: "55991234567",

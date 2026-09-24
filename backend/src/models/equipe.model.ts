@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../prisma.js";
+import { opsAceite, type DadosAceite } from "./termos.model.js";
 import {
   ENTREGAVEIS_FINAIS,
   POSICAO_PRONTA,
@@ -495,6 +496,8 @@ export interface DadosInscricao {
     criar: { slug: string; nome: string; email: string; telefone: string; senhaHash: string } | null;
     convite: { id: string; hash: string; expiraEm: Date } | null;
   }>;
+  // Só o líder consente aqui; cada colega consente no próprio aceite do convite.
+  aceite: DadosAceite;
 }
 
 export type ColegaPreparado = DadosInscricao["colegas"][number];
@@ -637,6 +640,7 @@ export function inscrever(p: DadosInscricao) {
     prisma.equipe_membros.create({
       data: { equipe_id: p.equipe.id, usuario_id: p.lider.id, papel: "lider" },
     }),
+    ...opsAceite(p.lider.id, p.aceite),
   ];
 
   for (const c of p.colegas) ops.push(...opsVinculoColega(p.equipe.id, c));
