@@ -16,7 +16,8 @@ export type AcaoAuditoria =
   | "entrega_avaliada"
   | "lembrete_enviado"
   | "redefinicao_senha_gerada"
-  | "redefinicao_solicitada";
+  | "redefinicao_solicitada"
+  | "membro_removido";
 
 export interface RegistroAuditoria {
   usuarioId: string | null;

@@ -13,6 +13,7 @@ vi.mock('@/data/api/consultas', () => ({
   useAnotar: vi.fn(),
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
+  useRemoverMembro: vi.fn(),
   useEtapas: vi.fn(),
   useLinhaDoTempo: vi.fn(),
   useUsuarios: vi.fn(),
@@ -32,6 +33,7 @@ import {
   useGerarConvite,
   useLinhaDoTempo,
   useMoverEtapa,
+  useRemoverMembro,
   useUsuarios,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
@@ -95,6 +97,7 @@ const LINHA: ItemLinhaDoTempo[] = [
 const mover = vi.fn();
 const gerar = vi.fn();
 const adicionar = vi.fn();
+const remover = vi.fn();
 const anotar = vi.fn();
 const refetch = vi.fn();
 const atualizarEquipe = vi.fn();
@@ -128,6 +131,9 @@ function mockPadrao() {
   >);
   vi.mocked(useAdicionarMembro).mockReturnValue({ mutate: adicionar, isPending: false } as unknown as R<
     typeof useAdicionarMembro
+  >);
+  vi.mocked(useRemoverMembro).mockReturnValue({ mutate: remover, isPending: false } as unknown as R<
+    typeof useRemoverMembro
   >);
   vi.mocked(useAnotar).mockReturnValue({ mutate: anotar, isPending: false } as unknown as R<typeof useAnotar>);
   vi.mocked(useAnotacoes).mockReturnValue({

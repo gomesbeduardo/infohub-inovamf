@@ -518,9 +518,14 @@ function opsVinculoColega(equipeId: string, c: ColegaPreparado): Prisma.PrismaPr
       }),
     );
   }
+  // upsert (não create): a pessoa pode já ter uma linha inativa nesta equipe
+  // (retirada antes — ver removerMembro) e reintegrar precisa reativá-la, não
+  // colidir com a PK composta (equipe_id, usuario_id).
   ops.push(
-    prisma.equipe_membros.create({
-      data: { equipe_id: equipeId, usuario_id: c.usuarioId, papel: "integrante" },
+    prisma.equipe_membros.upsert({
+      where: { equipe_id_usuario_id: { equipe_id: equipeId, usuario_id: c.usuarioId } },
+      update: { ativo: true, saiu_em: null, papel: "integrante", entrou_em: new Date() },
+      create: { equipe_id: equipeId, usuario_id: c.usuarioId, papel: "integrante" },
     }),
   );
   if (c.convite) {
@@ -549,6 +554,50 @@ function opsVinculoColega(equipeId: string, c: ColegaPreparado): Prisma.PrismaPr
 
 export function adicionarMembro(equipeId: string, c: ColegaPreparado) {
   return prisma.$transaction(opsVinculoColega(equipeId, c));
+}
+
+// Retira um integrante ATIVO da equipe (líder, mentor da equipe ou admin —
+// controller decide a permissão; o líder nunca pode ser removido). UMA
+// transação: desativa o vínculo (nunca apaga — entregas/histórico continuam),
+// invalida convite pendente e audita.
+export async function removerMembro(p: {
+  equipeId: string;
+  membroId: string;
+  membroSlug: string;
+  removidoPor: string;
+  ip: string | null;
+}): Promise<
+  | { tipo: "ok"; saiuEm: Date }
+  | { tipo: "nao_encontrado" }
+  | { tipo: "lider" }
+> {
+  return prisma.$transaction(async (tx) => {
+    const vinculo = await tx.equipe_membros.findUnique({
+      where: { equipe_id_usuario_id: { equipe_id: p.equipeId, usuario_id: p.membroId } },
+      select: { ativo: true, papel: true },
+    });
+    if (!vinculo || !vinculo.ativo) return { tipo: "nao_encontrado" as const };
+    if (vinculo.papel === "lider") return { tipo: "lider" as const };
+
+    const saiuEm = new Date();
+    await tx.equipe_membros.update({
+      where: { equipe_id_usuario_id: { equipe_id: p.equipeId, usuario_id: p.membroId } },
+      data: { ativo: false, saiu_em: saiuEm },
+    });
+    await tx.tokens_senha.updateMany({
+      where: { usuario_id: p.membroId, finalidade: "convite", usado_em: null },
+      data: { usado_em: new Date() },
+    });
+    await registrarAuditoria(tx, {
+      usuarioId: p.removidoPor,
+      entidade: "equipe",
+      entidadeId: p.equipeId,
+      acao: "membro_removido",
+      depois: { membro: p.membroSlug },
+      ip: p.ip,
+    });
+    return { tipo: "ok" as const, saiuEm };
+  });
 }
 
 export function inscrever(p: DadosInscricao) {
