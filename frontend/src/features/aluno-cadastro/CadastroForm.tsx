@@ -16,6 +16,7 @@ import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
 import { OpcoesSegmentadas } from '@/design-system/components/OpcoesSegmentadas';
 import { AlertIcon } from '@/design-system/icons';
+import { AceiteTermos, ERRO_ACEITE } from '@/features/legal/AceiteTermos';
 import { LinksConvite } from './LinksConvite';
 
 type Colega = { nome: string; email: string };
@@ -58,6 +59,7 @@ export function CadastroForm() {
   const [estagioIdeia, setEstagioIdeia] = useState<EstagioIdeia>('ideia');
   const [origemDivulgacao, setOrigemDivulgacao] = useState('');
   const [colegas, setColegas] = useState<Colega[]>([]);
+  const [consentimento, setConsentimento] = useState(false);
   const [erros, setErros] = useState<Record<string, string>>({});
 
   const apiError = inscricao.error instanceof ApiError ? inscricao.error : null;
@@ -93,6 +95,8 @@ export function CadastroForm() {
       else if (!EMAIL_RE.test(c.email.trim())) e[`colega-${i}-email`] = 'E-mail inválido.';
     });
 
+    if (!consentimento) e.consentimento = ERRO_ACEITE;
+
     return e;
   }
 
@@ -120,6 +124,7 @@ export function CadastroForm() {
         origem: origemDivulgacao.trim() || undefined,
       },
       colegas: colegas.map((c) => ({ nome: c.nome, email: c.email })),
+      consentimento: true,
     });
   }
 
@@ -321,6 +326,12 @@ export function CadastroForm() {
               error={erros.estagioIdeia}
             />
           </section>
+
+          <AceiteTermos
+            checked={consentimento}
+            onChange={setConsentimento}
+            error={erros.consentimento}
+          />
 
           {erroGeral && (
             <p

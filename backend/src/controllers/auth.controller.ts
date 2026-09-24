@@ -11,6 +11,7 @@ import { isUuid } from "../utils/slug.js";
 import { idDoChamador, ipDoChamador } from "../utils/acesso.js";
 import { ehEmail } from "../utils/text.js";
 import { emitirSessao } from "../utils/sessao.js";
+import { exigirAceite } from "../utils/aceite.js";
 import type { FinalidadeToken } from "../domain/enums.js";
 import * as usuarioModel from "../models/usuario.model.js";
 import * as tokenModel from "../models/token.model.js";
@@ -140,6 +141,8 @@ export async function register(req: Request, res: Response, next: NextFunction) 
       };
     }
 
+    const aceite = await exigirAceite(req);
+
     const senhaHash = await hashSenha(senha);
     await tokenModel.consumirConvite({
       conviteId: convite.id,
@@ -150,6 +153,7 @@ export async function register(req: Request, res: Response, next: NextFunction) 
         ...(typeof telefone === "string" ? { telefone: telefone.trim() } : {}),
       },
       aluno,
+      aceite,
     });
 
     const usuario = await usuarioModel.findParaSessaoById(convite.usuario_id);

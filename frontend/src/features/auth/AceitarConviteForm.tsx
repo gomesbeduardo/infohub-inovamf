@@ -15,6 +15,7 @@ import { PasswordInput } from '@/design-system/components/PasswordInput';
 import { Select } from '@/design-system/components/Select';
 import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
+import { AceiteTermos, ERRO_ACEITE } from '@/features/legal/AceiteTermos';
 
 function vazio(v?: string): boolean {
   return !v || v.trim() === '';
@@ -43,6 +44,7 @@ export function AceitarConviteForm() {
   const [curso, setCurso] = useState('');
   const [semestre, setSemestre] = useState('');
   const [matricula, setMatricula] = useState('');
+  const [consentimento, setConsentimento] = useState(false);
   const [erros, setErros] = useState<Record<string, string>>({});
 
   // Sem ?token a query fica desligada (pending para sempre): avisa em vez de "Carregando…".
@@ -116,6 +118,8 @@ export function AceitarConviteForm() {
       if (vazio(semestre)) e.semestre = 'Selecione o semestre/módulo.';
     }
 
+    if (!consentimento) e.consentimento = ERRO_ACEITE;
+
     return e;
   }
 
@@ -131,6 +135,7 @@ export function AceitarConviteForm() {
         senha,
         telefone,
         ...(ehAluno ? { curso, semestre, matricula: matricula.trim() || undefined } : {}),
+        consentimento: true,
       },
       { onSuccess: () => router.push(homeFor(dados.role as TipoUsuario)) },
     );
@@ -186,6 +191,12 @@ export function AceitarConviteForm() {
               </FormField>
             </>
           )}
+
+          <AceiteTermos
+            checked={consentimento}
+            onChange={setConsentimento}
+            error={erros.consentimento}
+          />
 
           {apiErro && (
             <p

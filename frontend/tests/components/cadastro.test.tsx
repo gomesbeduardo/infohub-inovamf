@@ -74,6 +74,7 @@ describe('CadastroForm (API real)', () => {
     await user.click(screen.getByRole('button', { name: /adicionar integrante/i }));
     await user.type(screen.getByLabelText('Nome do integrante 1'), 'Colega Um');
     await user.type(screen.getByLabelText('E-mail do integrante 1'), 'colega@teste.dev');
+    await user.click(screen.getByRole('checkbox', { name: /li e aceito/i }));
 
     await user.click(screen.getByRole('button', { name: /cadastrar/i }));
 
@@ -95,8 +96,21 @@ describe('CadastroForm (API real)', () => {
         origem: undefined,
       },
       colegas: [{ nome: 'Colega Um', email: 'colega@teste.dev' }],
+      consentimento: true,
     });
     expect(mutate.mock.calls[0][0].lider).not.toHaveProperty('confirmarSenha');
+  });
+
+  it('sem aceitar os Termos e a Política: erro no campo e nada é enviado (RNF-02)', async () => {
+    const user = userEvent.setup();
+    render(<CadastroForm />);
+
+    await preencherDadosBasicos(user);
+    await user.click(screen.getByRole('button', { name: /cadastrar/i }));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: /li e aceito/i })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText(/aceite os termos de uso e a política de privacidade/i)).toBeInTheDocument();
   });
 
   it('senha e confirmação diferentes mostram erro e não chamam a API', async () => {

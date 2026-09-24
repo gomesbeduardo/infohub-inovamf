@@ -65,6 +65,7 @@ beforeAll(async () => {
   const insc = await request(app)
     .post("/api/v1/equipes/inscricao")
     .send({
+      consentimento: true,
       lider: {
         nome: "Líder C",
         email: emails.lider,
@@ -141,7 +142,7 @@ describe("POST /usuarios/:slug/convite (reenviar)", () => {
 
     const aceite = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: inviteB, senha: "senha-do-convidado" });
+      .send({ consentimento: true, token: inviteB, senha: "senha-do-convidado" });
     expect(aceite.status).toBe(201);
   });
 

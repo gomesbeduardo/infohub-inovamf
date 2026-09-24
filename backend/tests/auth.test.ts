@@ -186,7 +186,7 @@ describe("POST /auth/register (aceite de convite)", () => {
   it("400 com convite inválido", async () => {
     const res = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: "id-falso.segredo-falso", senha: "senha12345" });
+      .send({ consentimento: true, token: "id-falso.segredo-falso", senha: "senha12345" });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("INVALID_INVITE");
   });
@@ -194,7 +194,7 @@ describe("POST /auth/register (aceite de convite)", () => {
   it("400 com senha fraca", async () => {
     const res = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: inviteToken, senha: "123" });
+      .send({ consentimento: true, token: inviteToken, senha: "123" });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("WEAK_PASSWORD");
   });
@@ -202,7 +202,7 @@ describe("POST /auth/register (aceite de convite)", () => {
   it("201 aceita o convite, faz auto-login e o convite não serve duas vezes", async () => {
     const res = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: inviteToken, senha: "senha-nova-forte" });
+      .send({ consentimento: true, token: inviteToken, senha: "senha-nova-forte" });
     expect(res.status).toBe(201);
     expect(res.body.access).toBeTruthy();
     expect(res.body.usuario.role).toBe("mentor");
@@ -216,7 +216,7 @@ describe("POST /auth/register (aceite de convite)", () => {
     // Reuso do convite → 400 INVITE_USED
     const dup = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token: inviteToken, senha: "outra-senha-forte" });
+      .send({ consentimento: true, token: inviteToken, senha: "outra-senha-forte" });
     expect(dup.status).toBe(400);
     expect(dup.body.error.code).toBe("INVITE_USED");
   });

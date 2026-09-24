@@ -17,6 +17,7 @@ function inscricao(liderEmail: string, colegas: Array<{ nome: string; email: str
   return request(app)
     .post("/api/v1/equipes/inscricao")
     .send({
+      consentimento: true,
       lider: { nome: "Líder RN03", email: liderEmail, senha: SENHA, telefone: "55991112222", curso: "ADS", semestre: "4º" },
       ideia: { nome: `Ideia ${liderEmail} ${sufixo}`, descricao: "desc", estagio: "ideia" },
       colegas,
@@ -116,7 +117,7 @@ describe("POST /auth/register completa os dados do aluno", () => {
   });
 
   it("400 sem curso", async () => {
-    const r = await request(app).post("/api/v1/auth/register").send({ token, senha: "senha-forte-123" });
+    const r = await request(app).post("/api/v1/auth/register").send({ consentimento: true, token, senha: "senha-forte-123" });
     expect(r.status).toBe(400);
     expect(r.body.error.code).toBe("INVALID_CURSO");
   });
@@ -124,7 +125,7 @@ describe("POST /auth/register completa os dados do aluno", () => {
   it("201 grava curso/semestre/matrícula em alunos", async () => {
     const r = await request(app)
       .post("/api/v1/auth/register")
-      .send({ token, senha: "senha-forte-123", curso: "Direito", semestre: "2º", matricula: "20260001" });
+      .send({ consentimento: true, token, senha: "senha-forte-123", curso: "Direito", semestre: "2º", matricula: "20260001" });
     expect(r.status).toBe(201);
     const u = await prisma.usuarios.findUnique({
       where: { email: email("novo") },

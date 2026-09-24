@@ -98,6 +98,11 @@ export interface NumerosPublicos {
   ideias: number; equipesEmAndamento: number; alunos: number; cursos: number;
 }
 
+/** GET /termos/vigente — `conteudo` em texto simples ("## " abre seção). */
+export interface TermosUso {
+  versao: string; titulo: string; conteudo: string; publicadoEm: string;
+}
+
 export interface UsuarioAdmin {
   slug: string; nome: string; email: string; telefone: string; role: TipoUsuario; ativo: boolean;
   conviteAceito: boolean; ultimoLoginEm?: string | null; criadoEm?: string;

@@ -25,6 +25,7 @@ import { LIMITE_LINHA_DO_TEMPO } from "../domain/linhaDoTempo.js";
 import { classificarColega } from "../domain/membros.js";
 import { hojeISO } from "../domain/atraso.js";
 import { linkConvite } from "../utils/convite.js";
+import { exigirAceite } from "../utils/aceite.js";
 import { equipesCSV } from "../domain/csv.js";
 import * as equipeModel from "../models/equipe.model.js";
 import * as areaModel from "../models/area.model.js";
@@ -535,6 +536,7 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
     if (await usuarioModel.findAnyByEmail(emailLider)) {
       throw httpError(409, "EMAIL_TAKEN", "Você já tem conta: entre com seu e-mail e senha");
     }
+    const aceite = await exigirAceite(req);
     const existentes = new Map(
       (await usuarioModel.findParaVinculo(listaColegas.map((c) => c.email))).map((u) => [u.email, u]),
     );
@@ -578,6 +580,7 @@ export async function inscricao(req: Request, res: Response, next: NextFunction)
           typeof ideia.origem === "string" ? ideia.origem.trim() : null,
       },
       colegas: colegasPrep.map((c) => ({ usuarioId: c.usuarioId, criar: c.criar, convite: c.convite })),
+      aceite,
     });
 
     // E-mails (best-effort; não derruba a inscrição já gravada).
