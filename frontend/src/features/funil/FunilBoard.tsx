@@ -8,7 +8,6 @@ import { useEquipes, useEtapas } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { StageTag } from '@/design-system/components/StageTag';
 import { StatusBadge } from '@/design-system/components/StatusBadge';
-import { Badge } from '@/design-system/components/Badge';
 import { Button } from '@/design-system/components/Button';
 import { FiltrosBar } from '@/features/admin-funil/FiltrosBar';
 import { ExportarCSV } from '@/features/admin-funil/ExportarCSV';
@@ -16,6 +15,7 @@ import { DialogoMover, posicaoDe } from '@/features/funil/DialogoMover';
 import { limparFiltros, useAdiado } from '@/features/funil/filtros';
 import { Skeleton } from '@/design-system/components/Skeleton';
 import { cn } from '@/design-system/cn';
+import { AreaTag } from '@/design-system/components/AreaTag';
 
 const TITULO_PRONTA = 'Pronta p/ InovAMF';
 
@@ -267,10 +267,10 @@ function CardArrastavel({
         >
           {equipe.nomeIdeia}
         </Link>
-        <StageTag etapaId={equipe.etapa.numero} />
+        <StageTag etapaId={equipe.etapa.numero} variante="ponto" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {equipe.area && <Badge tone="brand">{equipe.area}</Badge>}
+        {equipe.area && <AreaTag area={equipe.area} />}
       </div>
       {atrasadas > 0 && (
         <div className="flex items-center gap-1">

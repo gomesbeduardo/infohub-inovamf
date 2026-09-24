@@ -6,7 +6,6 @@ import { useEquipe, useEquipes, useEtapas, useTarefas } from '@/data/api/consult
 import { useUsuario } from '@/data/api/useSessao';
 import {
   ESTAGIO_LABEL,
-  STATUS_EQUIPE_LABEL,
   formatarData,
 } from '@/domain/labels';
 import { Card } from '@/design-system/components/Card';
@@ -22,6 +21,8 @@ import { MembrosLista } from '@/features/equipe/MembrosLista';
 import { ProximoPasso } from '@/features/aluno-equipe/ProximoPasso';
 import { POSICAO_PRONTA } from '@/features/funil/DialogoMover';
 import { Skeleton } from '@/design-system/components/Skeleton';
+import { AreaTag } from '@/design-system/components/AreaTag';
+import { StatusEquipeTag } from '@/design-system/components/StatusEquipeTag';
 
 const PENDENTES: StatusTarefa[] = ['pendente', 'em_andamento', 'atrasada', 'ajustar'];
 
@@ -144,9 +145,9 @@ function MinhaEquipeConteudo({ slug }: { slug: string }) {
           </div>
           <p className="text-sm text-text-muted">{equipe.descricaoIdeia}</p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            {equipe.area && <Badge tone="brand">{equipe.area}</Badge>}
+            {equipe.area && <AreaTag area={equipe.area} />}
             <Badge>{ESTAGIO_LABEL[equipe.estagio]}</Badge>
-            <Badge>{STATUS_EQUIPE_LABEL[equipe.status]}</Badge>
+            <StatusEquipeTag status={equipe.status} />
           </div>
         </Card.Body>
       </Card>

@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import type { Membro } from '@/data/api/tipos';
-import { useGerarConvite } from '@/data/api/consultas';
+import { useGerarConvite, useRemoverMembro } from '@/data/api/consultas';
 import { formatarDataHora } from '@/domain/labels';
 import { semestreCurto } from '@/domain/semestres';
 import { Avatar } from '@/design-system/components/Avatar';
 import { Badge } from '@/design-system/components/Badge';
 import { Button } from '@/design-system/components/Button';
 import { CopiarLink } from '@/design-system/components/CopiarLink';
+import { Dialog } from '@/design-system/components/primitives/Dialog';
+import { useToast } from '@/design-system/components/Toast';
 
 export interface MembrosListaProps {
   equipeSlug: string;
@@ -50,14 +52,34 @@ function LinhaMembro({
   podeGerir: boolean;
 }) {
   const gerar = useGerarConvite(equipeSlug);
+  const remover = useRemoverMembro(equipeSlug);
+  const toast = useToast();
   const [convite, setConvite] = useState<{ conviteUrl: string; expiraEm: string } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const [erroRemover, setErroRemover] = useState<string | null>(null);
 
   function gerarLink() {
     setErro(null);
     gerar.mutate(m.slug, {
       onSuccess: (r) => setConvite(r),
       onError: (e) => setErro(e instanceof Error ? e.message : 'Não foi possível gerar o link.'),
+    });
+  }
+
+  function abrirConfirmacao() {
+    setErroRemover(null);
+    setConfirmando(true);
+  }
+
+  function confirmarRemocao() {
+    setErroRemover(null);
+    remover.mutate(m.slug, {
+      onSuccess: () => {
+        setConfirmando(false);
+        toast.sucesso(`${m.nome} foi retirado(a) da equipe.`);
+      },
+      onError: (e) => setErroRemover(e instanceof Error ? e.message : 'Não foi possível retirar o integrante.'),
     });
   }
 
@@ -71,7 +93,7 @@ function LinhaMembro({
           <span className="flex flex-wrap items-center gap-2 text-sm text-text">
             {m.nome}
             {m.papel === 'lider' && <Badge tone="brand">Líder</Badge>}
-            {m.pendente && <Badge>convite pendente</Badge>}
+            {m.pendente && <Badge tone="warning">convite pendente</Badge>}
           </span>
           {detalhes && <span className="text-xs text-text-muted">{detalhes}</span>}
         </div>
@@ -84,6 +106,16 @@ function LinhaMembro({
             disabled={gerar.isPending}
           >
             {gerar.isPending ? 'Gerando…' : 'Gerar link'}
+          </Button>
+        )}
+        {podeGerir && m.papel !== 'lider' && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="shrink-0"
+            onClick={abrirConfirmacao}
+          >
+            Retirar
           </Button>
         )}
       </div>
@@ -104,6 +136,32 @@ function LinhaMembro({
           {erro}
         </p>
       )}
+
+      <Dialog
+        open={confirmando}
+        onOpenChange={(o) => setConfirmando(o)}
+        title="Retirar integrante"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-text-muted">
+            Retirar {m.nome} da equipe? A pessoa perde o acesso às tarefas desta equipe. Entregas e histórico já
+            registrados continuam.
+          </p>
+          {erroRemover && (
+            <p role="alert" className="rounded-[0.625rem] bg-danger-soft px-3 py-2 text-sm font-medium text-danger-text">
+              {erroRemover}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setConfirmando(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" variant="danger" disabled={remover.isPending} onClick={confirmarRemocao}>
+              {remover.isPending ? 'Retirando…' : 'Retirar'}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </li>
   );
 }

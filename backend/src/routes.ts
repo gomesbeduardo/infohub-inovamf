@@ -66,6 +66,7 @@ routes.post("/equipes", auth, role("admin"), equipeCtrl.store);
 routes.patch("/equipes/:slug", auth, role("admin"), equipeCtrl.update);
 routes.post("/equipes/:slug/etapa", auth, role("admin", "mentor"), equipeCtrl.moverEtapa);
 routes.post("/equipes/:slug/membros", auth, equipeCtrl.adicionarMembro);
+routes.delete("/equipes/:slug/membros/:membro", auth, equipeCtrl.removerMembro);
 routes.post("/equipes/:slug/membros/:membro/convite", auth, equipeCtrl.gerarConviteMembro);
 
 // --- Anotações internas (RF-10) — nunca chegam ao aluno -----------------------

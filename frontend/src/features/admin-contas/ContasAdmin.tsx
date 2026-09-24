@@ -289,7 +289,7 @@ export function ContasAdmin() {
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3">
                   <Badge>{PAPEL_LABEL[u.role]}</Badge>
-                  {!u.conviteAceito && <Badge tone="brand">Convite pendente</Badge>}
+                  {!u.conviteAceito && <Badge tone="warning">Convite pendente</Badge>}
                   <span className={u.ativo ? 'text-xs text-text-muted' : 'text-xs text-primary-text'}>
                     {u.ativo ? 'Ativa' : 'Inativa'}
                   </span>
