@@ -726,6 +726,45 @@ export async function adicionarMembro(req: Request, res: Response, next: NextFun
   }
 }
 
+// DELETE /equipes/:slug/membros/:membro — líder, mentor da equipe ou admin
+// retiram um integrante ATIVO. O líder não pode ser retirado (nem por si
+// mesmo). Desativa o vínculo (não apaga: entregas/histórico continuam).
+export async function removerMembro(req: Request, res: Response, next: NextFunction) {
+  try {
+    const controle = await equipeModel.findControleBySlug(req.params.slug ?? "");
+    if (!controle) throw httpError(404, "EQUIPE_NOT_FOUND", "Equipe não encontrada");
+
+    const eu = idDoChamador(req);
+    const ehLider = controle.equipe_membros.some((m) => m.usuario_id === eu && m.papel === "lider");
+    if (!podeGerirEquipe(req, controle.mentor_id) && !(req.auth.role === "aluno" && ehLider)) {
+      throw httpError(403, "FORBIDDEN", "Só o líder, o mentor ou o admin retiram integrantes");
+    }
+
+    const membroId = fromSlug(req.params.membro ?? "");
+    if (!membroId || !controle.equipe_membros.some((m) => m.usuario_id === membroId)) {
+      throw httpError(404, "MEMBRO_NOT_FOUND", "Integrante não encontrado nesta equipe");
+    }
+
+    const resultado = await equipeModel.removerMembro({
+      equipeId: controle.id,
+      membroId,
+      membroSlug: req.params.membro ?? "",
+      removidoPor: eu,
+      ip: ipDoChamador(req),
+    });
+    if (resultado.tipo === "nao_encontrado") {
+      throw httpError(404, "MEMBRO_NOT_FOUND", "Integrante não encontrado nesta equipe");
+    }
+    if (resultado.tipo === "lider") {
+      throw httpError(409, "LIDER_NAO_REMOVIVEL", "O líder não pode ser retirado da equipe.");
+    }
+
+    res.json({ slug: req.params.membro, removidoEm: resultado.saiuEm.toISOString() });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /equipes/:slug/linha-do-tempo — A5 (RF-08, RNF-05 visível). Admin vê
 // tudo; mentor só as próprias equipes; aluno a própria, sem a observação de
 // movimento forçado. Nunca devolve UUID.
