@@ -93,7 +93,7 @@ function LinhaMembro({
           <span className="flex flex-wrap items-center gap-2 text-sm text-text">
             {m.nome}
             {m.papel === 'lider' && <Badge tone="brand">Líder</Badge>}
-            {m.pendente && <Badge>convite pendente</Badge>}
+            {m.pendente && <Badge tone="warning">convite pendente</Badge>}
           </span>
           {detalhes && <span className="text-xs text-text-muted">{detalhes}</span>}
         </div>

@@ -3,13 +3,12 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useEquipes } from '@/data/api/consultas';
-import { STATUS_EQUIPE_LABEL } from '@/domain/labels';
 import { Input } from '@/design-system/components/Input';
 import { StageTag } from '@/design-system/components/StageTag';
-import { Badge } from '@/design-system/components/Badge';
 import { Button } from '@/design-system/components/Button';
 import { EmptyState } from '@/design-system/components/EmptyState';
 import { limparFiltros, useAdiado } from '@/features/funil/filtros';
+import { StatusEquipeTag } from '@/design-system/components/StatusEquipeTag';
 
 export interface EquipesListProps {
   /** Base do link do detalhe da equipe (o mentor usa `/orientador/equipes`). */
@@ -97,7 +96,7 @@ export function EquipesList({ baseHref = '/admin/equipes' }: EquipesListProps = 
                     </StageTag>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge>{STATUS_EQUIPE_LABEL[e.status]}</Badge>
+                    <StatusEquipeTag status={e.status} />
                   </td>
                   <td className="px-4 py-3 text-text-muted">{e.mentor?.nome ?? '—'}</td>
                   <td className="px-4 py-3 text-right tabular-nums">

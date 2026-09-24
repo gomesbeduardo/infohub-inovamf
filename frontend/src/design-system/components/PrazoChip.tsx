@@ -17,12 +17,12 @@ export function PrazoChip({ dataEntrega, status, hoje, className }: PrazoChipPro
   if (!texto) return null;
   const tom =
     status === 'atrasada'
-      ? 'bg-danger-soft text-danger-text'
+      ? 'bg-danger-soft text-danger-text border-[color:var(--danger-border)]'
       : texto === 'vence hoje'
-        ? 'bg-primary-soft text-primary-text'
-        : 'bg-surface-sunken text-text-muted';
+        ? 'bg-[color:var(--warning-soft)] text-[color:var(--warning-text)] border-[color:var(--warning-border)]'
+        : 'bg-[color:var(--chip-bg)] text-[color:var(--chip-text)] border-[color:var(--chip-border)]';
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', tom, className)}>
+    <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', tom, className)}>
       {texto}
     </span>
   );
