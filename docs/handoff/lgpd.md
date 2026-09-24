@@ -49,6 +49,7 @@ Estas decisões foram tomadas com o dono do produto. Antes de mudar alguma, conv
 4. **Nenhuma migration.**
    - `consentimentos_lgpd`, `usuarios.excluido_em` e as colunas de IP já existem no schema do banco do professor.
    - Evitar migration na véspera da apresentação reduz o risco no banco compartilhado e mantém o seed estável.
+   - **Atualização (24/09):** o dono do produto pediu Termos de Uso versionados no banco. Entrou uma migration **só de criação** (`20260924000000_termos_uso`: `termos_uso` + `aceites_termos`, com o seed da versão `2026-09`). Nenhuma tabela existente foi alterada. Ver `docs/superpowers/plans/2026-09-24-lgpd-consentimento.md`.
 5. **A anonimização é feita pelo admin, a pedido, e não pelo próprio aluno.**
    - É o mínimo que cumpre o RNF-02.
    - Deixa uma pessoa conferir os casos que exigem decisão humana: líder de equipe ativa, último admin.
