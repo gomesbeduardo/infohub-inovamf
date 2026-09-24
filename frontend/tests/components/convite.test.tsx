@@ -135,6 +135,7 @@ describe('AceitarConviteForm (/convite)', () => {
     await user.type(screen.getByLabelText('Telefone'), '(55) 90000-2222');
     await user.selectOptions(screen.getByLabelText('Curso'), 'Sistemas de Informação');
     await user.selectOptions(screen.getByLabelText(/semestre\/módulo/i), '3');
+    await user.click(screen.getByRole('checkbox', { name: /li e aceito/i }));
 
     await user.click(screen.getByRole('button', { name: /concluir cadastro/i }));
 
@@ -146,6 +147,7 @@ describe('AceitarConviteForm (/convite)', () => {
         curso: 'Sistemas de Informação',
         semestre: '3',
         matricula: undefined,
+        consentimento: true,
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
@@ -166,5 +168,35 @@ describe('AceitarConviteForm (/convite)', () => {
 
     expect(screen.getByText(/as senhas não coincidem/i)).toBeInTheDocument();
     expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('sem aceitar os Termos e a Política: erro no campo e nada é enviado (RNF-02)', async () => {
+    mockPreview({
+      data: { nome: 'Marcos', email: 'marcos@teste.dev', telefone: '', role: 'mentor' },
+    });
+    const user = userEvent.setup();
+    render(<AceitarConviteForm />);
+
+    await user.type(screen.getByLabelText('Senha'), '12345678');
+    await user.type(screen.getByLabelText('Confirmar senha'), '12345678');
+    await user.type(screen.getByLabelText('Telefone'), '(55) 90000-3333');
+    await user.click(screen.getByRole('button', { name: /concluir cadastro/i }));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: /li e aceito/i })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText(/aceite os termos de uso e a política de privacidade/i)).toBeInTheDocument();
+  });
+
+  it('os links dos Termos e da Política abrem em nova aba (o formulário não se perde)', () => {
+    mockPreview({
+      data: { nome: 'Marcos', email: 'marcos@teste.dev', telefone: '', role: 'mentor' },
+    });
+    render(<AceitarConviteForm />);
+    const termos = screen.getByRole('link', { name: 'Termos de Uso' });
+    expect(termos).toHaveAttribute('href', '/termos');
+    expect(termos).toHaveAttribute('target', '_blank');
+    const politica = screen.getByRole('link', { name: 'Política de Privacidade' });
+    expect(politica).toHaveAttribute('href', '/privacidade');
+    expect(politica).toHaveAttribute('target', '_blank');
   });
 });

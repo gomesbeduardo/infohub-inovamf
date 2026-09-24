@@ -433,6 +433,12 @@ export function Landing() {
             <Link href="/login" className="text-text-muted hover:text-text">
               Entrar
             </Link>
+            <Link href="/termos" className="text-text-muted hover:text-text">
+              Termos de Uso
+            </Link>
+            <Link href="/privacidade" className="text-text-muted hover:text-text">
+              Política de Privacidade
+            </Link>
           </nav>
         </div>
       </footer>

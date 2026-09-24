@@ -5,7 +5,7 @@ import { sessao, type RespostaSessao } from './sessao';
 import type {
   Agenda, Anotacao, Area, Ciclo, ColegaCriado, Dashboard, Entrega, EquipeDetalhe, EquipeResumo, Etapa,
   FiltrosEquipes, ItemLinhaDoTempo, Me, ModeloTarefa, Notificacao, NumerosPublicos, Pagina, Posicao, Tarefa,
-  UsuarioAdmin,
+  TermosUso, UsuarioAdmin,
 } from './tipos';
 import type { StatusEquipe } from '@/domain/types';
 
@@ -36,6 +36,7 @@ export const chaves = {
   me: ['me'] as const,
   publicoNumeros: ['publico', 'numeros'] as const,
   notificacoes: ['notificacoes'] as const,
+  termos: ['termos', 'vigente'] as const,
 };
 
 // ── Referência ────────────────────────────────────────────────────────────────
@@ -44,6 +45,13 @@ export const useEtapas = () => useQuery({ queryKey: chaves.etapas, queryFn: list
 export const useAreas = () => useQuery({ queryKey: chaves.areas, queryFn: lista<Area>('/areas-ideia'), staleTime: Infinity });
 export const useCiclos = () => useQuery({ queryKey: chaves.ciclos, queryFn: lista<Ciclo>('/ciclos'), staleTime: Infinity });
 export const useModelos = () => useQuery({ queryKey: chaves.modelos, queryFn: lista<ModeloTarefa>('/modelos-tarefa') });
+/** Termos de Uso vigentes (públicos: aparecem antes de existir conta). */
+export const useTermosVigente = () =>
+  useQuery({
+    queryKey: chaves.termos,
+    queryFn: () => api<TermosUso>('/termos/vigente', { publica: true }),
+    staleTime: Infinity,
+  });
 
 // ── Equipes ───────────────────────────────────────────────────────────────────
 /** Todas as equipes do escopo (percorre as páginas de 100). */
@@ -184,6 +192,7 @@ export function useAceitarConvite() {
   return useMutation({
     mutationFn: (body: {
       token: string; senha: string; nome?: string; telefone?: string; curso?: string; semestre?: string; matricula?: string;
+      consentimento: true;
     }) => api<RespostaSessao>('/auth/register', { method: 'POST', body, publica: true }),
     onSuccess: (r) => sessao.aplicar(r),
   });
