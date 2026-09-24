@@ -79,6 +79,14 @@
   --stage-5: var(--grad-crimson);
   --stage-6: var(--grad-maroon);
   --stage-pronta: var(--green-600);
+  /* Etiqueta sólida da etapa (estilo A): texto sempre branco; o fundo da
+     etiqueta fecha o tom só o necessário para passar de 4,5:1 (o gradiente do
+     funil, usado em gráficos e barras, não muda). Etapas 5 e 6 já passavam. */
+  --stage-1-tag: #a76516; /* 4,65:1 */
+  --stage-2-tag: #b95a19; /* 4,63:1 */
+  --stage-3-tag: #d2431e; /* 4,60:1 */
+  --stage-4-tag: #de311d; /* 4,60:1 */
+  --stage-pronta-tag: #17853e; /* 4,71:1 */
 }
 
 /* ── 3.2 Semânticas — LIGHT (default) ────────────────────────────────────── */
@@ -92,8 +100,8 @@
   --border: var(--hub-200);
   --border-strong: var(--hub-300);
   --text: var(--hub-900);
-  --text-muted: var(--hub-500);
-  --text-subtle: var(--hub-400);
+  --text-muted: var(--hub-600); /* 7,4:1 sobre surface */
+  --text-subtle: #8c8c8c; /* 4,9:1 (era 3,2:1) */ /* 5,1:1 (era hub-400: 2,96:1) */
   --text-inverted: #ffffff;
 
   --primary: var(--ember-500); /* fills, botões */
@@ -123,7 +131,7 @@
   /* Sucesso/confirmação (verde funcional) */
   --success: var(--green-600);
   --success-fg: #ffffff;
-  --success-text: #15803d; /* AA sobre fundo claro */
+  --success-text: #166534; /* 6,5:1 sobre success-soft (era 4,45:1) */
   --success-soft: #e6f5ec;
 
   /* 3.3 Status de tarefa (par bg-soft + fg) */
@@ -133,12 +141,32 @@
   --st-andamento-bg: #e8f0fe;
   --st-entregue-fg: var(--indigo-500);
   --st-entregue-bg: #ecebfb;
-  --st-atrasada-fg: var(--amber-600);
+  --st-atrasada-fg: #92400e; /* 6,3:1 (era 2,9:1) */
   --st-atrasada-bg: #fef3e2;
-  --st-aprovada-fg: var(--green-600);
+  --st-aprovada-fg: #166534; /* 6,5:1 (era 2,9:1) */
   --st-aprovada-bg: #e6f5ec;
   --st-ajustar-fg: var(--ember-600);
   --st-ajustar-bg: var(--ember-50);
+
+  /* ── Pílulas (sistema "cor por área") ──────────────────────────────────── */
+  --chip-bg: var(--hub-100);
+  --chip-text: var(--hub-600); /* 6,3:1 */
+  --chip-border: transparent;
+  --primary-soft-text: var(--ember-600);
+  --primary-soft-border: transparent;
+  --success-border: transparent;
+  --warning-soft: #fef3c7;
+  --warning-text: #92400e; /* 6,4:1 */
+  --warning-border: transparent;
+  --info-soft: #dbeafe;
+  --info-text: #1e40af; /* 7,2:1 */
+  --info-border: transparent;
+  --danger-border: transparent;
+  --area-sust-bg: #dcfce7; --area-sust-text: #166534; --area-sust-border: transparent;
+  --area-saude-bg: #cffafe; --area-saude-text: #155e75; --area-saude-border: transparent;
+  --area-edu-bg: #fef3c7; --area-edu-text: #92400e; --area-edu-border: transparent;
+  --area-tec-bg: #ede9fe; --area-tec-text: #5b21b6; --area-tec-border: transparent;
+
 }
 
 /* ── 3.2 Semânticas — DARK ───────────────────────────────────────────────── */
@@ -159,8 +187,8 @@
   --primary-hover: var(--ember-400);
   --primary-active: var(--ember-300);
   --primary-fg: #ffffff;
-  --primary-text: var(--ember-400); /* mais claro p/ contraste no escuro */
-  --primary-soft: color-mix(in srgb, var(--ember-500) 18%, var(--hub-900));
+  --primary-text: var(--ember-300); /* 6,5:1 sobre surface */
+  --primary-soft: color-mix(in srgb, var(--ember-500) 14%, var(--hub-900));
 
   --accent: var(--grad-orange);
   --focus-ring: color-mix(in srgb, var(--ember-400) 65%, transparent);
@@ -194,8 +222,28 @@
   --st-atrasada-bg: color-mix(in srgb, var(--amber-600) 24%, var(--hub-900));
   --st-aprovada-fg: var(--green-400);
   --st-aprovada-bg: color-mix(in srgb, var(--green-600) 24%, var(--hub-900));
-  --st-ajustar-fg: var(--ember-400);
+  --st-ajustar-fg: var(--ember-200); /* 8:1 (era 3,9:1) */
   --st-ajustar-bg: color-mix(in srgb, var(--ember-500) 22%, var(--hub-900));
+
+  /* ── Pílulas (sistema "cor por área"): fundo tingido + contorno + texto claro */
+  --chip-bg: #2b2b2b; /* mais claro que o card: a pílula não afunda */
+  --chip-text: #dedede; /* 10,5:1 */
+  --chip-border: #3a3a3a;
+  --primary-soft-text: var(--ember-100); /* 10,8:1 */
+  --primary-soft-border: color-mix(in srgb, var(--ember-400) 70%, transparent);
+  --success-border: color-mix(in srgb, #22c55e 55%, transparent);
+  --warning-soft: color-mix(in srgb, #f59e0b 14%, var(--hub-900));
+  --warning-text: #fde68a; /* 10,2:1 */
+  --warning-border: color-mix(in srgb, #f59e0b 55%, transparent);
+  --info-soft: color-mix(in srgb, #3b82f6 14%, var(--hub-900));
+  --info-text: #bfdbfe; /* 9,8:1 */
+  --info-border: color-mix(in srgb, #3b82f6 55%, transparent);
+  --danger-border: color-mix(in srgb, var(--ember-400) 70%, transparent);
+  --area-sust-bg: color-mix(in srgb, #22c55e 14%, var(--hub-900)); --area-sust-text: #bbf7d0; --area-sust-border: color-mix(in srgb, #22c55e 55%, transparent);
+  --area-saude-bg: color-mix(in srgb, #06b6d4 14%, var(--hub-900)); --area-saude-text: #a5f3fc; --area-saude-border: color-mix(in srgb, #06b6d4 55%, transparent);
+  --area-edu-bg: color-mix(in srgb, #f59e0b 14%, var(--hub-900)); --area-edu-text: #fde68a; --area-edu-border: color-mix(in srgb, #f59e0b 55%, transparent);
+  --area-tec-bg: color-mix(in srgb, #8b5cf6 14%, var(--hub-900)); --area-tec-text: #ddd6fe; --area-tec-border: color-mix(in srgb, #8b5cf6 55%, transparent);
+
 }
 
 /* ── Identidade visual: tipografia, elevação, "ignition rail" ─────────────── */

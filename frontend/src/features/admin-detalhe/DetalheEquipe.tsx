@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useEquipe } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
 import { ApiError } from '@/data/api/erro';
-import { ESTAGIO_LABEL, STATUS_EQUIPE_LABEL } from '@/domain/labels';
+import { ESTAGIO_LABEL } from '@/domain/labels';
 import { StageTag } from '@/design-system/components/StageTag';
 import { Badge } from '@/design-system/components/Badge';
 import { Button } from '@/design-system/components/Button';
@@ -21,6 +21,8 @@ import { POSICAO_PRONTA, posicaoDe } from '@/features/funil/DialogoMover';
 import { GestaoEquipe } from '@/features/admin-detalhe/GestaoEquipe';
 import { EnviarLembreteDialog } from '@/features/admin-detalhe/EnviarLembreteDialog';
 import { Skeleton } from '@/design-system/components/Skeleton';
+import { AreaTag } from '@/design-system/components/AreaTag';
+import { StatusEquipeTag } from '@/design-system/components/StatusEquipeTag';
 
 /** Detalhe da equipe para admin e mentor (rotas /admin/equipes/:slug e /orientador/equipes/:slug). */
 export function DetalheEquipe({ slug, abaInicial }: { slug: string; abaInicial?: string }) {
@@ -68,7 +70,7 @@ export function DetalheEquipe({ slug, abaInicial }: { slug: string; abaInicial?:
           <h3 className="text-sm font-semibold text-text">A ideia</h3>
           <p className="whitespace-pre-line text-sm text-text-muted">{equipe.descricaoIdeia}</p>
           <div className="flex flex-wrap gap-2 pt-1">
-            {equipe.area && <Badge tone="brand">{equipe.area}</Badge>}
+            {equipe.area && <AreaTag area={equipe.area} />}
             <Badge>{ESTAGIO_LABEL[equipe.estagio]}</Badge>
           </div>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 pt-2 text-sm sm:grid-cols-2">
@@ -103,7 +105,7 @@ export function DetalheEquipe({ slug, abaInicial }: { slug: string; abaInicial?:
           <StageTag etapaId={pronta ? POSICAO_PRONTA : equipe.etapa.numero}>
             {pronta ? 'Pronta' : undefined}
           </StageTag>
-          <Badge>{STATUS_EQUIPE_LABEL[equipe.status]}</Badge>
+          <StatusEquipeTag status={equipe.status} />
         </div>
         <p className="text-sm text-text-muted">
           Etapa atual:{' '}

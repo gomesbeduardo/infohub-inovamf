@@ -5,6 +5,7 @@ import { Logo } from '@/design-system/Logo';
 import { Card } from '@/design-system/components/Card';
 import { Badge } from '@/design-system/components/Badge';
 import { StageTag } from '@/design-system/components/StageTag';
+import { AreaTag } from '@/design-system/components/AreaTag';
 import { SpotlightCard } from './SpotlightCard';
 import { SpotlightField } from './SpotlightField';
 import { CURSOS_AMF } from '@/domain/cursos';
@@ -141,7 +142,7 @@ function CardEquipe({
           {caso.descricao}
         </p>
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-text-subtle">
-          <Badge>{caso.area}</Badge>
+          <AreaTag area={caso.area} />
           <span>·</span>
           <span>
             {caso.integrantes}{' '}
@@ -264,9 +265,7 @@ export function Landing() {
           <div className="mt-10 flex flex-wrap items-center gap-2">
             <span className="text-sm text-text-muted">Áreas das ideias:</span>
             {AREAS_VITRINE.map((a) => (
-              <Badge key={a} tone="brand">
-                {a}
-              </Badge>
+              <AreaTag key={a} area={a} />
             ))}
           </div>
 
