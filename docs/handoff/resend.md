@@ -1,5 +1,7 @@
 # Handoff: envio real de e-mail com Resend (worker isolado)
 
+> **Configuração (conta Resend, variáveis no Coolify, teste):** ver [`resend-config.md`](resend-config.md).
+
 > **Como trabalhar (obrigatório, ver `AGENTS.md`):** leia este documento inteiro, **explique ao dev** o que foi decidido e por quê (seção "Decisões e porquês"), **escreva um plano** em `docs/superpowers/plans/` e **só programe depois do OK**.
 >
 > **Para quem vai assumir.** Antes de começar:
