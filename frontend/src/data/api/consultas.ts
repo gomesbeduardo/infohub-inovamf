@@ -136,6 +136,19 @@ export function useAdicionarMembro(equipeSlug: string) {
   });
 }
 
+export function useRemoverMembro(equipeSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (membroSlug: string) =>
+      api<{ slug: string; removidoEm: string }>(`/equipes/${equipeSlug}/membros/${membroSlug}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: chaves.equipe(equipeSlug) });
+      void qc.invalidateQueries({ queryKey: ['equipes'] });
+      void qc.invalidateQueries({ queryKey: chaves.linhaDoTempo(equipeSlug) });
+    },
+  });
+}
+
 export function useGerarConvite(equipeSlug: string) {
   return useMutation({
     mutationFn: (membroSlug: string) =>

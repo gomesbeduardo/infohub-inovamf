@@ -15,6 +15,7 @@ vi.mock('@/data/api/consultas', () => ({
   useEtapas: vi.fn(),
   useAdicionarMembro: vi.fn(),
   useGerarConvite: vi.fn(),
+  useRemoverMembro: vi.fn(),
   useLinhaDoTempo: vi.fn(),
   useIniciarTarefa: vi.fn(),
 }));
@@ -30,6 +31,7 @@ import {
   useGerarConvite,
   useIniciarTarefa,
   useLinhaDoTempo,
+  useRemoverMembro,
   useTarefas,
 } from '@/data/api/consultas';
 import { useUsuario } from '@/data/api/useSessao';
@@ -109,6 +111,7 @@ function tarefa(p: Partial<Tarefa> = {}): Tarefa {
 const enviarMutate = vi.fn();
 const gerarMutate = vi.fn();
 const adicionarMutate = vi.fn();
+const removerMutate = vi.fn();
 const iniciarMutate = vi.fn();
 
 function mockEquipes(data: EquipeResumo[]) {
@@ -167,6 +170,9 @@ function mockPadrao() {
   >);
   vi.mocked(useAdicionarMembro).mockReturnValue({ mutate: adicionarMutate, isPending: false } as unknown as R<
     typeof useAdicionarMembro
+  >);
+  vi.mocked(useRemoverMembro).mockReturnValue({ mutate: removerMutate, isPending: false } as unknown as R<
+    typeof useRemoverMembro
   >);
   vi.mocked(useLinhaDoTempo).mockReturnValue({
     data: [],
