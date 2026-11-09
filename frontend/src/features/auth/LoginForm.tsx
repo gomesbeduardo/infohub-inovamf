@@ -28,10 +28,10 @@ export function LoginForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await autenticar(email.trim(), senha);
+    await autenticar(email.trim(), senha, false);
   }
 
-  async function autenticar(emailConta: string, senhaConta: string) {
+  async function autenticar(emailConta: string, senhaConta: string, rapido: boolean) {
     setErro('');
     setEnviando(true);
     try {
@@ -40,7 +40,9 @@ export function LoginForm() {
     } catch (err) {
       setErro(
         err instanceof ApiError && err.status === 401
-          ? 'Credenciais inválidas'
+          ? rapido
+            ? 'Conta de demonstração não encontrada. Rode o seed com SEED_DEMO=true.'
+            : 'Credenciais inválidas'
           : err instanceof ApiError
             ? err.message
             : 'Não foi possível entrar. Tente de novo.',
@@ -98,8 +100,8 @@ export function LoginForm() {
           </Button>
         </form>
 
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-text">Acesso rápido</p>
+        <div role="group" aria-labelledby="acesso-rapido" className="flex flex-col gap-2">
+          <p id="acesso-rapido" className="text-sm font-medium text-text">Acesso rápido</p>
           <p className="text-sm text-text-muted">
             Contas de demonstração do ambiente local.
           </p>
@@ -108,8 +110,9 @@ export function LoginForm() {
               <Button
                 key={conta.rotulo}
                 variant="secondary"
+                aria-label={`Entrar como ${conta.rotulo}`}
                 disabled={enviando}
-                onClick={() => autenticar(conta.email, conta.senha)}
+                onClick={() => autenticar(conta.email, conta.senha, true)}
               >
                 {conta.rotulo}
               </Button>
