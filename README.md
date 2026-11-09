@@ -84,13 +84,35 @@ scripts/          # start-all.mjs: sobe API e frontend juntos
 plan.md           # plano de implementação (decisões, paleta, tarefas TDD)
 ```
 
+## Telas
+
+Landing pública (`/`):
+
+![Landing pública](docs/img/landing.jpg)
+
+Login com o bloco Acesso rápido (`/login`):
+
+![Tela de login com Acesso rápido](docs/img/login.jpg)
+
+Painel do admin, com o funil e os indicadores:
+
+![Painel do admin](docs/img/painel-admin.jpg)
+
+Painel do mentor (orientador), com as equipes sob sua orientação:
+
+![Painel do mentor](docs/img/painel-mentor.jpg)
+
+Painel do aluno, com as tarefas da equipe:
+
+![Painel do aluno](docs/img/painel-aluno.jpg)
+
 ## Como rodar
 
 O projeto roda só localmente. Precisa de Node 20+ e Docker (para o Postgres).
 
 ```bash
 # 1. Postgres em localhost:5544 (usuário, senha e banco: infohub)
-docker compose up -d
+docker compose up -d --wait
 
 # 2. Variáveis do backend (já apontam para o Postgres acima e ligam o seed de demonstração)
 cp backend/.env.example backend/.env
@@ -108,7 +130,7 @@ npm --prefix backend run dev      # API em http://localhost:3333/api/v1
 npm --prefix frontend run dev     # app em http://localhost:3000
 ```
 
-Abra http://localhost:3000/login. Na tela de login, o bloco **Acesso rápido** tem
+Abra http://localhost:3000 (landing pública) e vá para http://localhost:3000/login. Na tela de login, o bloco **Acesso rápido** tem
 um botão por papel (Admin, Mentor, Aluno) que entra com a conta de demonstração
 correspondente. Os e-mails e senhas estão em [`docs/logins-demo.md`](docs/logins-demo.md).
 
@@ -126,14 +148,16 @@ npm --prefix backend test && npm --prefix backend run typecheck   # o backend pr
 npm --prefix frontend test && (cd frontend && npx tsc --noEmit)
 ```
 
+Atenção: os testes do backend apagam as contas de demonstração. Depois de `npm --prefix backend test`, rode `npm --prefix backend run seed` de novo.
+
 Para parar o banco: `docker compose down` (acrescente `-v` para apagar os dados).
 
 ### Como as peças se conectam
 
 | Processo | Porta | Observação |
 | -------- | ----- | ---------- |
-| Express (API) | `localhost:3333` | só local |
-| Next.js (front) | `3000` | é o endereço do app |
+| Express (API) | `127.0.0.1:3333` | só aceita conexões da própria máquina |
+| Next.js (front) | `127.0.0.1:3000` | é o endereço do app |
 
 O Next repassa `/api/*` para o Express (rewrite em `frontend/next.config.mjs`),
 então front e API respondem na mesma origem e o browser não precisa de CORS. A
@@ -176,4 +200,4 @@ Convenções do time (2 devs) para trabalhar em paralelo sem conflito:
 - **Antes de começar**, comente na issue quem pegou — sem comentário, a issue é considerada **livre**.
 - **Uma branch por issue/feature**; a branch é deletada logo após o merge.
 - **Nenhum merge sem aprovação** (na conversa ou no GitHub).
-- **Conventional Commits**; TDD na camada de domínio/repositório (teste antes da implementação); `npm test` e `npm run build` verdes antes do PR.
+- **Conventional Commits**; TDD na camada de domínio/repositório (teste antes da implementação); `npm --prefix frontend test`, `npm --prefix backend test` e `npm run build` verdes antes do PR.

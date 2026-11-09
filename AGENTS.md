@@ -55,7 +55,7 @@ fila `emails`, templates, preferências), siga esta ordem **sem pular etapas**:
 ## Commits, testes e build
 - **Conventional Commits**.
 - **TDD** na camada de domínio/repositório (teste antes da implementação).
-- `npm test` e `npm run build` **verdes** antes de abrir o PR.
+- `npm --prefix frontend test`, `npm --prefix backend test` e `npm run build` **verdes** antes de abrir o PR.
 
 ## Arquitetura (hexagonal / ports & adapters)
 O núcleo de domínio é isolado dos detalhes de entrega e infraestrutura:
