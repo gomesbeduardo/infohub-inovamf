@@ -58,5 +58,5 @@ subir("backend", "backend", { PORT: PORTA_API });
 subir("frontend", "frontend", { PORT: PORTA_WEB });
 
 console.log(
-  `[start-all] backend em 127.0.0.1:${PORTA_API} · frontend em 0.0.0.0:${PORTA_WEB}`,
+  `[start-all] backend em 127.0.0.1:${PORTA_API} · frontend em 127.0.0.1:${PORTA_WEB}`,
 );

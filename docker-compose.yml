@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: infohub
       POSTGRES_DB: infohub
     ports:
-      - "5544:5432"
+      - "127.0.0.1:5544:5432"
     volumes:
       - infohub-pgdata:/var/lib/postgresql/data
     healthcheck:
