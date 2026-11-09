@@ -12,6 +12,13 @@ import { FormField } from '@/design-system/components/FormField';
 import { AlertIcon } from '@/design-system/icons';
 import { homeFor } from '@/features/shell/nav';
 
+// Contas de demonstração criadas pelo seed (SEED_DEMO=true). Ver docs/logins-demo.md.
+const ACESSO_RAPIDO = [
+  { rotulo: 'Admin', email: 'admin@infohub.dev', senha: 'admin123' },
+  { rotulo: 'Mentor', email: 'mentor1@demo.infohub.dev', senha: 'mentor123' },
+  { rotulo: 'Aluno', email: 'bruna.lopes@demo.infohub.dev', senha: 'aluno123' },
+] as const;
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -21,15 +28,21 @@ export function LoginForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    await autenticar(email.trim(), senha, false);
+  }
+
+  async function autenticar(emailConta: string, senhaConta: string, rapido: boolean) {
     setErro('');
     setEnviando(true);
     try {
-      const usuario = await sessao.entrar(email.trim(), senha);
+      const usuario = await sessao.entrar(emailConta, senhaConta);
       router.push(homeFor(usuario.role));
     } catch (err) {
       setErro(
         err instanceof ApiError && err.status === 401
-          ? 'Credenciais inválidas'
+          ? rapido
+            ? 'Conta de demonstração não encontrada. Rode o seed com SEED_DEMO=true.'
+            : 'Credenciais inválidas'
           : err instanceof ApiError
             ? err.message
             : 'Não foi possível entrar. Tente de novo.',
@@ -86,6 +99,26 @@ export function LoginForm() {
             {enviando ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
+
+        <div role="group" aria-labelledby="acesso-rapido" className="flex flex-col gap-2">
+          <p id="acesso-rapido" className="text-sm font-medium text-text">Acesso rápido</p>
+          <p className="text-sm text-text-muted">
+            Contas de demonstração do ambiente local.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {ACESSO_RAPIDO.map((conta) => (
+              <Button
+                key={conta.rotulo}
+                variant="secondary"
+                aria-label={`Entrar como ${conta.rotulo}`}
+                disabled={enviando}
+                onClick={() => autenticar(conta.email, conta.senha, true)}
+              >
+                {conta.rotulo}
+              </Button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center justify-between text-sm">
           <a href="/recuperar-senha" className="text-text-muted hover:text-text">

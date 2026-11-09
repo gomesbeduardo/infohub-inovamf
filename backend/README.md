@@ -51,19 +51,15 @@ Depois disso o usuário só precisa de DDL **dentro** do schema.
 `docs/sql/infohub_schema.sql` continua no repo como referência histórica do
 desenho; quem manda hoje é `prisma/migrations/`.
 
-## Deploy no Coolify (sem Docker)
+## Rodando junto com o frontend
 
-A API **não é publicada sozinha**: front e backend sobem juntos, num único
-resource (Railpack) com `Base Directory = /` (raiz). Ver `README.md` na raiz.
+Este projeto roda só localmente. O `npm start`
+do backend é `prisma migrate deploy && node dist/seed/index.js && node dist/server.js`
+(aplica as migrations, roda o seed e abre a API). O `npm start` da raiz sobe API
+e frontend juntos depois de `npm run build`.
 
-O `npm start` do backend é `prisma migrate deploy && node dist/server.js`: **cada
-deploy aplica as migrations pendentes** antes de a API abrir a porta. Se uma
-migration falhar, o processo morre com log do Prisma, e o supervisor da raiz
-derruba o front junto — o deploy não sobe pela metade.
-
-Em produção a API escuta em `127.0.0.1:3333` e quem expõe é o Next, que repassa
-`/api/*` (rewrite em `frontend/next.config.mjs`). Mesmo domínio para os dois,
-então `CORS_ORIGIN` deixa de importar entre front e API.
+A API escuta em `localhost:3333` e o Next repassa `/api/*` para ela (rewrite em
+`frontend/next.config.mjs`), então o browser fala só com `http://localhost:3000`.
 
 ## Scripts
 

@@ -37,7 +37,7 @@ fila `emails`, templates, preferências), siga esta ordem **sem pular etapas**:
    worker como processo separado no mesmo resource, nunca enviar para
    `@demo.infohub.dev`). Se achar que uma delas está errada, **pergunte**, com o
    motivo, antes de mudar o plano.
-5. **Segredos:** a `RESEND_API_KEY` vive **só** no Coolify. Nunca em código,
+5. **Segredos:** a `RESEND_API_KEY` vive **só** no `backend/.env` local (fora do git). Nunca em código,
    `.env` versionado, issue, PR ou chat.
 
 ## Fluxo de branches e PRs
@@ -55,15 +55,14 @@ fila `emails`, templates, preferências), siga esta ordem **sem pular etapas**:
 ## Commits, testes e build
 - **Conventional Commits**.
 - **TDD** na camada de domínio/repositório (teste antes da implementação).
-- `npm test` e `npm run build` **verdes** antes de abrir o PR.
+- `npm --prefix frontend test`, `npm --prefix backend test` e `npm run build` **verdes** antes de abrir o PR.
 
 ## Arquitetura (hexagonal / ports & adapters)
 O núcleo de domínio é isolado dos detalhes de entrega e infraestrutura:
 - **Núcleo** — `frontend/src/domain/` (tipos derivados do schema + labels/regras)
   e a lógica de negócio como **funções puras** `(estado, args) → estado`.
-- **Adaptadores de dados** — `frontend/src/data/` (`repository` de funções puras,
-  `store` React, `session` mockada); hoje é memória, amanhã persistência real, sem
-  tocar no núcleo.
+- **Adaptadores de dados** — `frontend/src/data/` (cliente da API em `api/`,
+  consultas e sessão); a persistência é a API, sem tocar no núcleo.
 - **Adaptadores de entrega (UI)** — `frontend/src/features/` + `frontend/src/app/`
   (App Router).
 Regras práticas: o domínio **não importa** UI, store nem framework; dependências
@@ -76,8 +75,9 @@ entra no núcleo com teste antes (TDD), não dentro de componente.
 - Backend: Express 4 + Prisma 5 + PostgreSQL (`backend/`), testes com Vitest e
   supertest. Os dados são reais: o front fala só com `/api/v1`, e não há mais
   mock em memória.
-- Deploy: um resource no Coolify (Railpack). `scripts/start-all.mjs` sobe a API
-  (127.0.0.1:3333) e o Next ($PORT), que repassa `/api/*` para a API.
+- Execução: só local. `docker-compose.yml` sobe o Postgres; `scripts/start-all.mjs`
+  (`npm start` na raiz, depois de `npm run build`) sobe a API (localhost:3333) e o
+  Next (porta 3000), que repassa `/api/*` para a API.
 
 ## Documentação de referência
 Já existem `.md`s no repo — consulte antes de duplicar decisão:

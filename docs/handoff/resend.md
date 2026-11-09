@@ -1,5 +1,7 @@
 # Handoff: envio real de e-mail com Resend (worker isolado)
 
+> **Documento histórico.** Este texto foi escrito para o deploy no Coolify, que não existe mais: o projeto roda só localmente. Onde ele manda usar o Coolify, o `nixpacks.toml` ou o `.env.example` da raiz, leia assim: a chave `RESEND_API_KEY` (e `EMAIL_FROM`, `APP_URL`) vai em `backend/.env`, que não é versionado, e o modelo é `backend/.env.example`. Os arquivos `nixpacks.toml`, `railpack.json` e `.env.example` da raiz foram removidos.
+
 > **Configuração (conta Resend, variáveis no Coolify, teste):** ver [`resend-config.md`](resend-config.md).
 
 > **Como trabalhar (obrigatório, ver `AGENTS.md`):** leia este documento inteiro, **explique ao dev** o que foi decidido e por quê (seção "Decisões e porquês"), **escreva um plano** em `docs/superpowers/plans/` e **só programe depois do OK**.
@@ -83,7 +85,7 @@ O commit `89b0c66` está publicado no GitHub, mas foi criado **a partir de um `s
 - `backend/package.json`: `worker` (`node dist/worker.js`) e `worker:dev` (`tsx watch src/worker.ts`).
 - `scripts/start-all.mjs`: sobe o worker como terceiro processo, no mesmo resource do Coolify.
 - `backend/tests/email.test.ts`: cerca de 230 linhas, com um provedor falso.
-- `.env.example`, `backend/.env.example` e `README.md` atualizados. O `nixpacks.toml` também foi alterado, mas **hoje o deploy usa Railpack**, então confira se essa mudança ainda faz sentido.
+- `backend/.env.example` e `README.md` atualizados (o `.env.example` da raiz foi removido). O `nixpacks.toml` também foi alterado, mas **o arquivo foi removido**, então ignore essa mudança.
 
 ## O que falta (em ordem)
 
@@ -92,8 +94,8 @@ O commit `89b0c66` está publicado no GitHub, mas foi criado **a partir de um `s
 Conflitos esperados:
 - `scripts/start-all.mjs`: o de hoje sobe o Express em `127.0.0.1:3333` e o Next em `$PORT`. Acrescente o worker **sem** mudar essas portas.
 - `backend/src/models/email.model.ts`: o `staging` ganhou `registrarPedidoRedefinicao` e `JANELA_PEDIDO_REDEFINICAO_MS`. Mantenha os dois.
-- `backend/src/env.ts`, `README.md` e `.env.example`: mescle.
-- `nixpacks.toml`: provavelmente descarte, porque o deploy é Railpack. Confirme no Coolify.
+- `backend/src/env.ts`, `README.md` e `backend/.env.example`: mescle.
+- `nixpacks.toml`: descarte; o arquivo não existe mais.
 
 ### 2. Não enviar para contas de demonstração (obrigatório)
 

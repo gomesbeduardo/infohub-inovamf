@@ -7,8 +7,9 @@ Hoje esse acompanhamento é manual — a jornada é guiada por uma cartilha impr
 Este repositório é o projeto prático da disciplina de **Arquitetura de Sistemas**, do curso de graduação em Sistemas de Informação. O sistema é construído de forma incremental ao longo da cadeira:
 
 - **Fase 1** — levantamento de requisitos e modelagem do banco de dados.
-- **Fase 2 (atual)** — frontend web com dados mockados: Design System próprio, os 5 fluxos centrais + funcionalidades de coordenação (painel, contas, relatórios CSV), dark/light e cobertura de testes (TDD).
-- **Fases futuras** — backend/persistência real, e-mails/lembretes e relatórios, conforme a disciplina avançar.
+- **Fase 2** — frontend web com dados mockados: Design System próprio, os 5 fluxos centrais + funcionalidades de coordenação (painel, contas, relatórios CSV), dark/light e cobertura de testes (TDD).
+- **Fase 3 (atual)** — backend Node/Express/Prisma com PostgreSQL, autenticação por perfil e seed de demonstração. O projeto roda apenas localmente.
+- **Fases futuras** — e-mails/lembretes e relatórios, conforme a disciplina avançar.
 
 ## Documentação
 
@@ -32,15 +33,13 @@ Concluída a etapa 6 com os entregáveis aprovados, a equipe é marcada como **P
 
 ## Stack
 
-Frontend web com **dados mockados em memória** (sem backend/persistência nesta fase), guiado por um Design System próprio da marca *infohub*:
+Frontend web falando com uma API própria, guiado por um Design System da marca *infohub*:
 
-- **Next.js 14** (App Router) + **React 18** + **TypeScript** (strict).
+- **Next.js 14** (App Router) + **React 18** + **TypeScript** (strict) + TanStack Query.
 - **Tailwind CSS v3** com cores 100% tokenizadas (CSS variables) e **dark/light**; o tema é **persistente por cookie**, aplicado no SSR (sem flash entre sessões).
-- **Dados em memória**: repositório de **funções puras** (`(estado, args) → estado`) + store React (Context/reducer); a sessão é mockada.
+- **Backend**: Express 4 + Prisma 5 + **PostgreSQL** (`backend/`). O front fala só com `/api/v1`; o Next repassa `/api/*` para a API.
 - **shadcn/Radix** só para primitivos de acessibilidade (Dialog).
-- **Vitest + React Testing Library + jsdom** (TDD na camada de domínio/repositório e componentes críticos).
-
-O scaffold é gerado pelo init oficial do framework (`create-next-app@14`); nenhum arquivo de configuração é escrito à mão.
+- **Vitest + React Testing Library + jsdom** no frontend; **Vitest + supertest** no backend (TDD).
 
 ### Design System
 
@@ -52,16 +51,16 @@ O scaffold é gerado pelo init oficial do framework (`create-next-app@14`); nenh
 
 ### Segurança / dependências
 
-`npm audit` acusa vulnerabilidades cujo fix automático (`npm audit fix --force`) exigiria pular para Next 16 + React 19 + eslint 9 (cascata de majors que foge do plano). A decisão foi **manter o Next 14** por ser um projeto acadêmico que roda **localmente**, porque os avisos não são exploráveis neste contexto:
+`npm audit` acusa vulnerabilidades cujo fix automático (`npm audit fix --force`) exigiria pular para Next 16 + React 19 + eslint 9 (cascata de majors que foge do plano). A decisão foi **manter o Next 14** por ser um projeto acadêmico que roda **só localmente**, porque os avisos não são exploráveis neste contexto:
 
-- **esbuild / vite / vitest / postcss / glob** — tooling de **dev/build**; não vai para o artefato final e não recebe input não-confiável.
-- **Next.js** (DoS no Image Optimizer, cache poisoning em RSC, SSRF em rewrites) — só afetam apps **self-hosted em produção** usando esses recursos, que este mock não usa.
+- **esbuild / vite / vitest / postcss / glob** — tooling de **dev/build**; não recebe input não-confiável.
+- **Next.js** (DoS no Image Optimizer, cache poisoning em RSC, SSRF em rewrites) — só afetam apps expostos publicamente usando esses recursos.
 
-Ao evoluir para um deploy real, revisar e atualizar as dependências (incluindo o salto de major do Next) faz parte do hardening.
+Se o projeto for exposto na internet, revisar e atualizar as dependências (incluindo o salto de major do Next) vem antes.
 
 ## Estrutura do repositório
 
-Monorepo: `frontend/` (Next.js) e `api/` (backend, a nascer) como irmãos; docs e
+Monorepo: `frontend/` (Next.js) e `backend/` (API) como irmãos; docs e
 planos ficam na raiz. Dentro do frontend, por feature — arquivos que mudam juntos
 ficam juntos:
 
@@ -73,45 +72,122 @@ frontend/         # app Next.js (pacote próprio: package.json, tsconfig, testes
                   #   admin (funil+dashboard), admin/equipes/[slug], admin/contas, aluno
     design-system/# tokens.css, tema, cn, componentes-marca, brand/ (logos SVG)
     domain/       # tipos derivados do schema + labels pt-BR
-    data/         # fixtures (seed), repository (funções puras), store, session
+    data/         # cliente da API (api/), consultas, sessão
     features/     # telas por feature (landing, auth, aluno-cadastro, admin-funil,
                   #   admin-detalhe, admin-tarefas, admin-dashboard, admin-contas,
                   #   aluno-tarefas, shell)
   tests/          # Vitest: repository/domain (funções puras) + componentes (RTL)
-api/              # backend Node/Express/Prisma (ver plan-backend.md)
-docs/             # requisitos (RF/RNF/RN) + schema SQL
+backend/          # API Node/Express/Prisma (ver plan-backend.md)
+docs/             # requisitos (RF/RNF/RN), schema SQL e contas de demonstração
+docker-compose.yml# Postgres local
+scripts/          # start-all.mjs: sobe API e frontend juntos
 plan.md           # plano de implementação (decisões, paleta, tarefas TDD)
 ```
 
+## Telas
+
+Landing pública (`/`):
+
+![Landing pública](docs/img/landing.jpg)
+
+Login com o bloco Acesso rápido (`/login`):
+
+![Tela de login com Acesso rápido](docs/img/login.jpg)
+
+Painel do admin, com o funil e os indicadores:
+
+![Painel do admin](docs/img/painel-admin.jpg)
+
+Painel do mentor (orientador), com as equipes sob sua orientação:
+
+![Painel do mentor](docs/img/painel-mentor.jpg)
+
+Painel do aluno, com as tarefas da equipe:
+
+![Painel do aluno](docs/img/painel-aluno.jpg)
+
 ## Como rodar
 
+O projeto roda só localmente. Precisa de Node 20+ e Docker (para o Postgres).
+
 ```bash
-cd frontend      # o app é um pacote próprio dentro do monorepo
-npm install      # instala as dependências
-npm run dev      # sobe o app em http://localhost:3000 (landing pública em /)
-npm test         # roda a suíte Vitest (TDD)
-npm run build    # build de produção
+# 1. Postgres em localhost:5544 (usuário, senha e banco: infohub)
+docker compose up -d --wait
+
+# 2. Variáveis do backend (já apontam para o Postgres acima e ligam o seed de demonstração)
+cp backend/.env.example backend/.env
+
+# 3. Dependências
+npm --prefix backend install
+npm --prefix frontend install
+
+# 4. Migrations e seed (cria o admin e, com SEED_DEMO=true, as contas de demonstração)
+npm --prefix backend run db:migrate
+npm --prefix backend run seed
+
+# 5. Em dois terminais
+npm --prefix backend run dev      # API em http://localhost:3333/api/v1
+npm --prefix frontend run dev     # app em http://localhost:3000
 ```
 
-Login mockado do seed: administrador `admin@infohub.dev` / `123456`; aluno `aluno@infohub.dev` / `123456`.
+Abra http://localhost:3000 (landing pública) e vá para http://localhost:3000/login. Na tela de login, o bloco **Acesso rápido** tem
+um botão por papel (Admin, Mentor, Aluno) que entra com a conta de demonstração
+correspondente. Os e-mails e senhas estão em [`docs/logins-demo.md`](docs/logins-demo.md).
+
+Para subir API e frontend juntos num terminal só, a partir da build:
+
+```bash
+npm run build   # builda backend e frontend
+npm start       # roda migrate, seed e os dois servidores (http://localhost:3000)
+```
+
+Testes e tipos:
+
+```bash
+npm --prefix backend test && npm --prefix backend run typecheck   # o backend precisa do Postgres no ar
+npm --prefix frontend test && (cd frontend && npx tsc --noEmit)
+```
+
+Atenção: os testes do backend apagam as contas de demonstração. Depois de `npm --prefix backend test`, rode `npm --prefix backend run seed` de novo.
+
+Para parar o banco: `docker compose down` (acrescente `-v` para apagar os dados).
+
+### Como as peças se conectam
+
+| Processo | Porta | Observação |
+| -------- | ----- | ---------- |
+| Express (API) | `127.0.0.1:3333` | só aceita conexões da própria máquina |
+| Next.js (front) | `127.0.0.1:3000` | é o endereço do app |
+
+O Next repassa `/api/*` para o Express (rewrite em `frontend/next.config.mjs`),
+então front e API respondem na mesma origem e o browser não precisa de CORS. A
+porta interna `3333` é constante em `frontend/next.config.mjs` e em
+`scripts/start-all.mjs`: os rewrites do Next são resolvidos no build, e uma
+variável de ambiente seria ignorada em runtime.
+
+### Seed
+
+- **Base** (sempre): ciclo 2026/2, modelos de tarefa por etapa e o admin inicial `admin@infohub.dev` / `admin123`.
+- **Demo** (`SEED_DEMO=true`): contas `@demo.infohub.dev` — 4 mentores `mentor1..4` / `mentor123` + 13 alunos `<nome.sobrenome>` / `aluno123` (ex.: `bruna.lopes@demo.infohub.dev`), total **17 contas demo**. Cada equipe tem líder + 3 integrantes ativos; a equipe C tem ainda um 5º integrante (Letícia) com convite pendente. Roda uma vez; o link de convite pendente da Letícia sai no log do seed.
+- Remover a demo: `npm --prefix backend run seed:demo:purge` (log: `removidas 3 equipes e 17 contas demo`). Para reconstruir o cenário com prazos frescos, rode o purge e o seed de novo.
 
 ## Status
 
-Frontend mockado funcionando. Requisitos levantados, schema do banco escrito e os **5 fluxos centrais** implementados de ponta a ponta com estado compartilhado em memória:
+Frontend e backend integrados, com dados reais no PostgreSQL. Requisitos levantados, schema do banco escrito e os **5 fluxos centrais** implementados de ponta a ponta:
 
-1. **Login** mockado com guarda de rota por perfil.
+1. **Login** com guarda de rota por perfil (admin, mentor, aluno) e atalho de acesso rápido com as contas de demonstração.
 2. **Cadastro da ideia** — cria a conta do aluno e a equipe na Etapa 1.
 3. **Funil** (kanban de 6 etapas + "Pronta p/ InovAMF") com busca e filtros.
 4. **Detalhe da equipe** — avançar/retroceder etapa (RN-01 + forçar), criar tarefas e avaliar entregas (aprovar/ajustar).
-5. **Área do aluno** — tarefas da equipe e envio de entregas (arquivo mock ou link), refletindo no painel do admin.
+5. **Área do aluno** — tarefas da equipe e envio de entregas (arquivo ou link), refletindo no painel do admin.
 
-Também cobertos, além dos 5 fluxos, após revisão dos requisitos: painel consolidado com indicadores (RF-22), atraso automático de tarefas (RN-04), anotações internas do mentor (RF-10), escopo de visão do mentor (RNF-03), exportação CSV (RF-23), filtro por ciclo (RF-24), **gestão de contas admin/mentor com criação/edição/desativação (RF-03)**, recuperação de senha simulada (RF-01) e **múltiplos arquivos/links por entrega (RF-14)**.
+Também cobertos: painel consolidado com indicadores (RF-22), atraso automático de tarefas (RN-04), anotações internas do mentor (RF-10), escopo de visão do mentor (RNF-03), exportação CSV (RF-23), filtro por ciclo (RF-24), gestão de contas admin/mentor com criação/edição/desativação (RF-03), recuperação de senha (RF-01) e múltiplos arquivos/links por entrega (RF-14).
 
 Sobre o visual: identidade própria (tipografia, logo SVG, *ignition rail*), dark/light com tema persistente, animações contidas e correções de acessibilidade a partir de auditoria (Web Interface Guidelines).
 
 **Decisão de produto (RN-03 / Q4):** um aluno pode integrar mais de uma equipe e é adicionado automaticamente pelo líder, sem fluxo de pedido/aceite.
 
-Fora do escopo desta fase (dependem de backend/infra): e-mails e lembretes (RF-17–21), LGPD (RNF-02), auditoria completa (RNF-05), armazenamento seguro de arquivos e backup (RNF-04/07), upload físico de arquivo.
+Ficam de fora: upload físico de arquivo, armazenamento seguro de arquivos e backup (RNF-04/07).
 
 Pontos que ainda dependem de decisão da coordenação (Q1–Q7): entre eles se cada integrante terá login próprio e qual serviço de e-mail será usado.
 
@@ -124,60 +200,4 @@ Convenções do time (2 devs) para trabalhar em paralelo sem conflito:
 - **Antes de começar**, comente na issue quem pegou — sem comentário, a issue é considerada **livre**.
 - **Uma branch por issue/feature**; a branch é deletada logo após o merge.
 - **Nenhum merge sem aprovação** (na conversa ou no GitHub).
-- **Conventional Commits**; TDD na camada de domínio/repositório (teste antes da implementação); `npm test` e `npm run build` verdes antes do PR.
-
-## Deploy (Coolify, sem Docker, um resource só)
-
-Front e backend sobem **juntos, num único resource**, com **um comando**:
-`npm start` na raiz roda `scripts/start-all.mjs`, que dá spawn nos dois.
-
-No Coolify: **Build Pack = Railpack**, **Base Directory = `/`**, **Port = 3000**.
-O `railpack.json` da raiz instala e builda os dois apps e define o start command.
-
-> O `nixpacks.toml` da raiz é o mesmo plano para quem usar **Nixpacks**. Só um
-> dos dois vale por vez — o build pack escolhido no Coolify ignora o outro
-> arquivo. Mexeu em um, mexa no outro.
-
-Como fica dentro do container:
-
-| Processo | Porta | Exposto |
-| -------- | ----- | ------- |
-| Express (API) | `127.0.0.1:3333` | não |
-| Next.js (front) | `0.0.0.0:$PORT` (3000) | sim, é o domínio do app |
-
-O Next repassa `/api/*` para o Express (rewrite em `frontend/next.config.mjs`),
-então **front e API vivem no mesmo domínio** — uma porta pública, sem CORS entre
-eles, e o browser nunca fala com a API diretamente.
-
-Três armadilhas que já custaram tempo:
-
-- A porta interna `3333` é **constante nos dois arquivos**, não env. Os rewrites
-  do Next são resolvidos no build e viram `routes-manifest.json`; uma env aqui
-  seria lida no build e ignorada em runtime.
-- Se qualquer um dos dois processos morrer, o supervisor derruba o outro e sai
-  com código ≠ 0, para o Coolify reiniciar o container inteiro. Nada de meia
-  aplicação no ar.
-- `deploy.inputs` no `railpack.json` **substitui** os inputs padrão do Railpack.
-  Sem a camada `packages:mise` o Node não vai para a imagem final, e o container
-  entra em loop com `npm: command not found` — o build passa, só o start quebra.
-
-No resource do Coolify: **Ports Exposes = `3000`** (é para lá que o Traefik
-manda o tráfego) e **sem Port Mapping** — o servidor é compartilhado e não há
-motivo para publicar a porta no host. Healthcheck, se ligado: `/api/v1/health`.
-Deixe o healthcheck **desligado**, ou com start period **≥ 90 s**: o boot roda
-migrate + seed antes da API subir, e com o padrão do Coolify o container é
-marcado unhealthy e o deploy volta atrás.
-
-As variáveis de ambiente vão todas numa lista só, no resource — ver
-[.env.example](.env.example). Para o G1: `SEED_DEMO=true` e `INVITE_URL_BASE`
-sem definir (os links de convite saem relativos e o front completa o domínio).
-
-### Seed (G1)
-O `npm start` roda `prisma migrate deploy` → **seed** → servidor. O seed nunca
-derruba nem trava o boot: falha é logada e o deploy segue; se passar de 60s
-(ex.: banco lento), o boot também segue sem esperar o seed terminar.
-- **Base** (sempre): ciclo 2026/2, modelos de tarefa por etapa e o admin inicial `admin@infohub.dev` / `admin123`.
-- **Demo** (`SEED_DEMO=true`): cenário do G1 com contas `@demo.infohub.dev` — 4 mentores `mentor1..4` / `mentor123` + 13 alunos `<nome.sobrenome>` / `aluno123` (ex.: `bruna.lopes@demo.infohub.dev`), total **17 contas demo**. Cada equipe tem líder + 3 integrantes ativos; a equipe C tem ainda um 5º integrante (Letícia) com convite pendente. Roda uma vez; o link de convite pendente da Letícia sai no log do deploy.
-- Remover a demo quando o sistema entrar em uso real: `npm --prefix backend run seed:demo:purge` (log: `removidas 3 equipes e 17 contas demo`).
-
-**Dia da demo:** antes de apresentar o G1, rode `npm --prefix backend run seed:demo:purge` e reinicie/reimplante o resource, para o cenário ser reconstruído do zero (prazos e status sempre frescos). Nunca ensaie a demo em produção — ensaie localmente, ou rode o purge logo depois de ensaiar em produção.
+- **Conventional Commits**; TDD na camada de domínio/repositório (teste antes da implementação); `npm --prefix frontend test`, `npm --prefix backend test` e `npm run build` verdes antes do PR.

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Raiz do monorepo — builda e sobe backend + frontend num único resource do Coolify.",
+  "description": "Raiz do monorepo: builda e sobe backend e frontend localmente com um comando.",
   "engines": {
     "node": ">=20"
   },

@@ -12,7 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "prisma migrate deploy && node dist/seed/index.js && node dist/server.js",
     "seed": "tsx src/seed/index.ts",
-    "seed:demo:purge": "node dist/seed/purge.js",
+    "seed:demo:purge": "tsx src/seed/purge.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

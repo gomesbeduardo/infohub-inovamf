@@ -1,5 +1,7 @@
 # Handoff: configuração completa do Resend (Coolify + conta)
 
+> **Documento histórico.** Este texto foi escrito para o deploy no Coolify, que não existe mais: o projeto roda só localmente. Onde ele manda usar o Coolify, o `nixpacks.toml` ou o `.env.example` da raiz, leia assim: a chave `RESEND_API_KEY` (e `EMAIL_FROM`, `APP_URL`) vai em `backend/.env`, que não é versionado, e o modelo é `backend/.env.example`. Os arquivos `nixpacks.toml`, `railpack.json` e `.env.example` da raiz foram removidos.
+
 > Complementa o [`resend.md`](resend.md), que cobre o código: integrar o worker da branch `feat/email-worker` com a fila de `staging`.
 > Este arquivo trata só da **configuração**: conta Resend, variáveis no Coolify, deploy e teste.
 >

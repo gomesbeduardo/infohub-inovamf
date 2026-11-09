@@ -6,9 +6,9 @@ const PORTA_API_INTERNA = 3333;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Front e API vivem no mesmo container (ver scripts/start-all.mjs): o Next
-  // repassa /api/* para o Express local, então o browser fala só com o domínio
-  // do front — uma porta exposta, nenhum CORS entre os dois.
+  // Front e API rodam na mesma máquina (ver scripts/start-all.mjs): o Next
+  // repassa /api/* para o Express local, então o browser fala só com a origem
+  // do front, sem CORS entre os dois.
   async rewrites() {
     return [
       {

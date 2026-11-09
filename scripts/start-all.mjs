@@ -1,11 +1,11 @@
-// Sobe backend e frontend no mesmo container, com um comando só.
+// Sobe backend e frontend (já buildados) com um comando só, para uso local:
+// `npm run build` e depois `npm start`.
 //
-// Express em 127.0.0.1:3333 (interno) e Next em 0.0.0.0:$PORT (público). O Next
-// repassa /api/* para o Express, então só uma porta precisa ser exposta.
+// Express na porta 3333 (interna) e Next em $PORT (padrão 3000). O Next
+// repassa /api/* para o Express, então o browser só fala com a porta 3000.
 //
 // Regra de vida do processo: se qualquer um dos dois morrer, derrubamos o outro
-// e saímos com código de erro — assim o Coolify reinicia o container inteiro em
-// vez de manter metade da aplicação no ar.
+// e saímos com código de erro, em vez de manter metade da aplicação no ar.
 import { spawn } from "node:child_process";
 
 // Fixa: o rewrite do Next que aponta para cá é gravado no build, então essa
@@ -58,5 +58,5 @@ subir("backend", "backend", { PORT: PORTA_API });
 subir("frontend", "frontend", { PORT: PORTA_WEB });
 
 console.log(
-  `[start-all] backend em 127.0.0.1:${PORTA_API} · frontend em 0.0.0.0:${PORTA_WEB}`,
+  `[start-all] backend em 127.0.0.1:${PORTA_API} · frontend em 127.0.0.1:${PORTA_WEB}`,
 );
