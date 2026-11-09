@@ -4,7 +4,7 @@ As contas são criadas pelo seed (`backend/src/seed/base.ts` e `backend/src/seed
 
 **Local:** http://localhost:3000/login
 
-> São credenciais **de demonstração**, fixas no seed e só para uso local. Contas `@demo.infohub.dev` saem com `npm run seed:demo:purge`.
+> São credenciais **de demonstração**, fixas no seed e só para uso local. Contas `@demo.infohub.dev` saem com `npm --prefix backend run seed:demo:purge`.
 
 ## Senhas por papel
 
