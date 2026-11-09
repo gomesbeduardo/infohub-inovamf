@@ -40,4 +40,30 @@ describe('LoginForm (API real)', () => {
     render(<LoginForm />);
     expect(screen.queryByLabelText(/conta de demonstração/i)).not.toBeInTheDocument();
   });
+
+  describe('Acesso rápido', () => {
+    it.each([
+      ['Admin', 'admin@infohub.dev', 'admin123', 'admin', '/admin'],
+      ['Mentor', 'mentor1@demo.infohub.dev', 'mentor123', 'mentor', '/orientador'],
+      ['Aluno', 'bruna.lopes@demo.infohub.dev', 'aluno123', 'aluno', '/aluno'],
+    ] as const)('botão %s entra pelo login real e vai para a home do papel', async (nome, email, senha, role, home) => {
+      const entrar = vi
+        .spyOn(sessao, 'entrar')
+        .mockResolvedValue({ slug: 's', nome: 'N', role } as never);
+      const user = userEvent.setup();
+      render(<LoginForm />);
+      await user.click(screen.getByRole('button', { name: nome }));
+      expect(entrar).toHaveBeenCalledWith(email, senha);
+      expect(push).toHaveBeenCalledWith(home);
+    });
+
+    it('erro no acesso rápido mostra o alerta e não redireciona', async () => {
+      vi.spyOn(sessao, 'entrar').mockRejectedValue(new ApiError(401, 'INVALID_CREDENTIALS', 'x'));
+      const user = userEvent.setup();
+      render(<LoginForm />);
+      await user.click(screen.getByRole('button', { name: 'Admin' }));
+      expect(await screen.findByText(/credenciais inválidas/i)).toBeInTheDocument();
+      expect(push).not.toHaveBeenCalled();
+    });
+  });
 });
