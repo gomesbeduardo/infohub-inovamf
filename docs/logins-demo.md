@@ -1,10 +1,10 @@
 # InfoHub G1: contas de demonstração
 
-As contas são criadas pelo seed (`backend/src/seed/base.ts` e `backend/src/seed/demo.ts`, com `SEED_DEMO=true`). Foram conferidas na produção em 22/09. As mesmas contas existem no ambiente local depois de `npm run seed` com `SEED_DEMO=true`.
+As contas são criadas pelo seed (`backend/src/seed/base.ts` e `backend/src/seed/demo.ts`, com `SEED_DEMO=true`). Elas existem no ambiente local depois de `npm --prefix backend run seed` com `SEED_DEMO=true`. A tela de login tem um bloco **Acesso rápido** com um botão por papel (Admin, Mentor, Aluno).
 
-**Produção:** http://localhost:3000/login
+**Local:** http://localhost:3000/login
 
-> São credenciais **de demonstração**, fixas no seed e só para a avaliação do G1. Contas `@demo.infohub.dev` saem com `npm run seed:demo:purge`.
+> São credenciais **de demonstração**, fixas no seed e só para uso local. Contas `@demo.infohub.dev` saem com `npm run seed:demo:purge`.
 
 ## Senhas por papel
 
@@ -64,6 +64,6 @@ Etapa 1 aprovada. Tem **tarefa atrasada** ("Confirmar agendamento do primeiro en
 ## Cuidados ao testar
 
 - **Uma janela anônima (ou perfil de navegador) por papel.** As abas do mesmo navegador compartilham o login: entrar como mentor numa aba troca o usuário da aba do admin.
-- **Isto é produção, com o cenário da demo.** Olhar tudo é seguro. Ações que mudam dados alteram o que o professor vai ver: avançar etapa, avaliar entrega, criar tarefa, trocar senha, aceitar o convite da Letícia. Se precisar testar essas ações, teste localmente ou refaça o cenário antes da demo (purge + redeploy).
+- **Ações que mudam dados alteram o cenário da demo:** avançar etapa, avaliar entrega, criar tarefa, trocar senha, aceitar o convite da Letícia. Para refazer o cenário, rode `npm --prefix backend run seed:demo:purge` e depois o seed de novo.
 - **Limite de login:** 5 tentativas **erradas** a cada 15 minutos para o mesmo e-mail. Logins certos não contam.
 - **O admin não consegue desativar nem rebaixar a própria conta**: o sistema recusa, de propósito.
